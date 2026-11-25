@@ -51,6 +51,12 @@ A Floating Holiday can only cover a day in the same calendar year. An unused one
 **US-13: This year and next year are separated by a row.**
 The Ledger groups rows by calendar year, with one separator row between years.
 
+**US-22: See free time off now, by the end of this year and by the end of next year.**
+The Ledger summary has three lines instead of one "Free" total, each counting Vacation and Floating Holidays not used by any Occasion:
+- **Earned now:** Earn Date on or before today.
+- **By end of this year:** Earn Date on or before Dec 31 of this year. This year's Floating Holidays count, since they're still usable that day.
+- **By end of next year:** Earn Date on or before Dec 31 of next year. This year's Floating Holidays don't count, because they've expired by then.
+
 **US-14: Change an Earn Date by tapping it.**
 Tapping a date on the Ledger lets me change the day that Benefit Day was earned. The change stays put, and I can reset it.
 
