@@ -113,12 +113,17 @@ Every update is backwards compatible. Data saved by an earlier version, on the d
 - On a phone, the same three are tabs.
 - The day-type dropdown offers RDO, Floating Holiday, Vacation and Unpaid, and nothing else (no sick time).
 
-**US-19: It works on my iPhone.**
-Nothing overflows its card in iPhone Safari, date fields included.
+**US-19: It works and reads well on my iPhone.**
+Nothing overflows its card in iPhone Safari, date fields included. On a phone the Ledger reads as a clean list:
+- Each row's date and type label ("Vacation (Earned)") fit on one line.
+- The Occasion name sits on its own line beneath, not squeezed into a narrow column.
+- Nothing scrolls sideways.
 
-**US-20: It's pretty.**
-Clear colors for each type of day, Season colors, and animations. Motion is turned off when Reduce Motion is on.
-- A vivid palette in light and dark, with one color per Day Type (Vacation, Floating Holiday, RDO, Unpaid) used the same way on the Ledger, the day editor and the PTO counts, and one per Season.
-- A friendly header and a colorful "Earned now" card; the year rows, Estimated italics and the "*" stay easy to spot.
-- Editors open and close smoothly, rows and cards fade in, tabs slide, buttons press and counts roll to their new value.
-- System fonts only, and nothing loaded from other sites.
+**US-20: It's pretty, not garish.**
+Calm and polished, in the style of a good iPhone app:
+- Neutral surfaces, with color used as a small accent.
+- One color per Day Type and Season, shown as a small dot or muted text, never a big colored block.
+- No gradients or glow on content, and no gradient text.
+- A compact header, and tabs that look like an iPhone segmented control.
+- Text and its background meet WCAG AA contrast (4.5:1) in light and dark.
+- Motion is subtle: short fades and slides, editors opening smoothly. All of it turns off when Reduce Motion is on.
