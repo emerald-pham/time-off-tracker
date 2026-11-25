@@ -2,7 +2,7 @@ import { yearOf } from "./dates";
 import { isPaid } from "./occasions";
 import { payday } from "./payday";
 import { accrualTier } from "./schedule";
-import type { DayOffView, IsoDate, LedgerRow, OccasionView } from "./types";
+import type { BenefitCounts, DayOffView, IsoDate, LedgerRow, OccasionView } from "./types";
 
 const HOURS_PER_DAY = 8;
 
@@ -32,6 +32,10 @@ type Event =
  *   Type earned on or before its date. A Floating Holiday only Burns within
  *   its own calendar year. With nothing eligible, the Day Off goes unmet and
  *   adds to its Occasion's Short count. Nothing is borrowed from the future.
+ * - Full-year history mode: this year's Deducted Days Off Burn first. Then,
+ *   before any Day Off that isn't Deducted, the oldest of this year's rows in
+ *   SAP that are still free are marked Used (not listed), as many of each type
+ *   as SAP shows used that no listed Day Off explains.
  *
  * Mutates the rows and Occasion views it is given (fresh copies from computeView).
  */
@@ -41,20 +45,21 @@ export function burn(
   opts: {
     hireDate: IsoDate | null;
     leftoverVacationHours: number;
-    /** Full-year history mode: the year whose Deducted Days Off Burn too. */
-    historyYear: number | null;
+    /**
+     * Full-year history mode: the year whose Deducted Days Off Burn too, and
+     * how many of its rows in SAP to mark Used (not listed) once they have.
+     */
+    history: { year: number; usedNotListed: BenefitCounts } | null;
   },
 ): void {
+  const historyYear = opts.history?.year ?? null;
   const events: Event[] = [
     ...[...rows].sort(burnOrder).map((row): Event => ({ kind: "earn", date: row.earnDate, row })),
     ...occasions.flatMap((occasion) =>
       occasion.days
         // Deducted Days Off are history: SAP already reflects them. In full-year
         // history mode, this year's Deducted ones take part too.
-        .filter(
-          (day) =>
-            isPaid(day.dayType) && (!day.deducted || yearOf(day.date) === opts.historyYear),
-        )
+        .filter((day) => isPaid(day.dayType) && (!day.deducted || yearOf(day.date) === historyYear))
         .map((day): Event => ({ kind: "dayOff", date: day.date, occasion, day })),
     ),
   ];
@@ -67,7 +72,26 @@ export function burn(
   /** Paydays of Vacation Days Off Burned so far. */
   const vacationBurnPaydays: IsoDate[] = [];
 
+  let usedNotListedMarked = opts.history === null;
+  /** SAP shows these days gone: they Burn nothing and leave the Vacation Cap balance. */
+  const markUsedNotListed = () => {
+    usedNotListedMarked = true;
+    for (const type of ["vacation", "floatingHoliday"] as const) {
+      const stillFree = rows
+        .filter((r) => r.benefitType === type && r.origin === "history" && !r.burnedBy && !r.usedNotListed)
+        .sort(burnOrder)
+        .slice(0, opts.history?.usedNotListed[type] ?? 0);
+      for (const r of stillFree) {
+        r.usedNotListed = true;
+        if (type === "vacation" && earned.includes(r)) vacationEarned--;
+      }
+    }
+  };
+
   for (const event of events) {
+    // Paydays only move forward, so every Deducted Day Off comes before the
+    // first one that isn't: here, all of this year's Deducted ones have Burned.
+    if (!usedNotListedMarked && event.kind === "dayOff" && !event.day.deducted) markUsedNotListed();
     if (event.kind === "earn") {
       const { row } = event;
       // Used (not listed) rows are already gone in SAP: never earned, never Burned.
@@ -92,6 +116,7 @@ export function burn(
       (r) =>
         r.benefitType === day.dayType &&
         !r.burnedBy &&
+        !r.usedNotListed &&
         (r.benefitType === "vacation" || yearOf(r.earnDate) === yearOf(day.date)),
     );
     if (row) {
@@ -103,4 +128,5 @@ export function burn(
       occasion.short++;
     }
   }
+  if (!usedNotListedMarked) markUsedNotListed();
 }

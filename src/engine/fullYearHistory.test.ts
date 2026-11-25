@@ -53,20 +53,40 @@ describe("E8: full-year history mode", () => {
   describe("with SAP 24 h, c = 3 + 2 − 7 = −2", () => {
     const view = computeView(input({ sapVacationHours: 24 }));
 
-    it("marks Mar 5 and May 7 Used (not listed) and tells the user", () => {
-      expect(vacation2025(view).filter((r) => r.usedNotListed).map((r) => r.key)).toEqual([
-        "vacation:2025:1",
-        "vacation:2025:2",
+    it("lets the Deducted Jun 10–11 Burn first: Mar 5 and May 7", () => {
+      expect(burnedBy(view, "june")).toEqual([
+        ["vacation:2025:1", "2025-03-05"],
+        ["vacation:2025:2", "2025-05-07"],
       ]);
-      expect(view.ledger.usedNotListed.vacation).toBe(2);
+      expect(view.occasions[0].short).toBe(0);
     });
 
-    it("lets Jun 10–11 Burn May 14 twice", () => {
-      expect(burnedBy(view, "june")).toEqual([
-        ["vacation:hire:1", "2025-05-14"],
-        ["vacation:hire:2", "2025-05-14"],
+    it("then marks the oldest rows still free, May 14 twice, Used (not listed) and tells the user", () => {
+      expect(vacation2025(view).filter((r) => r.usedNotListed).map((r) => r.key)).toEqual([
+        "vacation:hire:1",
+        "vacation:hire:2",
       ]);
+      expect(view.ledger.usedNotListed.vacation).toBe(2);
       expect(view.ledger.free.vacation).toBe(3 + 10);
+    });
+  });
+
+  describe("an early Deducted Day Off isn't left unmet by Used (not listed)", () => {
+    // Mon Mar 10, 2025, Deducted. SAP 32 h: c = 4 + 1 − 7 = −2. Only Mar 5 is earned by Mar 10.
+    const march: Occasion = { id: "march", name: "March day", start: "2025-03-10", end: "2025-03-10", dayTypes: {} };
+    const view = computeView(input({ sapVacationHours: 32 }, [march]));
+
+    it("Burns Mar 5, then marks May 7 and the first May 14 Used (not listed)", () => {
+      expect(burnedBy(view, "march")).toEqual([["vacation:2025:1", "2025-03-05"]]);
+      expect(view.occasions[0].short).toBe(0);
+      expect(vacation2025(view).filter((r) => r.usedNotListed).map((r) => r.key)).toEqual([
+        "vacation:2025:2",
+        "vacation:hire:1",
+      ]);
+    });
+
+    it("leaves SAP's 4 days free, plus 2026's 10", () => {
+      expect(view.ledger.free.vacation).toBe(4 + 10);
     });
   });
 });
@@ -113,10 +133,11 @@ describe("full-year history: Floating Holidays", () => {
 
   it("with SAP 8 h and one Deducted Floating Holiday Day Off, c = 1 + 1 − 3 = −1", () => {
     // SAP Vacation 56 h matches 2025's seven Vacation entries, so no Vacation is Used (not listed).
+    // Jul 7 Burns the oldest, Mar 1; then the oldest still free, Jun 1, is Used (not listed).
     const view = computeView(input({ sapVacationHours: 56, sapFloatingHolidayHours: 8 }, [floating]));
     expect(fh2025(view).map((r) => [r.earnDate, r.usedNotListed, r.burnedBy?.occasionName ?? null])).toEqual([
-      ["2025-03-01", true, null],
-      ["2025-06-01", false, "Long weekend"],
+      ["2025-03-01", false, "Long weekend"],
+      ["2025-06-01", true, null],
       ["2025-09-01", false, null],
     ]);
     expect(view.ledger.usedNotListed).toEqual({ vacation: 0, floatingHoliday: 1 });

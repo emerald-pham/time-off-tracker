@@ -55,14 +55,15 @@ export function computeView(input: EngineInput): ViewModel {
   // Edits come first, so the walk-back and the in-SAP split see the edited Earn Dates.
   const schedule = withEarnDateEdits(projectSchedule(settings, lastYear), edits);
   const occasions = occasionViews(input.occasions, settings, asOf);
-  const ledgerRows = settings.fullYearHistory
+  const history = settings.fullYearHistory
     ? fullYearRows(schedule, settings, asOf, currentYear, occasions)
-    : startingRows(schedule, settings, asOf);
+    : null;
+  const ledgerRows = history ? history.rows : startingRows(schedule, settings, asOf);
   const burned = applyEarnDateEdits(ledgerRows, edits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
     leftoverVacationHours: splitHours(settings.sapVacationHours).leftover,
-    historyYear: settings.fullYearHistory ? currentYear : null,
+    history: history && { year: currentYear, usedNotListed: history.usedNotListed },
   });
   const rows = rollover(burned, currentYear);
 
@@ -149,8 +150,9 @@ function applyEarnDateEdits(rows: LedgerRow[], edits: EarnDateEdits): LedgerRow[
  * from the schedule, and the SAP Balance sets Carryover. For each Benefit Type,
  *   c = SAP days + this year's Deducted Days Off − this year's entries in SAP.
  * If c > 0, c Carryover rows are found by walking back earlier years' entries
- * (Vacation) or dated Jan 1 (Floating Holidays). If c < 0, the |c| oldest rows
- * in SAP are Used (not listed): SAP shows days used that no Day Off explains.
+ * (Vacation) or dated Jan 1 (Floating Holidays). If c < 0, SAP shows |c| days
+ * used that no Day Off explains: once this year's Deducted Days Off have
+ * Burned, Burning marks the |c| oldest rows in SAP still free Used (not listed).
  */
 function fullYearRows(
   schedule: ScheduleEntry[],
@@ -158,9 +160,9 @@ function fullYearRows(
   asOf: IsoDate,
   year: number,
   occasions: OccasionView[],
-): LedgerRow[] {
+): { rows: LedgerRow[]; usedNotListed: BenefitCounts } {
   const hire = settings.hireDate;
-  if (!hire) return [];
+  if (!hire) return { rows: [], usedNotListed: { vacation: 0, floatingHoliday: 0 } };
   const deductedDaysOff = (t: BenefitType) =>
     occasions
       .flatMap((o) => o.days)
@@ -170,32 +172,34 @@ function fullYearRows(
   const vacationInSap = (e: ScheduleEntry) => paidBy(e.earnDate, asOf);
   const fhInSap = (e: ScheduleEntry) => e.earnDate <= asOf;
 
-  return [
-    ...rebuildYear({
-      benefitType: "vacation",
-      year,
-      entries: vacation,
-      inSap: vacationInSap,
-      sapDays: splitHours(settings.sapVacationHours).days,
-      deductedDaysOff: deductedDaysOff("vacation"),
-      carryoverCandidates: vacation.filter((e) => yearOf(e.earnDate) < year && vacationInSap(e)),
-      extraDate: hire,
-      extraKeyPrefix: "vacation:extra",
-    }),
-    ...rebuildYear({
-      benefitType: "floatingHoliday",
-      year,
-      entries: fh,
-      inSap: fhInSap,
-      // A balance read in an earlier year is that year's Floating Holidays, which have expired.
-      sapDays: yearOf(asOf) < year ? 0 : splitHours(settings.sapFloatingHolidayHours).days,
-      deductedDaysOff: deductedDaysOff("floatingHoliday"),
-      // Floating Holidays don't carry over: extra rows are dated Jan 1.
-      carryoverCandidates: [],
-      extraDate: isoDate(year, 1, 1),
-      extraKeyPrefix: `fh:${year}:extra`,
-    }),
-  ];
+  const vacationYear = rebuildYear({
+    benefitType: "vacation",
+    year,
+    entries: vacation,
+    inSap: vacationInSap,
+    sapDays: splitHours(settings.sapVacationHours).days,
+    deductedDaysOff: deductedDaysOff("vacation"),
+    carryoverCandidates: vacation.filter((e) => yearOf(e.earnDate) < year && vacationInSap(e)),
+    extraDate: hire,
+    extraKeyPrefix: "vacation:extra",
+  });
+  const fhYear = rebuildYear({
+    benefitType: "floatingHoliday",
+    year,
+    entries: fh,
+    inSap: fhInSap,
+    // A balance read in an earlier year is that year's Floating Holidays, which have expired.
+    sapDays: yearOf(asOf) < year ? 0 : splitHours(settings.sapFloatingHolidayHours).days,
+    deductedDaysOff: deductedDaysOff("floatingHoliday"),
+    // Floating Holidays don't carry over: extra rows are dated Jan 1.
+    carryoverCandidates: [],
+    extraDate: isoDate(year, 1, 1),
+    extraKeyPrefix: `fh:${year}:extra`,
+  });
+  return {
+    rows: [...vacationYear.rows, ...fhYear.rows],
+    usedNotListed: { vacation: vacationYear.usedNotListed, floatingHoliday: fhYear.usedNotListed },
+  };
 }
 
 function rebuildYear(args: {
@@ -208,26 +212,25 @@ function rebuildYear(args: {
   carryoverCandidates: ScheduleEntry[];
   extraDate: IsoDate;
   extraKeyPrefix: string;
-}): LedgerRow[] {
+}): { rows: LedgerRow[]; usedNotListed: number } {
   const history = args.entries
     .filter((e) => yearOf(e.earnDate) === args.year && args.inSap(e))
     .sort(compareEntries);
   const c = args.sapDays + args.deductedDaysOff - history.length;
-  const usedNotListed = Math.max(0, -c);
-  return [
-    ...history.map((e, i) => ({
-      ...row(e.key, args.benefitType, e.earnDate, "history"),
-      usedNotListed: i < usedNotListed,
-    })),
-    ...walkBack({
-      benefitType: args.benefitType,
-      days: Math.max(0, c),
-      candidates: args.carryoverCandidates,
-      projected: args.entries.filter((e) => !args.inSap(e)),
-      extraDate: args.extraDate,
-      extraKeyPrefix: args.extraKeyPrefix,
-    }),
-  ];
+  return {
+    rows: [
+      ...history.map((e) => row(e.key, args.benefitType, e.earnDate, "history")),
+      ...walkBack({
+        benefitType: args.benefitType,
+        days: Math.max(0, c),
+        candidates: args.carryoverCandidates,
+        projected: args.entries.filter((e) => !args.inSap(e)),
+        extraDate: args.extraDate,
+        extraKeyPrefix: args.extraKeyPrefix,
+      }),
+    ],
+    usedNotListed: Math.max(0, -c),
+  };
 }
 
 function walkBack(args: {

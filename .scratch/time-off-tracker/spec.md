@@ -148,7 +148,7 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 - All of this year's Days Off take part in Burning, Deducted ones included.
 - Let c = SAP days + Vacation Days Off this year with Payday ≤ as-of − this year's Vacation entries in SAP by the as-of date.
   - If c > 0: add c Carryover rows, with Earn Dates found by walking back through earlier years' entries, newest first. Use H once those run out.
-  - If c < 0: before Burning, mark the |c| oldest Vacation rows that are in SAP by the as-of date as **Used (not listed)**, and tell the user.
+  - If c < 0: SAP shows |c| days used that no listed Day Off explains. This year's Deducted Days Off Burn first, oldest row first as usual. Then, before any Day Off that isn't Deducted, the |c| oldest Vacation rows in SAP by the as-of date that are still free become **Used (not listed)**, and the user is told. Used (not listed) rows Burn nothing and don't count toward the Vacation Cap. (Paydays only move forward, so every Deducted Day Off comes before the first one that isn't.)
 
 **Floating Holidays:**
 - The same calculation, using Floating Holiday Days Off.
@@ -244,7 +244,8 @@ The fixture is "Sam": hired Aug 14, 2024, 40 hours a week, regular days off Satu
 - Sam, as of Nov 24, 2025, with an Occasion for Tue Jun 10 – Wed Jun 11, 2025, both Vacation and Deducted.
 - The 2025 Vacation rows are Mar 5, May 7, May 14, May 14, Jul 9, Sep 10 and Nov 12.
 - With SAP 40 h: c = 5 + 2 − 7 = 0. Jun 10–11 Burn Mar 5 and May 7.
-- With SAP 24 h: c = −2. Mar 5 and May 7 become Used (not listed), and Jun 10–11 Burn May 14 ×2.
+- With SAP 24 h: c = −2. Jun 10–11 Burn Mar 5 and May 7 first, then May 14 ×2 become Used (not listed).
+- With SAP 32 h and one Deducted Day Off on Mon Mar 10, 2025 instead: c = 4 + 1 − 7 = −2. Mar 10 Burns Mar 5 (the only row earned by then), then May 7 and one May 14 become Used (not listed). Nothing is Short.
 
 **Seasons:** see the Occasions section.
 
