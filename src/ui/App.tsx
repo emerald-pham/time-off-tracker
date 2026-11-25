@@ -23,7 +23,8 @@ function localToday(): IsoDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function App({ store }: { store: DataStore }) {
+/** `account` is the Settings "Account" section, rendered below the settings. */
+export function App({ store, account }: { store: DataStore; account?: React.ReactNode }) {
   const [data, setData] = useState<AppData | null>(null);
   const [tab, setTab] = useState<Section>("settings");
   const today = localToday();
@@ -102,6 +103,7 @@ export function App({ store }: { store: DataStore }) {
             today={today}
             onChange={(settings) => update({ ...data, settings })}
           />
+          {account}
         </Panel>
       </main>
     </div>

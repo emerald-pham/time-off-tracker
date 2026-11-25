@@ -1,0 +1,70 @@
+/* Settings "Account" section and the first-sign-in question. */
+
+.account {
+  margin-top: 24px;
+}
+
+.account-status,
+.account-note {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.account-actions,
+.handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button {
+  font: inherit;
+  font-size: 0.95rem;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.button.danger {
+  color: var(--danger);
+}
+
+.account-error {
+  margin: 10px 0 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.handoff {
+  max-width: 520px;
+  margin: 15vh auto 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.handoff h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+
+.handoff p {
+  margin: 0 0 16px;
+}
