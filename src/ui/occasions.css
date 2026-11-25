@@ -1,0 +1,247 @@
+/* Occasions panel, day editor, and the Ledger states Burning adds. */
+
+:root {
+  --danger-soft: #fbe9e7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --danger-soft: #3a2220;
+  }
+}
+
+/* Ledger states */
+.ledger .lost-to-cap .note {
+  display: inline-block; /* keeps the row's strike-through off the label */
+  text-decoration: none;
+}
+
+.ledger .burned .occasion-name {
+  font-weight: 500;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.short {
+  color: var(--danger);
+  font-size: 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Controls */
+.occasions button,
+.occasions select,
+.occasions input[type="text"],
+.occasions input[type="date"] {
+  font: inherit;
+  font-size: 16px; /* stops iOS Safari zooming on focus */
+  color: var(--text);
+}
+
+.occasions input[type="text"],
+.occasions input[type="date"],
+.occasions select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  width: 100%;
+  min-height: 42px;
+}
+
+.occasions .actions button,
+.add-occasion button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.occasions button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.occasions button.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.occasions button.danger {
+  color: var(--danger);
+}
+
+/* Add form */
+.add-occasion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.add-occasion .name,
+.add-occasion button {
+  grid-column: 1 / -1;
+}
+
+/* Occasions table */
+.occasion-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.occasion-table th,
+.occasion-table td {
+  text-align: left;
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.occasion-table thead th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.occasion-table button.link,
+.occasion-table button.caret-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.occasion-table button.link {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.caret-button .caret {
+  margin-left: 4px;
+  color: var(--accent);
+}
+
+.occasion-table .pto,
+.occasion-table .season {
+  white-space: nowrap;
+}
+
+.occasion-table .pto .note,
+.occasion-table .pto .short {
+  display: block;
+}
+
+.occasion.deducted td,
+.occasion.deducted button {
+  color: var(--muted);
+}
+
+.editor-row > td {
+  background: var(--bg);
+  padding: 10px;
+}
+
+/* Day editor */
+.day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.day label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.day .day-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.occasions .day select {
+  width: auto;
+  min-width: 10.5em;
+}
+
+.day.deducted .day-label {
+  color: var(--muted);
+}
+
+.day.clashing label {
+  background: var(--danger-soft);
+  outline: 1px solid var(--danger);
+}
+
+.clash-messages {
+  color: var(--danger);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.clash-messages p {
+  margin: 0 0 2px;
+}
+
+.occasions .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.occasions .actions .spacer {
+  flex: 1;
+}
+
+.details-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.date-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.new-draft {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 14px;
+  background: var(--bg);
+}
+
+.draft-title {
+  margin: 0 0 8px;
+}

@@ -79,7 +79,12 @@ export function App({ store }: { store: DataStore }) {
           <LedgerPanel ledger={view.ledger} configured={view.configured} />
         </Panel>
         <Panel id="occasions" active={tab}>
-          <OccasionsPanel />
+          <OccasionsPanel
+            data={data}
+            today={today}
+            occasions={view.occasions}
+            onChange={(occasions) => update({ ...data, occasions })}
+          />
         </Panel>
         <Panel id="settings" active={tab}>
           <SettingsPanel
