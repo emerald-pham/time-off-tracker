@@ -134,12 +134,20 @@ function row(key: string, benefitType: BenefitType, earnDate: IsoDate, origin: R
  * On Jan 1, last year's free Vacation becomes Carryover and last year's free
  * Floating Holidays become Expired. A current-year Floating Holiday that's
  * still free shows "expires Dec 31".
+ *
+ * Runs after Burning, so "free on Jan 1" means not Lost to cap and not Burned
+ * by a Day Off before this year. (A Floating Holiday only Burns within its
+ * own year, so a Burned one never expires.)
  */
 function rollover(rows: LedgerRow[], currentYear: number): LedgerRow[] {
   return rows.map((r) => {
     const year = yearOf(r.earnDate);
+    if (r.benefitType === "vacation") {
+      const freeOnJan1 =
+        !r.lostToCap && !r.usedNotListed && (!r.burnedBy || yearOf(r.burnedBy.date) >= currentYear);
+      return { ...r, carryover: year < currentYear && freeOnJan1 };
+    }
     if (!isFree(r)) return r;
-    if (r.benefitType === "vacation") return { ...r, carryover: year < currentYear };
     return { ...r, expired: year < currentYear, expiresWarning: year === currentYear };
   });
 }

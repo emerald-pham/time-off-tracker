@@ -78,6 +78,87 @@ describe("E4: oldest first", () => {
   });
 });
 
+describe("E5: Floating Holidays stay in their year", () => {
+  const holiday = occasion("New year", "2026-01-05", "2026-01-05", { "2026-01-05": "floatingHoliday" });
+
+  it("a Floating Holiday Day Off on Mon Jan 5, 2026 Burns a Jan 1, 2026 one, not Sep 1, 2025", () => {
+    const view = computeView(input([holiday]));
+    expect(burnedBy(view, "New year")).toEqual([["fh:2026:1", "2026-01-01"]]);
+    const sep1 = rows(view).find((r) => r.key === "fh:2025:3")!;
+    expect([sep1.burnedBy, sep1.expiresWarning]).toEqual([null, true]);
+  });
+
+  it("after rollover, the Sep 1, 2025 Floating Holiday is Expired and hidden", () => {
+    const view = computeView(input([holiday], e2, "2026-01-02"));
+    expect(rows(view).some((r) => r.key === "fh:2025:3")).toBe(false);
+    expect(view.ledger.free.floatingHoliday).toBe(5);
+  });
+
+  it("a Floating Holiday Day Off with none left in its year is Short, even with last year's free", () => {
+    const view = computeView(
+      input([occasion("Dec day", "2025-12-01", "2025-12-02", { "2025-12-01": "floatingHoliday", "2025-12-02": "floatingHoliday" })]),
+    );
+    expect(view.occasions[0].short).toBe(1);
+    expect(view.occasions[0].days.map((d) => [d.burns, d.unmet])).toEqual([
+      ["fh:2025:3", false],
+      [null, true],
+    ]);
+  });
+});
+
+describe("E6: Short", () => {
+  const view = computeView(input([occasion("Winter break", "2026-01-05", "2026-01-16")]));
+  const [trip] = view.occasions;
+
+  it("has 10 Vacation Days Off with Jan 10–11 as RDO", () => {
+    expect(trip.ptoDays).toBe(10);
+    expect(trip.days.filter((d) => d.dayType === "rdo").map((d) => d.date)).toEqual(["2026-01-10", "2026-01-11"]);
+  });
+
+  it("Burns E2's 5 rows and is short by 5; nothing is borrowed from the future", () => {
+    expect(burnedBy(view, "Winter break").map(([, d]) => d)).toEqual([
+      "2025-05-14",
+      "2025-05-14",
+      "2025-07-09",
+      "2025-09-10",
+      "2025-11-12",
+    ]);
+    expect(trip.short).toBe(5);
+    expect(trip.days.filter((d) => d.unmet).map((d) => d.date)).toEqual([
+      "2026-01-12",
+      "2026-01-13",
+      "2026-01-14",
+      "2026-01-15",
+      "2026-01-16",
+    ]);
+  });
+});
+
+describe("rollover with Burning", () => {
+  it("last year's Vacation Burned by a Day Off this year was free on Jan 1, so it is Carryover", () => {
+    const view = computeView(input([occasion("Jan day", "2026-01-05")], e2, "2026-01-02"));
+    const top = view.ledger.groups[0].rows[0];
+    expect([top.key, top.carryover, top.burnedBy?.occasionName]).toEqual(["vacation:hire:1", true, "Jan day"]);
+  });
+
+  it("last year's Vacation Burned by a Day Off last year is not Carryover", () => {
+    // Fri Dec 26, 2025 is paid Jan 1, 2026, after the as-of date, so it still Burns.
+    const view = computeView(input([occasion("Dec day", "2025-12-26")], e2, "2026-01-02"));
+    const burned = rows(view).find((r) => r.burnedBy)!;
+    expect([burned.key, burned.carryover]).toEqual(["vacation:hire:1", false]);
+  });
+});
+
+describe("unpaid Days Off", () => {
+  it("count separately from PTO Days and Burn nothing", () => {
+    const view = computeView(
+      input([occasion("Trip", "2026-02-24", "2026-02-26", { "2026-02-25": "unpaid" })]),
+    );
+    expect([view.occasions[0].ptoDays, view.occasions[0].unpaid]).toEqual([2, 1]);
+    expect(burnedBy(view, "Trip")).toHaveLength(2);
+  });
+});
+
 describe("Season: worked out from the start date", () => {
   it.each([
     ["2026-09-09", "Autumn", 2026],
