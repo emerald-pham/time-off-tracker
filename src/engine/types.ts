@@ -24,7 +24,7 @@ export interface Settings {
   sapFloatingHolidayHours: number;
   /** SAP Balance as-of date. Null means "today". */
   sapAsOf: IsoDate | null;
-  /** Full-year history mode (ticket 03). Off by default. */
+  /** Full-year history mode: rebuild the current year from the hire date. Off by default. */
   fullYearHistory: boolean;
 }
 
@@ -69,6 +69,8 @@ export type RowOrigin =
   | "starting"
   /** Walk-back ran out of schedule entries; dated at hire (Vacation) or Jan 1 (Floating Holiday). */
   | "extra"
+  /** Full-year history mode: this year's schedule entry, already in SAP by the as-of date. */
+  | "history"
   /** Not yet in SAP by the as-of date. */
   | "projected";
 
@@ -97,9 +99,12 @@ export interface LedgerRow {
   expired: boolean;
   /** Current-year Floating Holiday that's still free: "expires Dec 31". */
   expiresWarning: boolean;
-  /** The user changed the Earn Date (ticket 03). */
+  /** The user changed the Earn Date: shown with a dot. */
   edited: boolean;
-  /** Full-year history mode only (ticket 03). */
+  /**
+   * Full-year history mode only: in SAP by the as-of date, but SAP shows it
+   * used and no listed Day Off explains it. Burns nothing.
+   */
   usedNotListed: boolean;
 }
 
@@ -119,6 +124,8 @@ export interface LedgerView {
   free: BenefitCounts;
   /** SAP hours that don't make a whole Benefit Day, for the "+4 hrs" note. */
   leftoverHours: BenefitCounts;
+  /** Full-year history mode: rows marked Used (not listed), so the UI can tell the user. */
+  usedNotListed: BenefitCounts;
 }
 
 export type SeasonName = "Winter" | "Spring" | "Summer" | "Autumn";

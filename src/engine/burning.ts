@@ -38,15 +38,23 @@ type Event =
 export function burn(
   rows: LedgerRow[],
   occasions: OccasionView[],
-  opts: { hireDate: IsoDate | null; leftoverVacationHours: number },
+  opts: {
+    hireDate: IsoDate | null;
+    leftoverVacationHours: number;
+    /** Full-year history mode: the year whose Deducted Days Off Burn too. */
+    historyYear: number | null;
+  },
 ): void {
   const events: Event[] = [
     ...[...rows].sort(burnOrder).map((row): Event => ({ kind: "earn", date: row.earnDate, row })),
     ...occasions.flatMap((occasion) =>
       occasion.days
-        // Deducted Days Off are history: SAP already reflects them.
-        // [ticket 03: in full-year history mode, this year's Deducted ones take part too.]
-        .filter((day) => isPaid(day.dayType) && !day.deducted)
+        // Deducted Days Off are history: SAP already reflects them. In full-year
+        // history mode, this year's Deducted ones take part too.
+        .filter(
+          (day) =>
+            isPaid(day.dayType) && (!day.deducted || yearOf(day.date) === opts.historyYear),
+        )
         .map((day): Event => ({ kind: "dayOff", date: day.date, occasion, day })),
     ),
   ];
@@ -62,6 +70,8 @@ export function burn(
   for (const event of events) {
     if (event.kind === "earn") {
       const { row } = event;
+      // Used (not listed) rows are already gone in SAP: never earned, never Burned.
+      if (row.usedNotListed) continue;
       if (row.benefitType === "vacation") {
         if (row.origin === "projected" && opts.hireDate) {
           const paidOut = vacationBurnPaydays.filter((p) => p <= row.earnDate).length;
@@ -82,7 +92,6 @@ export function burn(
       (r) =>
         r.benefitType === day.dayType &&
         !r.burnedBy &&
-        !r.usedNotListed &&
         (r.benefitType === "vacation" || yearOf(r.earnDate) === yearOf(day.date)),
     );
     if (row) {
