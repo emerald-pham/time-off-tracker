@@ -79,6 +79,14 @@ function clamp(value: unknown, range: { min: number; max: number }, fallback: nu
 const dateOrNull = (v: unknown): IsoDate | null => (isSupportedDate(v) ? v : null);
 
 /**
+ * A usable Occasion id or Earn Date edit key: each becomes a field name in the
+ * account document, where Firestore reserves names like `__name__`, and a
+ * plain object must never be handed `__proto__`.
+ */
+const isEntryKey = (v: unknown): v is string =>
+  typeof v === "string" && v.length > 0 && v.length <= 200 && !/^__.*__$/.test(v);
+
+/**
  * Turns whatever was saved (an older shape, a damaged or hand-edited copy)
  * into AppData the engine can always run on: anything added since gets its
  * default, numbers are clamped to what Settings accepts, dates must be real
@@ -115,7 +123,7 @@ function occasionsFrom(value: unknown): Occasion[] {
   const seen = new Set<string>();
   const occasions: Occasion[] = [];
   for (const o of value) {
-    if (!isRecord(o) || typeof o.id !== "string" || o.id === "" || seen.has(o.id)) continue;
+    if (!isRecord(o) || !isEntryKey(o.id) || seen.has(o.id)) continue;
     if (!isSupportedDate(o.start) || !isSupportedDate(o.end)) continue;
     const [start, end] = o.start <= o.end ? [o.start, o.end] : [o.end, o.start];
     const dayTypes: Record<IsoDate, DayType> = {};
@@ -135,8 +143,74 @@ function occasionsFrom(value: unknown): Occasion[] {
 function earnDateEditsFrom(value: unknown): EarnDateEdits {
   if (!isRecord(value)) return {};
   const edits: EarnDateEdits = {};
-  for (const [key, date] of Object.entries(value)) if (key !== "" && isSupportedDate(date)) edits[key] = date;
+  for (const [key, date] of Object.entries(value)) if (isEntryKey(key) && isSupportedDate(date)) edits[key] = date;
   return edits;
+}
+
+/**
+ * AppData with Occasions keyed by id, so each setting, Occasion and Earn Date
+ * edit is one entry that can change on its own. This is the account
+ * document's `data` from version 2 (ADR 0003).
+ */
+export interface KeyedAppData {
+  settings: Settings;
+  occasions: Record<string, Occasion>;
+  earnDateEdits: EarnDateEdits;
+}
+
+export const SECTIONS = ["settings", "occasions", "earnDateEdits"] as const;
+
+/** One setting, Occasion or Earn Date edit an edit changed. No `value` means it was removed. */
+export interface DataChange {
+  section: (typeof SECTIONS)[number];
+  key: string;
+  value?: unknown;
+}
+
+export function keyedAppData(data: AppData): KeyedAppData {
+  return {
+    settings: data.settings,
+    occasions: Object.fromEntries(data.occasions.map((o) => [o.id, o])),
+    earnDateEdits: data.earnDateEdits,
+  };
+}
+
+/** Reads a version 2 `data` map back into AppData, checked like any other save. */
+export function fromKeyedAppData(data: unknown): AppData {
+  const raw = isRecord(data) ? data : {};
+  const occasions = isRecord(raw.occasions)
+    ? Object.entries(raw.occasions).map(([id, o]) => (isRecord(o) ? { ...o, id } : o))
+    : [];
+  return withDefaults({ ...raw, occasions } as Partial<AppData>);
+}
+
+/** What an edit changed, entry by entry: the only parts a save needs to write. */
+export function changesBetween(before: AppData, after: AppData): DataChange[] {
+  const was = keyedAppData(before);
+  const now = keyedAppData(after);
+  const changes: DataChange[] = [];
+  for (const section of SECTIONS) {
+    const a = was[section] as Record<string, unknown>;
+    const b = now[section] as Record<string, unknown>;
+    for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+      if (!Object.hasOwn(b, key)) changes.push({ section, key });
+      else if (!Object.hasOwn(a, key) || stableJson(a[key]) !== stableJson(b[key])) {
+        changes.push({ section, key, value: b[key] });
+      }
+    }
+  }
+  return changes;
+}
+
+/** `data` with each change applied on top, leaving every other entry as it is. */
+export function applyChanges(data: AppData, changes: DataChange[]): AppData {
+  const keyed = structuredClone(keyedAppData(data));
+  for (const { section, key, value } of changes) {
+    const entries = keyed[section] as Record<string, unknown>;
+    if (value === undefined) delete entries[key];
+    else entries[key] = structuredClone(value);
+  }
+  return fromKeyedAppData(keyed);
 }
 
 /** True when two AppData values hold the same data, whatever their key or Occasion order. */
@@ -150,8 +224,12 @@ export function isEmptyAppData(data: AppData): boolean {
 }
 
 function canonical(data: AppData): string {
-  const occasions = [...data.occasions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return JSON.stringify({ ...data, occasions }, (_key, v: unknown) =>
+  return stableJson(keyedAppData(data));
+}
+
+/** JSON with object keys sorted, so equal values compare equal whatever their key order. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
     v && typeof v === "object" && !Array.isArray(v)
       ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
       : v,

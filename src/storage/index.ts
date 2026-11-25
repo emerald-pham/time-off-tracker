@@ -1,4 +1,13 @@
-export type { AppData, DataStore } from "./dataStore";
-export { emptyAppData, isEmptyAppData, sameAppData } from "./dataStore";
-export type { KeyValueStorage } from "./localDataStore";
-export { LocalDataStore } from "./localDataStore";
+export type { AppData, DataChange, DataStore, KeyedAppData, StoreState } from "./dataStore";
+export {
+  BALANCE_HOURS,
+  NewerDataError,
+  WEEKLY_HOURS,
+  applyChanges,
+  changesBetween,
+  emptyAppData,
+  isEmptyAppData,
+  sameAppData,
+} from "./dataStore";
+export type { KeyValueStorage, LocalDataStoreOptions } from "./localDataStore";
+export { LocalDataStore, memoryStorage } from "./localDataStore";
