@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IsoDate, Settings, Weekday } from "../engine";
+import { FullYearHistoryToggle } from "./FullYearHistoryToggle";
 
 const WEEKDAYS: { day: Weekday; label: string }[] = [
   { day: 0, label: "Sun" },
@@ -81,6 +82,11 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
           onChange={(e) => set({ sapAsOf: e.target.value || null })}
         />
       </label>
+
+      <FullYearHistoryToggle
+        checked={settings.fullYearHistory}
+        onChange={(fullYearHistory) => set({ fullYearHistory })}
+      />
     </form>
   );
 }

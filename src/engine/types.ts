@@ -44,7 +44,7 @@ export interface Occasion {
  */
 export type ScheduleKey = string;
 
-/** Earn Date edits by schedule key (ticket 03). */
+/** Earn Date edits by schedule key. */
 export type EarnDateEdits = Record<ScheduleKey, IsoDate>;
 
 export interface EngineInput {

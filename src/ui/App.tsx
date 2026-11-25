@@ -3,6 +3,7 @@ import { computeView } from "../engine";
 import type { IsoDate } from "../engine";
 import { emptyAppData } from "../storage";
 import type { AppData, DataStore } from "../storage";
+import { resetEarnDate, setEarnDate } from "./earnDateEdits";
 import { LedgerPanel } from "./LedgerPanel";
 import { OccasionsPanel } from "./OccasionsPanel";
 import { SettingsPanel } from "./SettingsPanel";
@@ -76,7 +77,16 @@ export function App({ store }: { store: DataStore }) {
 
       <main className="columns">
         <Panel id="ledger" active={tab}>
-          <LedgerPanel ledger={view.ledger} configured={view.configured} />
+          <LedgerPanel
+            ledger={view.ledger}
+            configured={view.configured}
+            onEditEarnDate={(key, date) =>
+              update({ ...data, earnDateEdits: setEarnDate(data.earnDateEdits, key, date) })
+            }
+            onResetEarnDate={(key) =>
+              update({ ...data, earnDateEdits: resetEarnDate(data.earnDateEdits, key) })
+            }
+          />
         </Panel>
         <Panel id="occasions" active={tab}>
           <OccasionsPanel

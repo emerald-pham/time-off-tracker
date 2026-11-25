@@ -8,7 +8,23 @@ import {
   leftoverNote,
   seasonLabel,
   typeLabel,
+  usedNotListedMessage,
 } from "./format";
+
+describe("Used (not listed) message", () => {
+  it("is null when nothing is Used (not listed)", () => {
+    expect(usedNotListedMessage({ vacation: 0, floatingHoliday: 0 })).toBeNull();
+  });
+
+  it("tells the user how many days SAP shows used that no Day Off explains", () => {
+    expect(usedNotListedMessage({ vacation: 2, floatingHoliday: 0 })).toBe(
+      "SAP shows 2 Vacation days used that no listed Day Off explains. They're marked Used (not listed). Add the missing Days Off to fix this.",
+    );
+    expect(usedNotListedMessage({ vacation: 1, floatingHoliday: 1 })).toBe(
+      "SAP shows 1 Vacation day and 1 Floating Holiday used that no listed Day Off explains. They're marked Used (not listed). Add the missing Days Off to fix this.",
+    );
+  });
+});
 
 describe("Occasion formatting", () => {
   it("shows Dates like 'Wed Sep 9 – Sat Sep 12', or one date alone", () => {

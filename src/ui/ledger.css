@@ -1,0 +1,112 @@
+/* Ledger corrections: the Earn Date picker, Edited and Used (not listed) rows. */
+
+.ledger button.earn-date-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ledger .estimated button.earn-date-button {
+  font-style: italic;
+}
+
+.ledger .lost-to-cap button.earn-date-button {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.edited-mark {
+  color: var(--accent);
+  font-weight: 700;
+  font-style: normal;
+}
+
+.ledger .used-not-listed td {
+  color: var(--muted);
+}
+
+.used-not-listed-message {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  color: var(--warn);
+  font-size: 0.88rem;
+}
+
+.earn-date-editor-row > td {
+  background: var(--bg);
+  padding: 10px;
+}
+
+.earn-date-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.earn-date-editor .actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.earn-date-editor .actions .spacer {
+  flex: 1;
+}
+
+.earn-date-editor button {
+  font: inherit;
+  font-size: 16px; /* stops iOS Safari zooming on focus */
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.earn-date-editor button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.earn-date-editor button.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Settings: full-year history toggle */
+.field.toggle {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.field.toggle > span {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.toggle input[type="checkbox"] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.toggle .hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}

@@ -67,3 +67,14 @@ export function freeSummary(free: BenefitCounts): string {
 export function leftoverNote(hours: number): string | null {
   return hours > 0 ? `+${hours} hrs` : null;
 }
+
+/** Full-year history mode: tells the user about rows marked Used (not listed), or null if none. */
+export function usedNotListedMessage(used: BenefitCounts): string | null {
+  const parts = [
+    used.vacation > 0 && `${used.vacation} Vacation ${used.vacation === 1 ? "day" : "days"}`,
+    used.floatingHoliday > 0 &&
+      `${used.floatingHoliday} ${used.floatingHoliday === 1 ? "Floating Holiday" : "Floating Holidays"}`,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return `SAP shows ${parts.join(" and ")} used that no listed Day Off explains. They're marked Used (not listed). Add the missing Days Off to fix this.`;
+}
