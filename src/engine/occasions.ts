@@ -42,8 +42,10 @@ const SATURDAY = 6;
  *   then Vacation.
  *
  * A week has two days off in total, shared by every Occasion in it: `held`
- * lists the dates other Occasions already hold as RDO, and a segment gets
- * only what's left, r = min(n, max(0, 2 − held dates in its week outside it)).
+ * lists the dates other Occasions already hold as RDO. A held date in the
+ * segment is the same day off, so it's RDO here too; the segment's other n
+ * dates get only what's left, r = min(n, max(0, 2 − held dates in its week)),
+ * placed as above.
  */
 export function weeklyDayTypes(
   start: IsoDate,
@@ -60,13 +62,15 @@ export function weeklyDayTypes(
       segment.push(dates[i + segment.length]);
     }
     i += segment.length;
-    const n = segment.length;
-    const heldElsewhere = [...(heldByWeek.get(weekOf(segment[0])) ?? [])].filter((d) => !segment.includes(d)).length;
-    const rdos = Math.min(n, Math.max(0, 2 - heldElsewhere));
+    const heldInWeek = heldByWeek.get(weekOf(segment[0])) ?? new Set<IsoDate>();
+    const open = segment.filter((d) => !heldInWeek.has(d));
+    const n = open.length;
+    const rdos = Math.min(n, Math.max(0, 2 - heldInWeek.size));
     const fromPrevious = weekdayOf(segment[0]) === SUNDAY && segment[0] > start;
-    const intoNext = weekdayOf(segment[n - 1]) === SATURDAY && segment[n - 1] < end;
+    const intoNext = weekdayOf(segment[segment.length - 1]) === SATURDAY && segment[segment.length - 1] < end;
     const leadingVacation = fromPrevious && intoNext ? Math.ceil((n - rdos) / 2) : fromPrevious ? n - rdos : 0;
-    segment.forEach((date, k) => {
+    for (const date of segment) if (heldInWeek.has(date)) types[date] = "rdo";
+    open.forEach((date, k) => {
       types[date] = k >= leadingVacation && k < leadingVacation + rdos ? "rdo" : "vacation";
     });
   }

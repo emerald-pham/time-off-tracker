@@ -4,6 +4,7 @@
  * Occasion names are made up.
  */
 import { describe, expect, it } from "vitest";
+import { weeklyDayTypes } from "../../src/engine";
 import type { Occasion } from "../../src/engine";
 import type { AppData } from "../../src/storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonLabel } from "../../src/ui/format";
@@ -191,6 +192,15 @@ describe("US-25: Fill in Day Types automatically, week by week", () => {
     // Adding B once A is saved with its types does the same.
     const savedA = withResolvedTypes(a, checkOccasion(data(), today, a).view);
     expect(checkOccasion(data(savedA), today, b).view.days.map((d) => d.dayType)).toEqual(["vacation", "vacation"]);
+  });
+
+  it("US-25: a date another Occasion already holds as RDO is the same day off, so it's RDO here too", () => {
+    // Thu Sep 10 – Sat Sep 12, 2026, with Fri and Sat already RDO in another Occasion.
+    expect(weeklyDayTypes("2026-09-10", "2026-09-12", ["2026-09-11", "2026-09-12"])).toEqual({
+      "2026-09-10": "vacation",
+      "2026-09-11": "rdo",
+      "2026-09-12": "rdo",
+    });
   });
 
   it("US-25: a lone day off is an RDO, and a long week alone keeps 2 RDOs at the start", () => {
