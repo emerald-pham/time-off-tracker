@@ -1,5 +1,6 @@
 import { isoDate, yearOf } from "./dates";
-import { seasonOf } from "./occasions";
+import { burn } from "./burning";
+import { occasionViews } from "./occasions";
 import { paidBy } from "./payday";
 import { projectSchedule } from "./schedule";
 import type {
@@ -25,7 +26,8 @@ const HOURS_PER_DAY = 8;
  *   1. project the schedule through the last year shown
  *   2. turn it into Ledger rows, starting from the SAP Balance (ADR 0002)
  *      [ticket 03: apply Earn Date edits; full-year history mode]
- *   3. [ticket 02: Burn rows with Occasions' Days Off, Vacation Cap]
+ *   3. resolve each Occasion's Days Off, then Burn rows in one date-order pass
+ *      (see burning.ts; Vacation Cap marks rows Lost to cap)
  *   4. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
  *   5. group by year and count free rows
  */
@@ -36,22 +38,10 @@ export function computeView(input: EngineInput): ViewModel {
   const asOf = settings.sapAsOf ?? today;
 
   const schedule = projectSchedule(settings, lastYear);
-  const rows = rollover(startingRows(schedule, settings, asOf), currentYear);
-
-  const occasions = [...input.occasions]
-    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
-    .map((o) => ({
-      id: o.id,
-      name: o.name,
-      start: o.start,
-      end: o.end,
-      days: [],
-      ptoDays: 0,
-      unpaid: 0,
-      short: 0,
-      season: seasonOf(o.start),
-      deducted: false,
-    }));
+  const occasions = occasionViews(input.occasions, settings);
+  const burned = startingRows(schedule, settings, asOf);
+  burn(burned, occasions);
+  const rows = rollover(burned, currentYear);
 
   return {
     configured: settings.hireDate !== null,
