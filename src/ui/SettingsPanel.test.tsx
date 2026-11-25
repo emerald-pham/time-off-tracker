@@ -42,6 +42,17 @@ async function show(initial: Settings) {
 
 const configured: Settings = { ...sam, sapVacationHours: 40, sapAsOf: "2026-11-01" };
 
+describe("US-25: the weekly rule replaces regular days off", () => {
+  it("US-25: Settings no longer asks for regular days off, and keeps the stored ones untouched", async () => {
+    const { el, saves, last } = await show(configured);
+    expect(el.textContent).not.toMatch(/regular days off/i);
+    expect(el.querySelectorAll('input[type="checkbox"]').length).toBe(1); // Full-year history only.
+    await typeInto(field(el, "Weekly hours"), "32");
+    expect(saves.length).toBeGreaterThan(0);
+    expect(last()!.regularDaysOff).toEqual([0, 6]);
+  });
+});
+
 describe("number fields stay in range (finding 9)", () => {
   it("never saves weekly hours below 1, and keeps 1 when that's what's left", async () => {
     const { el, saves, last } = await show(configured);

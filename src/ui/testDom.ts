@@ -79,12 +79,6 @@ export function field(el: Element, caption: string): HTMLInputElement {
   return input;
 }
 
-export function weekday(el: Element, label: string): HTMLInputElement {
-  const found = [...el.querySelectorAll("label.weekday")].find((l) => l.textContent?.includes(label));
-  const input = found?.querySelector("input");
-  if (!input) throw new Error(`No weekday ${label}`);
-  return input;
-}
 
 export async function click(target: HTMLElement): Promise<void> {
   await act(async () => target.click());

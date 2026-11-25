@@ -480,44 +480,6 @@ button:not(:disabled):active {
   }
 }
 
-.weekday-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* Regular days off are RDO days, so a picked one wears the RDO color. */
-.weekday {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-2);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.weekday input {
-  accent-color: var(--rdo);
-  width: 18px;
-  height: 18px;
-  margin: 0;
-}
-
-.weekday:has(input:checked) {
-  background: var(--rdo-soft);
-  border-color: var(--rdo);
-  color: var(--rdo);
-}
-
 /* Motion */
 @keyframes rise-in {
   from {

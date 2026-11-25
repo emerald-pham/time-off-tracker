@@ -5,7 +5,7 @@ import { LocalDataStore, memoryStorage, NewerDataError } from "../storage";
 import type { AppData, DataStore, KeyValueStorage } from "../storage";
 import { sam } from "../engine/fixtures";
 import { App } from "./App";
-import { button, click, field, render, text, typeInto, weekday } from "./testDom";
+import { button, field, render, text, typeInto } from "./testDom";
 import type { Rendered } from "./testDom";
 
 const samData: AppData = {
@@ -111,10 +111,10 @@ describe("App stays live with what's stored (finding 1)", () => {
     const tabB = await show(new LocalDataStore(storage));
 
     await typeInto(field(tabA.el, "Weekly hours"), "32");
-    await click(weekday(tabB.el, "Mon"));
+    await typeInto(field(tabB.el, "SAP Floating Holiday hours"), "16");
 
     const saved = (await new LocalDataStore(storage).load())!;
     expect(saved.settings.weeklyHours).toBe(32);
-    expect(saved.settings.regularDaysOff).toEqual([0, 1, 6]);
+    expect(saved.settings.sapFloatingHolidayHours).toBe(16);
   });
 });

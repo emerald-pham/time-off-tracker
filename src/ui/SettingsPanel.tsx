@@ -1,19 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
-import type { IsoDate, Settings, Weekday } from "../engine";
+import type { IsoDate, Settings } from "../engine";
 import { BALANCE_HOURS, WEEKLY_HOURS } from "../storage";
 import { FullYearHistoryToggle } from "./FullYearHistoryToggle";
 import { sapBalanceNote } from "./format";
-
-const WEEKDAYS: { day: Weekday; label: string }[] = [
-  { day: 0, label: "Sun" },
-  { day: 1, label: "Mon" },
-  { day: 2, label: "Tue" },
-  { day: 3, label: "Wed" },
-  { day: 4, label: "Thu" },
-  { day: 5, label: "Fri" },
-  { day: 6, label: "Sat" },
-];
 
 const FIRST_DATE = `${FIRST_SUPPORTED_YEAR}-01-01`;
 const LAST_DATE = `${LAST_SUPPORTED_YEAR}-12-31`;
@@ -31,13 +21,8 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
   // It's never blank once the hire date is in: entering one stamps it with
   // today if it had no date yet, so the balance doesn't drift with the calendar.
   const setHireDate = (hireDate: IsoDate) => set({ hireDate, sapAsOf: settings.sapAsOf ?? today });
-
-  const toggleDay = (day: Weekday, on: boolean) =>
-    set({
-      regularDaysOff: on
-        ? [...settings.regularDaysOff, day].sort((a, b) => a - b)
-        : settings.regularDaysOff.filter((d) => d !== day),
-    });
+  // Regular days off are no longer asked for: the weekly rule (US-25) decides
+  // the RDOs. The stored field is kept as it is, so older saves still load.
 
   return (
     <form className="settings" onSubmit={(e) => e.preventDefault()}>
@@ -47,22 +32,6 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
         onChange={setHireDate}
         onClear={() => set({ hireDate: null })}
       />
-
-      <fieldset className="field weekdays">
-        <legend>Regular days off</legend>
-        <div className="weekday-list">
-          {WEEKDAYS.map(({ day, label }) => (
-            <label key={day} className="weekday">
-              <input
-                type="checkbox"
-                checked={settings.regularDaysOff.includes(day)}
-                onChange={(e) => toggleDay(day, e.target.checked)}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       <NumberField
         label="Weekly hours"
