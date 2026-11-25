@@ -18,7 +18,7 @@ import { OccasionsPanel } from "./OccasionsPanel";
 import { button, click, flush, render, text } from "./testDom";
 import type { Rendered } from "./testDom";
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 
 // Read from disk: Vitest hands stylesheets to tests empty.
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -340,6 +340,279 @@ describe("the bokeh background", () => {
       expect(frames).toMatch(/0%,\s*100% \{\s*transform: none;\s*(?:opacity: var\(--orb-alpha\);\s*)?\}/);
       // Never brighter than the orbs' resting strength, which the contrast test checks.
       for (const [, value] of frames.matchAll(/opacity:\s*([^;]+);/g)) expect(value).toContain("var(--orb-alpha)");
+    }
+  });
+});
+
+// ---- Every gradient drifts (US-20) ----
+
+/** Every stylesheet in src/ui, by path (tests run from the repo root). */
+const sheets: Record<string, string> = Object.fromEntries(
+  globSync("src/ui/*.css").map((path) => [path, readFileSync(path, "utf8")]),
+);
+
+/** The only gradients allowed to stand still: the dropdown's chevron is drawn with two. */
+const STILL = [".occasions select.type-select"];
+
+/** The stylesheet without comments or `@keyframes` blocks, so only real rules are left. */
+function withoutKeyframes(code: string): string {
+  let out = stripComments(code);
+  for (let m = /@keyframes\s+[\w-]+\s*\{/.exec(out); m; m = /@keyframes\s+[\w-]+\s*\{/.exec(out)) {
+    const body = block(out.slice(m.index), /@keyframes/);
+    out = out.slice(0, m.index) + out.slice(m.index + out.slice(m.index).indexOf("{") + body.length + 2);
+  }
+  return out;
+}
+
+type Rule = { file: string; selector: string; body: string };
+
+/** Every rule, one entry per selector in its list, including those inside `@media`, `@supports` and `@container`. */
+const allRules: Rule[] = Object.entries(sheets).flatMap(([file, code]) =>
+  [...withoutKeyframes(code).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((m) => !m[1].trim().startsWith("@"))
+    .flatMap((m) => m[1].split(",").map((selector) => ({ file, selector: selector.trim(), body: m[2] }))),
+);
+
+/** The declarations in a rule body, as [property, value]. */
+const declarations = (body: string): [string, string][] =>
+  [...body.matchAll(/([\w-]+)\s*:\s*([^;]+);?/g)].map((m) => [m[1], m[2].trim()]);
+
+/** Every value each custom property is given, anywhere. */
+const tokenValues = new Map<string, string[]>();
+for (const { body } of allRules)
+  for (const [property, value] of declarations(body))
+    if (property.startsWith("--")) tokenValues.set(property, [...(tokenValues.get(property) ?? []), value]);
+
+/** The gradient functions written directly in `value`, with balanced parentheses. */
+function gradientCalls(value: string): string[] {
+  const found: string[] = [];
+  const re = /(?:repeating-)?(?:linear|radial|conic)-gradient\(/g;
+  for (let m = re.exec(value); m; m = re.exec(value)) {
+    let depth = 0;
+    for (let i = m.index + m[0].length - 1; i < value.length; i++) {
+      if (value[i] === "(") depth++;
+      if (value[i] === ")" && --depth === 0) {
+        found.push(value.slice(m.index, i + 1));
+        re.lastIndex = i + 1;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/** Every gradient `value` can draw, following custom properties to each value they're given. */
+function gradientsIn(value: string, seen = new Set<string>()): string[] {
+  const found = gradientCalls(value);
+  for (const [, name] of value.matchAll(/var\((--[\w-]+)/g)) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    for (const v of tokenValues.get(name) ?? []) found.push(...gradientsIn(v, seen));
+  }
+  return found;
+}
+
+/** A gradient's arguments, split on its top-level commas. */
+function gradientArgs(gradient: string): string[] {
+  const inner = gradient.slice(gradient.indexOf("(") + 1, -1);
+  const args: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < inner.length; i++) {
+    if (inner[i] === "(") depth++;
+    if (inner[i] === ")") depth--;
+    if (inner[i] === "," && depth === 0) {
+      args.push(inner.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  return [...args, inner.slice(start).trim()];
+}
+
+/** A gradient's colors, in order, without its angle, shape or stop positions. */
+function stopColors(gradient: string): string[] {
+  const isColor = (arg: string) => /^(#|var\(|rgb|hsl|color-mix|transparent|currentColor)/.test(arg);
+  return gradientArgs(gradient)
+    .filter(isColor)
+    .map((arg) => arg.replace(/\s+-?[\d.]+(%|px)?$/, ""));
+}
+
+/** The surfaces that paint a gradient: each selector whose own (non-custom) declarations draw one. */
+const gradientSurfaces = [
+  ...new Set(
+    allRules
+      .filter(({ body }) => declarations(body).some(([p, v]) => !p.startsWith("--") && gradientsIn(v).length > 0))
+      .map((r) => r.selector),
+  ),
+];
+
+/** The looping animations a selector's own rules run. */
+const loopsOf = (selector: string): string[] =>
+  allRules
+    .filter((r) => r.selector === selector)
+    .flatMap((r) => declarations(r.body).filter(([p]) => p === "animation"))
+    .flatMap(([, v]) => v.split(/,(?![^(]*\))/).map((a) => a.trim()))
+    .filter((a) => /\binfinite\b/.test(a));
+
+const pageDoc = new DOMParser().parseFromString(indexHtml, "text/html");
+
+/** Whether `selector` paints elements in index.html that each run a loop of their own (the bokeh orbs). */
+function loopsThroughPage(selector: string): boolean {
+  if (selector.includes("::")) return false;
+  const elements = [...pageDoc.querySelectorAll(selector)];
+  const looping = [...new Set(allRules.map((r) => r.selector))].filter((s) => !s.includes("::") && loopsOf(s).length);
+  return elements.length > 0 && elements.every((el) => looping.some((s) => el.matches(s)));
+}
+
+const allCss = Object.values(sheets).map(stripComments).join("\n");
+
+/** The steps of a `@keyframes` block, as [step selector, body]. */
+function keyframeSteps(name: string): [string, string][] {
+  const frames = block(allCss, new RegExp(`@keyframes ${name}\\s*\\{`));
+  return [...frames.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
+}
+
+/** The gradient surfaces outside the bokeh layer, each with its slow drift. */
+const drifting = () =>
+  gradientSurfaces
+    .filter((s) => !STILL.includes(s) && !loopsThroughPage(s))
+    .map((selector) => {
+      const loops = loopsOf(selector);
+      expect(loops, `${selector} drifts`).toHaveLength(1);
+      const [name] = loops[0].split(/\s+/);
+      return { selector, loop: loops[0], name, steps: keyframeSteps(name) };
+    });
+
+describe("every gradient drifts", () => {
+  it("US-20: finds the app's gradients, including the ones drawn through custom properties", () => {
+    for (const selector of [
+      "body",
+      ".app-header",
+      ".app-header::after",
+      ".tab.active",
+      ".panel::before",
+      ".stat-card",
+      ".year-row-inner",
+      ".year-label",
+      ".add-occasion",
+      ".occasions button.fill-auto",
+      ".occasions button.primary",
+      ".earn-date-editor button.primary",
+      ".button.primary",
+      ".orb",
+      ".occasions select.type-select",
+    ])
+      expect(gradientSurfaces, selector).toContain(selector);
+  });
+
+  it("US-20: every gradient in the app gently drifts like soft-focus bokeh, except the dropdown chevron", () => {
+    for (const selector of gradientSurfaces.filter((s) => !STILL.includes(s))) {
+      expect(loopsOf(selector).length > 0 || loopsThroughPage(selector), `${selector} has a looping animation`).toBe(true);
+    }
+    for (const selector of STILL) expect(loopsOf(selector), selector).toEqual([]);
+  });
+
+  it("US-20: each drift is slow and dreamy: 16-45 s, ease-in-out, back and forth, on its own clock", () => {
+    const surfaces = drifting();
+    expect(surfaces.length).toBeGreaterThanOrEqual(12);
+    const seconds = surfaces.map(({ selector, loop }) => {
+      expect(loop, selector).toMatch(/\bease-in-out\b/);
+      expect(loop, selector).toMatch(/\balternate\b/);
+      const s = Number(/\b([\d.]+)s\b/.exec(loop)![1]);
+      expect(s, selector).toBeGreaterThanOrEqual(16);
+      expect(s, selector).toBeLessThanOrEqual(45);
+      return s;
+    });
+    // Different lengths, so the surfaces never pulse together.
+    const all = [...seconds, ...[...allCss.matchAll(/animation-duration:\s*([\d.]+)s/g)].map((m) => Number(m[1]))];
+    expect(new Set(all).size).toBe(all.length);
+    for (const s of all) expect(s).toBeGreaterThanOrEqual(16);
+    for (const s of all) expect(s).toBeLessThanOrEqual(45);
+  });
+
+  it("US-20: drifts move the gradient, never its colors: only position, transform and opacity change", () => {
+    for (const { selector, steps } of drifting()) {
+      expect(steps.length, selector).toBeGreaterThan(0);
+      for (const [, body] of steps)
+        for (const [property] of declarations(body))
+          expect(
+            ["background-position", "transform", "opacity"].includes(property) || property.startsWith("--glow-"),
+            `${selector}: ${property}`,
+          ).toBe(true);
+    }
+  });
+
+  it("US-20: a gradient that slides is enlarged 200-300% and mirrored, so at rest it looks exactly as before", () => {
+    const sliding = drifting().filter(({ steps }) => steps.some(([, body]) => body.includes("background-position")));
+    expect(sliding.length).toBeGreaterThanOrEqual(10);
+    for (const { selector } of sliding) {
+      const own = allRules.filter((r) => r.selector === selector).flatMap((r) => declarations(r.body));
+      const size = own.filter(([p]) => p === "background-size").map(([, v]) => v).pop();
+      expect(size, `${selector} background-size`).toBeDefined();
+      const percents = [...size!.matchAll(/(\d+)%/g)].map((m) => Number(m[1])).filter((n) => n !== 100);
+      expect(percents.length, selector).toBeGreaterThan(0);
+      for (const n of percents) expect(n, selector).toBeGreaterThanOrEqual(200);
+      for (const n of percents) expect(n, selector).toBeLessThanOrEqual(300);
+      const gradients = own.filter(([p]) => p === "background" || p === "background-image").flatMap(([, v]) => gradientsIn(v));
+      expect(gradients.length, selector).toBeGreaterThan(0);
+      // The first half of a mirrored gradient is the original, so position 0% shows the old look.
+      for (const g of gradients) expect(stopColors(g), `${selector}: ${g}`).toEqual([...stopColors(g)].reverse());
+    }
+  });
+
+  it("US-20: each drift starts from the resting look, so Reduce Motion or a paused drift hides nothing", () => {
+    for (const { selector, steps } of drifting()) {
+      for (const [step] of steps) {
+        expect(step.split(/,\s*/), `${selector} has no starting frame`).not.toContain("from");
+        expect(step.split(/,\s*/), `${selector} has no starting frame`).not.toContain("0%");
+      }
+    }
+    // A drifting custom property rests where the page has always been.
+    for (const [, name, initial] of allCss.matchAll(/@property\s+(--[\w-]+)\s*\{[^}]*initial-value:\s*([^;]+);/g)) {
+      expect(tokenValues.get(name), name).toEqual([initial.trim()]);
+    }
+    // Nothing a drift touches overrides Reduce Motion's `animation: none !important`.
+    for (const { selector, loop } of drifting()) expect(loop, selector).not.toContain("!important");
+    const reduced = block(styles, /@media \(prefers-reduced-motion: reduce\)/);
+    for (const selector of ["*", "*::before", "*::after"])
+      expect(rules(reduced, selector).join(""), selector).toContain("animation: none !important");
+  });
+
+  it("US-20: the header's soft bokeh orbs sit behind its text, in its own colors, and are hidden at rest", () => {
+    const orbs = allRules.filter((r) => r.selector === ".app-header::before").map((r) => r.body).join(";");
+    const header = allRules.filter((r) => r.selector === ".app-header").map((r) => r.body).join(";");
+    expect(header).toContain("isolation: isolate");
+    expect(orbs).toMatch(/z-index: -1/);
+    expect(orbs).toContain("pointer-events: none");
+    expect(orbs).toMatch(/(?:^|;)\s*opacity: 0;/);
+    const balls = gradientCalls(orbs);
+    expect(balls.length).toBeGreaterThanOrEqual(2);
+    expect(balls.length).toBeLessThanOrEqual(3);
+    for (const ball of balls) {
+      expect(ball).toMatch(/^radial-gradient\(circle/);
+      expect(ball).toMatch(/var\(--header-[123]\)/);
+      expect(ball).toContain("transparent");
+    }
+    for (const [, body] of keyframeSteps(loopsOf(".app-header::before")[0].split(/\s+/)[0]))
+      for (const [property, value] of declarations(body)) {
+        expect(["transform", "opacity"]).toContain(property);
+        if (property === "opacity") expect(Number(value)).toBeLessThanOrEqual(1);
+      }
+  });
+
+  it("US-20: white header and button text stays readable (4.5:1) on every color the drifting header shows", () => {
+    for (const dark of [false, true]) {
+      const t = scheme(dark);
+      const colors = ["--header-1", "--header-2", "--header-3"].map((k) => {
+        expect(t[k], k).toMatch(/^#[0-9a-f]{6}$/i);
+        return rgb(t[k]);
+      });
+      expect(stopColors(t["--header-gradient"]).every((c) => /^var\(--header-[123]\)$/.test(c))).toBe(true);
+      // Each color, and the orbs blending any two of them.
+      for (const a of colors)
+        for (const b of colors)
+          for (const mix of [0, 0.25, 0.5, 0.75, 1])
+            expect(contrast([255, 255, 255], over(a, mix, b)), `${dark ? "dark" : "light"} ${a} / ${b}`).toBeGreaterThanOrEqual(4.5);
     }
   });
 });

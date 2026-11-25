@@ -46,6 +46,8 @@
 
 .occasions button.primary {
   background: var(--header-gradient);
+  background-size: 200% 200%;
+  animation: gradient-drift 22s ease-in-out infinite alternate;
   border-color: transparent;
   color: #fff;
   box-shadow: 0 4px 14px rgb(194 37 92 / 0.25);
@@ -76,7 +78,9 @@
   margin-bottom: 16px;
   padding: 14px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--accent-soft), var(--floating-holiday-soft));
+  background: linear-gradient(135deg, var(--accent-soft), var(--floating-holiday-soft) 50%, var(--accent-soft));
+  background-size: 200% 200%;
+  animation: gradient-drift 33s ease-in-out infinite alternate;
 }
 
 .add-title {
@@ -490,7 +494,9 @@
   padding: 0 16px;
   border: 1.5px solid color-mix(in srgb, var(--rdo) 45%, transparent);
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--rdo-soft), var(--vacation-soft));
+  background: linear-gradient(135deg, var(--rdo-soft), var(--vacation-soft) 50%, var(--rdo-soft));
+  background-size: 200% 200%;
+  animation: gradient-drift 27s ease-in-out infinite alternate;
   color: var(--rdo);
   font-size: 16px;
   font-weight: 700;

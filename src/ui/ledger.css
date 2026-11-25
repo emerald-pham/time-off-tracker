@@ -14,12 +14,26 @@
   gap: 8px 10px;
   padding: 14px;
   border-radius: 16px;
+  /* The border's gradient is mirrored and drawn at 200%, so it slides without changing the resting look (US-20). */
   background:
     linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(120deg, var(--vacation), var(--floating-holiday)) border-box;
+    linear-gradient(120deg, var(--vacation), var(--floating-holiday) 50%, var(--vacation)) border-box;
+  background-size:
+    100% 100%,
+    200% 200%;
   border: 2px solid transparent;
   box-shadow: var(--shadow);
-  animation: rise-in 0.4s ease-out backwards;
+  animation:
+    border-drift 41s ease-in-out infinite alternate,
+    rise-in 0.4s ease-out backwards;
+}
+
+@keyframes border-drift {
+  to {
+    background-position:
+      0 0,
+      100% 100%;
+  }
 }
 
 .stat-title {
@@ -153,8 +167,16 @@
   gap: 6px 10px;
   padding: 8px 10px;
   border-radius: 14px;
-  background: linear-gradient(100deg, var(--year-bg), color-mix(in srgb, var(--year-bg) 40%, transparent));
-  animation: rise-in 0.35s ease-out backwards;
+  background: linear-gradient(
+    100deg,
+    var(--year-bg),
+    color-mix(in srgb, var(--year-bg) 40%, transparent) 50%,
+    var(--year-bg)
+  );
+  background-size: 200% 200%;
+  animation:
+    gradient-drift 35s ease-in-out infinite alternate,
+    rise-in 0.35s ease-out backwards;
 }
 
 .year-label {
@@ -162,9 +184,11 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   background: var(--text-gradient);
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: gradient-drift 19s ease-in-out infinite alternate;
 }
 
 .year-totals {
@@ -373,6 +397,8 @@
 
 .earn-date-editor button.primary {
   background: var(--header-gradient);
+  background-size: 200% 200%;
+  animation: gradient-drift 26s ease-in-out infinite alternate;
   border-color: transparent;
   color: #fff;
 }

@@ -158,4 +158,5 @@ Clear colors for each type of day, Season colors, and animations. Motion is turn
 - Editors open and close smoothly, rows and cards fade in, tabs slide, buttons press and counts roll to their new value.
 - System fonts only, and nothing loaded from other sites.
 - A softly animated, out-of-focus bokeh background drifts behind everything, in the app's sunset colors.
+- Every gradient in the app (the header, tabs, buttons, cards, panel bars, year rows and year labels) gently drifts too, like soft-focus bokeh: slow loops of different lengths, with soft orbs floating behind the header's text. Only the dropdown arrows hold still. At rest, and under Reduce Motion, everything looks as it did before.
 - Text stays readable (WCAG AA 4.5:1) on the surface it sits on.

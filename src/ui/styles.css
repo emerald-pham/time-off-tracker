@@ -46,7 +46,22 @@
   --autumn: #bc3d0c;
   --autumn-soft: #ffe6d6;
 
-  --header-gradient: linear-gradient(125deg, #c2410c 0%, #c2255c 48%, #6741d9 100%);
+  /*
+   * The header's three colors. Its gradient is mirrored (there and back) and
+   * drawn at 200%, so the first half, the part shown at rest, is the original
+   * sunset; the drift slides along to the far half and back (US-20).
+   */
+  --header-1: #c2410c;
+  --header-2: #c2255c;
+  --header-3: #6741d9;
+  --header-gradient: linear-gradient(
+    125deg,
+    var(--header-1) 0%,
+    var(--header-2) 24%,
+    var(--header-3) 50%,
+    var(--header-2) 76%,
+    var(--header-1) 100%
+  );
   --text-gradient: var(--header-gradient);
   --radius: 18px;
   /* How opaque panels are over the bokeh background (bokeh.css). */
@@ -98,8 +113,10 @@
     --autumn: #ff9a62;
     --autumn-soft: #42220f;
 
-    --header-gradient: linear-gradient(125deg, #9a3412 0%, #a61e4d 48%, #5f3dc4 100%);
-    --text-gradient: linear-gradient(100deg, #ffa94d, #ff7aa8 50%, #b197fc);
+    --header-1: #9a3412;
+    --header-2: #a61e4d;
+    --header-3: #5f3dc4;
+    --text-gradient: linear-gradient(100deg, #ffa94d 0%, #ff7aa8 25%, #b197fc 50%, #ff7aa8 75%, #ffa94d 100%);
   }
 }
 
@@ -141,14 +158,35 @@
   box-sizing: border-box;
 }
 
+/*
+ * The page's two corner glows drift slowly toward the middle and back (US-20).
+ * A registered property animates smoothly; it rests at 0%, where they've
+ * always been.
+ */
+@property --glow-drift {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
 body {
+  --glow-drift: 0%;
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(900px 520px at -10% -10%, var(--glow-1), transparent 65%),
-    radial-gradient(800px 480px at 110% -5%, var(--glow-2), transparent 60%),
+    radial-gradient(
+      900px 520px at calc(-10% + var(--glow-drift)) calc(-10% + var(--glow-drift) / 2),
+      var(--glow-1),
+      transparent 65%
+    ),
+    radial-gradient(
+      800px 480px at calc(110% - var(--glow-drift)) calc(-5% + var(--glow-drift) / 3),
+      var(--glow-2),
+      transparent 60%
+    ),
     var(--bg);
   background-repeat: no-repeat;
+  animation: glow-drift 45s ease-in-out infinite alternate;
   color: var(--text);
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -198,14 +236,37 @@ button:not(:disabled):active {
   overflow: hidden;
   padding: 16px 18px 14px;
   border-radius: var(--radius);
+  /* Its own stacking context, so the orbs below sit over the gradient but under the text. */
+  isolation: isolate;
   background: var(--header-gradient);
+  background-size: 200% 200%;
   color: #fff;
   box-shadow: var(--shadow);
-  animation: rise-in 0.5s ease-out backwards;
+  animation: gradient-drift 38s ease-in-out infinite alternate, rise-in 0.5s ease-out backwards;
+}
+
+.app-header::before {
+  /*
+   * Soft-focus bokeh in the header's own colors, drifting behind its text.
+   * Hidden at rest, so a still header looks as it always has; white text
+   * stays readable on any blend of these colors (looks.test.tsx).
+   */
+  content: "";
+  position: absolute;
+  inset: -40% -20%;
+  z-index: -1;
+  background:
+    radial-gradient(circle clamp(110px, 18vw, 240px) at 18% 62%, var(--header-1), transparent),
+    radial-gradient(circle clamp(120px, 20vw, 260px) at 52% 32%, var(--header-3), transparent),
+    radial-gradient(circle clamp(100px, 16vw, 220px) at 84% 70%, var(--header-2), transparent);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: header-bokeh 24s ease-in-out infinite alternate;
 }
 
 .app-header::after {
-  /* A soft sun in the corner. */
+  /* A soft sun in the corner. It only ever drifts further into the corner, away from the text. */
   content: "";
   position: absolute;
   right: -40px;
@@ -215,6 +276,7 @@ button:not(:disabled):active {
   border-radius: 50%;
   background: radial-gradient(circle, rgb(255 236 179 / 0.55), rgb(255 236 179 / 0) 70%);
   pointer-events: none;
+  animation: sun-drift 21s ease-in-out infinite alternate;
 }
 
 .brand {
@@ -299,6 +361,8 @@ button:not(:disabled):active {
 
 .tab.active {
   background: var(--header-gradient);
+  background-size: 200% 200%;
+  animation: gradient-drift 18s ease-in-out infinite alternate;
   color: #fff;
   box-shadow: 0 4px 12px rgb(194 37 92 / 0.3);
 }
@@ -334,16 +398,26 @@ button:not(:disabled):active {
   inset: 0 0 auto;
   height: 5px;
   background: var(--panel-color, var(--header-gradient));
+  background-size: 200% 200%;
+  animation: gradient-drift 29s ease-in-out infinite alternate;
 }
 
+/* Mirrored, like every sliding gradient, so the half shown at rest is the original. */
 #panel-ledger {
-  --panel-color: linear-gradient(90deg, var(--vacation), var(--floating-holiday));
+  --panel-color: linear-gradient(90deg, var(--vacation), var(--floating-holiday) 50%, var(--vacation));
 }
 #panel-occasions {
-  --panel-color: linear-gradient(90deg, var(--autumn), var(--accent));
+  --panel-color: linear-gradient(90deg, var(--autumn), var(--accent) 50%, var(--autumn));
 }
 #panel-settings {
-  --panel-color: linear-gradient(90deg, var(--rdo), var(--accent-2));
+  --panel-color: linear-gradient(90deg, var(--rdo), var(--accent-2) 50%, var(--rdo));
+}
+/* Each bar on its own clock, so the three columns don't move together. */
+#panel-occasions::before {
+  animation-duration: 32s;
+}
+#panel-settings::before {
+  animation-duration: 37s;
 }
 
 .panel.active {
@@ -536,6 +610,39 @@ button:not(:disabled):active {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+/*
+ * The gradients' slow drift (US-20). Each runs from the resting look and back
+ * (alternate), so a paused or stopped drift shows the page as designed.
+ */
+@keyframes gradient-drift {
+  to {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes glow-drift {
+  to {
+    --glow-drift: 14%;
+  }
+}
+
+@keyframes header-bokeh {
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translate(-7%, 5%) rotate(10deg) scale(1.12);
+  }
+}
+
+@keyframes sun-drift {
+  to {
+    transform: translate(18px, -12px) scale(0.9);
+    opacity: 0.75;
   }
 }
 
