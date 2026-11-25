@@ -243,6 +243,21 @@ export interface OccasionView {
    * Floating Holidays.
    */
   floatingHolidaysCouldCover: IsoDate[];
+  /** US-29: the weeks this Occasion has an RDO in that have more than two; empty when none. */
+  tooManyRdos: RdoOverflow[];
+}
+
+/**
+ * US-29: a Sunday–Saturday week with more than two RDO Days Off across all
+ * Occasions. A week only has two days off. A warning, never a block.
+ */
+export interface RdoOverflow {
+  /** The Sunday that starts the week. */
+  week: IsoDate;
+  /** The week's RDO dates, each once however many Occasions mark it, sorted. */
+  dates: IsoDate[];
+  /** The Occasions with an RDO that week, by start date. */
+  occasions: { occasionId: string; occasionName: string }[];
 }
 
 /** One Occasion's side of a Clash. */
@@ -264,6 +279,8 @@ export interface ViewModel {
   occasions: OccasionView[];
   /** Clashes among the given Occasions, by date. */
   clashes: Clash[];
+  /** US-29: weeks with more than two RDOs across all Occasions, by week. */
+  tooManyRdos: RdoOverflow[];
   /** False until a hire date is entered; the UI opens on Settings. */
   configured: boolean;
 }

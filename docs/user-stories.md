@@ -79,6 +79,14 @@ Floating Holidays expire on Dec 31 and Vacation carries over, so when free Float
 - A large "Use Floating Holidays" button switches that many of the Occasion's Vacation days, earliest first, to Floating Holiday and saves, with the usual Clash check. Then the note goes away.
 - It's only a nudge: nothing is blocked, and the days that aren't RDOs still default to Vacation (US-25).
 
+**US-29: Red-flag a week with more than two RDOs.**
+A week (Sunday to Saturday) only has two days off, so when Occasions overlap the same week, or I set the types by hand, the app flags any week with more than two RDOs.
+- RDOs count by date: a date that's RDO in two overlapping Occasions is one day off, so it counts once.
+- Each Occasion in that week shows a red warning, like "Too many RDOs: the week of Sun Mar 7 has 3 RDOs across 'A' and 'B'. A week only has 2."
+- In "Choose days" the same warning shows live as I change the types, and the extra RDO rows are highlighted red.
+- It's a warning, not a block: Save still works.
+- Filling in Day Types automatically (US-25) shares each week's two days off, so it never causes this.
+
 **US-27: Fill in the end date for me.**
 Once I enter a start date, in "Plan an Occasion" or in "Edit the name and dates", the end date fills itself in as the day after.
 - An empty end date becomes the start + 1 day.

@@ -1,5 +1,5 @@
 import { sapBalanceDays, weekdayOf } from "../engine";
-import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
+import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, RdoOverflow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -53,6 +53,17 @@ export function clashMessage(clash: Clash, occasionId: string): string {
   const other = clash.entries.find((e) => e.occasionId !== occasionId) ?? clash.entries[0];
   const p = parts(clash.date);
   return `${p.month} ${p.day} is already ${DAY_TYPE_LABELS[other.dayType]} in '${other.occasionName}'`;
+}
+
+/**
+ * US-29: "Too many RDOs: the week of Sun Mar 7 has 3 RDOs across 'A' and 'B'.
+ * A week only has 2." ("in 'A'" for one Occasion). The week shows its year
+ * when it isn't `currentYear`, like Occasion Dates.
+ */
+export function tooManyRdosMessage(w: RdoOverflow, currentYear?: number): string {
+  const names = w.occasions.map((o) => `'${o.occasionName}'`);
+  const listed = names.length === 1 ? `in ${names[0]}` : `across ${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return `Too many RDOs: the week of ${formatRange(w.week, w.week, currentYear)} has ${w.dates.length} RDOs ${listed}. A week only has 2.`;
 }
 
 /** "Mar 5", or "Nov 12, 2025" when the date is outside the year group. */

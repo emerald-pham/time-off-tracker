@@ -83,6 +83,7 @@ Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday ba
 - **Deducted Days Off:** shown greyed as history. They Burn nothing. An Occasion whose Days Off are all Deducted is greyed as a whole.
 - **Editing:** Occasions can be renamed, have their dates changed, or be deleted.
 - **End date autofill (US-27):** in the add form and in Edit, entering a start date that's a real date from 1950 to 2100 sets the end date to the start + 1 day when the end is empty or earlier than the new start. An end on or after the start is left as the person chose it, so a one-day Occasion is an end equal to the start.
+- **Too many RDOs (US-29):** across all Occasions, the engine counts RDO Days Off per Sunday–Saturday week by unique date (a date that's RDO in two overlapping Occasions is one day off) and lists every week with more than 2 (`tooManyRdos`: the week's Sunday, its RDO dates and the Occasions involved, by start date); each Occasion carries the weeks it's in. Each of those cards shows a red line in the Clash style: "Too many RDOs: the week of Sun Mar 7 has 3 RDOs across 'A' and 'B'. A week only has 2." ("in 'A'" for one Occasion; the week shows its year outside the current one). The day editor works it out live for the draft, shows the same line and highlights the draft's RDO rows in those weeks red. It's a warning only: Save is never refused for it. The weekly rule shares each week's two days off, so filling in never causes it.
 - **Clash:** a date may belong to several Occasions. If one date is Vacation or Floating Holiday in two Occasions, that's a Clash, and Save is refused with a message like "Sep 10 is already Vacation in '<other Occasion>'". This check applies to the day editor and to date-range changes. When a new Occasion's defaults would Clash, open the day editor with the clashing dates highlighted.
 
 ## Ledger (left)
@@ -244,7 +245,7 @@ RDO and Unpaid Days Off Burn nothing.
 
 All the rules above go in one pure TypeScript module with no UI and no Firebase:
 - **Input:** settings, Occasions, Earn Date edits and today.
-- **Output:** a view model with Ledger groups and rows, each Occasion's PTO Days, unpaid count, Short count, Season, Deducted flags and the Vacation days free Floating Holidays could cover, plus warnings and Clash errors.
+- **Output:** a view model with Ledger groups and rows, each Occasion's PTO Days, unpaid count, Short count, Season, Deducted flags, each Day Off's approval and the Vacation days free Floating Holidays could cover, plus warnings (weeks with too many RDOs among them) and Clash errors.
 
 The UI only renders that view model and saves edits. Write the engine test-first against the worked examples below.
 

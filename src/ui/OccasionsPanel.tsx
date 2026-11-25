@@ -4,14 +4,23 @@ import {
   LAST_SUPPORTED_YEAR,
   approvedDates,
   datesInRange,
+  findRdoOverflows,
   isSupportedDate,
   rdoDates,
   weeklyDayTypes,
   withApprovedDays,
 } from "../engine";
-import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
+import type { DayType, IsoDate, Occasion, OccasionView, RdoOverflow } from "../engine";
 import type { AppData } from "../storage";
-import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonClass, seasonLabel, typeClass } from "./format";
+import {
+  DAY_TYPE_LABELS,
+  formatDayOff,
+  formatRange,
+  seasonClass,
+  seasonLabel,
+  tooManyRdosMessage,
+  typeClass,
+} from "./format";
 import { Reveal } from "./motion";
 import {
   checkOccasion,
@@ -140,7 +149,8 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
             </p>
             <DayEditor
               editing={newDraft}
-              held={heldByOthers(newDraft.draft.id)}
+              others={occasions.filter((x) => x.id !== newDraft.draft.id)}
+              currentYear={currentYear}
               deducted={new Set()}
               onChange={setEditing}
               onSave={(draft) => {
@@ -189,7 +199,8 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                   open?.kind === "days" ? (
                     <DayEditor
                       editing={open}
-                      held={heldByOthers(o.id)}
+                      others={occasions.filter((x) => x.id !== o.id)}
+                      currentYear={currentYear}
                       deducted={new Set(o.days.filter((d) => d.deducted).map((d) => d.date))}
                       approvable={!isPast(o)}
                       onChange={setEditing}
@@ -281,6 +292,8 @@ function OccasionCard({
           </span>
         )}
       </div>
+
+      <RdoWarnings overflows={o.tooManyRdos} currentYear={currentYear} role="note" />
 
       {yearCheck !== null && (
         <div className="year-check" role="alert">
@@ -505,6 +518,26 @@ function AddOccasionForm({
   );
 }
 
+/** US-29: a red warning per week with more than two RDOs. A warning only: nothing is refused. */
+function RdoWarnings({
+  overflows,
+  currentYear,
+  role,
+}: {
+  overflows: RdoOverflow[];
+  currentYear: number;
+  role: "note" | "alert";
+}) {
+  if (overflows.length === 0) return null;
+  return (
+    <div className="clash-messages rdo-warning" role={role}>
+      {overflows.map((w) => (
+        <p key={w.week}>{tooManyRdosMessage(w, currentYear)}</p>
+      ))}
+    </div>
+  );
+}
+
 function Messages({ messages }: { messages: string[] }) {
   if (messages.length === 0) return null;
   return (
@@ -518,7 +551,8 @@ function Messages({ messages }: { messages: string[] }) {
 
 function DayEditor({
   editing,
-  held,
+  others,
+  currentYear,
   deducted,
   approvable = true,
   onChange,
@@ -526,8 +560,9 @@ function DayEditor({
   onCancel,
 }: {
   editing: Extract<Editing, { kind: "days" }>;
-  /** RDO dates other Occasions hold. */
-  held: IsoDate[];
+  /** Every other Occasion: they share each week's two days off. */
+  others: OccasionView[];
+  currentYear: number;
   deducted: Set<IsoDate>;
   /** False for an Occasion already taken: approval no longer matters (US-23). */
   approvable?: boolean;
@@ -540,6 +575,14 @@ function DayEditor({
   const dates = Object.keys(draft.dayTypes).sort();
   const setType = (date: IsoDate, type: DayType) =>
     onChange({ ...editing, draft: { ...draft, dayTypes: { ...draft.dayTypes, [date]: type } } });
+  const held = rdoDates(others);
+  /** US-29: weeks with more than two RDOs once the draft's choices count, kept live while editing. */
+  const tooManyRdos = findRdoOverflows(
+    [...others, { ...draft, days: dates.map((date) => ({ date, dayType: draft.dayTypes[date] })) }].sort(
+      (a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id),
+    ),
+  ).filter((w) => w.occasions.some((o) => o.occasionId === draft.id));
+  const extraRdos = new Set(tooManyRdos.flatMap((w) => w.dates).filter((d) => draft.dayTypes[d] === "rdo"));
   const approved = new Set(approvedDates(draft));
   /** US-23: switches one day between Approved and Not approved, in the draft. */
   const toggleApproved = (date: IsoDate) => {
@@ -561,6 +604,7 @@ function DayEditor({
     <div className="day-editor">
       <p className="editor-title">Choose each day's type</p>
       <Messages messages={editing.messages} />
+      <RdoWarnings overflows={tooManyRdos} currentYear={currentYear} role="alert" />
       <button type="button" className="fill-auto" onClick={fillIn}>
         Fill in automatically
       </button>
@@ -570,6 +614,7 @@ function DayEditor({
             "day",
             deducted.has(date) && "deducted",
             editing.highlight.includes(date) && "clashing",
+            extraRdos.has(date) && "too-many-rdos",
           ].filter(Boolean);
           const type = draft.dayTypes[date];
           const labelId = `${idPrefix}-${date}`;

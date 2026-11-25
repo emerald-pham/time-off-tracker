@@ -1,6 +1,6 @@
 import { LAST_SUPPORTED_YEAR, isSupportedDate, isoDate, yearOf } from "./dates";
 import { burn } from "./burning";
-import { findClashes, occasionViews } from "./occasions";
+import { findClashes, findRdoOverflows, occasionViews, withRdoOverflows } from "./occasions";
 import { paidBy } from "./payday";
 import { eligibilityDate, projectSchedule } from "./schedule";
 import type {
@@ -80,10 +80,12 @@ export function computeView(input: EngineInput): ViewModel {
   const shown = rowGroups.flatMap((g) => g.rows);
   const groups = rowGroups.map((g) => ({ ...g, freeByEnd: freeUsableOn(shown, isoDate(g.year, 12, 31)) }));
 
+  const tooManyRdos = findRdoOverflows(occasions);
   return {
     configured: settings.hireDate !== null,
-    occasions: suggestFloatingHolidays(occasions, earned),
+    occasions: withRdoOverflows(suggestFloatingHolidays(occasions, earned), tooManyRdos),
     clashes: findClashes(occasions),
+    tooManyRdos,
     ledger: {
       groups,
       free: countFree(shown),

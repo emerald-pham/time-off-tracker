@@ -147,6 +147,68 @@ describe("US-09: Overlapping Occasions are fine unless paid time clashes", () =>
   });
 });
 
+describe("US-29: Flag a week with more than two RDOs", () => {
+  // Sun Mar 7 – Sat Mar 13, 2027: one Sunday-to-Saturday week.
+  const rdos = (...dates: string[]) => Object.fromEntries(dates.map((d) => [d, "rdo" as const]));
+
+  it("US-29: two Occasions in one week with 2 RDOs each, on different dates, are flagged, naming both", () => {
+    const a = occasion("a", "Made-up A", "2027-03-08", "2027-03-09", rdos("2027-03-08", "2027-03-09"));
+    const b = occasion("b", "Made-up B", "2027-03-11", "2027-03-12", rdos("2027-03-11", "2027-03-12"));
+    const v = view(samE2, today, { occasions: [a, b] });
+    const flag = {
+      week: "2027-03-07",
+      dates: ["2027-03-08", "2027-03-09", "2027-03-11", "2027-03-12"],
+      occasions: [
+        { occasionId: "a", occasionName: "Made-up A" },
+        { occasionId: "b", occasionName: "Made-up B" },
+      ],
+    };
+    expect(v.tooManyRdos).toEqual([flag]);
+    expect(v.occasions.map((o) => o.tooManyRdos)).toEqual([[flag], [flag]]);
+  });
+
+  it("US-29: the same date marked RDO in two overlapping Occasions is one day off, so it counts once", () => {
+    // Mon–Tue RDO in A, and Tue RDO again in B (with Wed Vacation): 2 days off, not 3.
+    const a = occasion("a", "Made-up A", "2027-03-08", "2027-03-09", rdos("2027-03-08", "2027-03-09"));
+    const b = occasion("b", "Made-up B", "2027-03-09", "2027-03-10", { ...rdos("2027-03-09"), "2027-03-10": "vacation" });
+    const v = view(samE2, today, { occasions: [a, b] });
+    expect(v.tooManyRdos).toEqual([]);
+    expect(v.occasions.every((o) => o.tooManyRdos.length === 0)).toBe(true);
+
+    // A third RDO date in the week tips it over, and the flag lists each date once.
+    const c = occasion("c", "Made-up C", "2027-03-13", "2027-03-13", rdos("2027-03-13"));
+    const flagged = view(samE2, today, { occasions: [a, b, c] }).tooManyRdos;
+    expect(flagged.map((f) => f.dates)).toEqual([["2027-03-08", "2027-03-09", "2027-03-13"]]);
+    expect(flagged[0].occasions.map((o) => o.occasionId)).toEqual(["a", "b", "c"]);
+  });
+
+  it("US-29: a single Occasion with 3 RDOs set by hand in one week is flagged", () => {
+    // Mon Mar 8 – Fri Mar 12, 2027 with Mon, Wed and Fri chosen as RDO.
+    const o = occasion("solo", "Made-up solo", "2027-03-08", "2027-03-12", {
+      ...rdos("2027-03-08", "2027-03-10", "2027-03-12"),
+      "2027-03-09": "vacation",
+      "2027-03-11": "vacation",
+    });
+    const v = view(samE2, today, { occasions: [o] });
+    expect(v.tooManyRdos).toEqual([
+      {
+        week: "2027-03-07",
+        dates: ["2027-03-08", "2027-03-10", "2027-03-12"],
+        occasions: [{ occasionId: "solo", occasionName: "Made-up solo" }],
+      },
+    ]);
+    expect(v.occasions[0].tooManyRdos).toHaveLength(1);
+  });
+
+  it("US-29: RDOs in different weeks don't add up, and it's a warning only: nothing else changes", () => {
+    // Fri Mar 12 – Mon Mar 15, 2027, all RDO: 2 in each week.
+    const o = occasion("long", "Made-up long weekend", "2027-03-12", "2027-03-15", rdos("2027-03-12", "2027-03-13", "2027-03-14", "2027-03-15"));
+    expect(view(samE2, today, { occasions: [o] }).tooManyRdos).toEqual([]);
+    const three = occasion("x", "Made-up X", "2027-03-08", "2027-03-10", rdos("2027-03-08", "2027-03-09", "2027-03-10"));
+    expect(view(samE2, today, { occasions: [three] }).clashes).toEqual([]);
+  });
+});
+
 describe("US-25: Fill in Day Types automatically, week by week", () => {
   const newOccasion = (start: string, end: string) =>
     view(samE2, today, { occasions: [occasion("o", "Made-up trip", start, end)] }).occasions[0];
@@ -201,6 +263,27 @@ describe("US-25: Fill in Day Types automatically, week by week", () => {
       "2026-09-11": "rdo",
       "2026-09-12": "rdo",
     });
+  });
+
+  it("US-29: the weekly rule shares each week's two days off, so filling in Occasions never flags too many RDOs", () => {
+    // Every way of laying two or three Occasions over Sun Mar 7 – Sat Mar 20, 2027, filled in by the rule
+    // in start-date order, as new Occasions and "Fill in automatically" are.
+    const dates = Array.from({ length: 14 }, (_, i) => `2027-03-${String(7 + i).padStart(2, "0")}`);
+    let layouts = 0;
+    for (let s1 = 0; s1 < 14; s1++)
+      for (let e1 = s1; e1 < 14; e1 += 2)
+        for (let s2 = 0; s2 < 14; s2 += 2)
+          for (let e2 = s2; e2 < 14; e2 += 3) {
+            const occasions = [occasion("a", "Made-up A", dates[s1], dates[e1]), occasion("b", "Made-up B", dates[s2], dates[e2])];
+            const v = view(samE2, today, { occasions });
+            expect(v.tooManyRdos, `${dates[s1]}–${dates[e1]} and ${dates[s2]}–${dates[e2]}`).toEqual([]);
+            // A third, added once the first two are saved with their types.
+            const saved = occasions.map((o) => withResolvedTypes(o, v.occasions.find((x) => x.id === o.id)!));
+            const third = occasion("c", "Made-up C", dates[e2], dates[Math.min(13, e2 + 4)]);
+            expect(view(samE2, today, { occasions: [...saved, third] }).tooManyRdos).toEqual([]);
+            layouts++;
+          }
+    expect(layouts).toBeGreaterThan(200);
   });
 
   it("US-25: a lone day off is an RDO, and a long week alone keeps 2 RDOs at the start", () => {

@@ -578,6 +578,69 @@ describe("filling in Day Types automatically", () => {
   });
 });
 
+describe("too many RDOs in a week", () => {
+  // Thu Mar 4 – Fri Mar 5, 2027 are RDO in another Occasion: the week of Sun Feb 28 has its two days off.
+  const concert: Occasion = {
+    id: "concert",
+    name: "Made-up concert",
+    start: "2027-03-04",
+    end: "2027-03-05",
+    dayTypes: { "2027-03-04": "rdo", "2027-03-05": "rdo" },
+  };
+  const warning = (c: Element) => c.querySelector(".rdo-warning");
+  const MESSAGE =
+    "Too many RDOs: the week of Sun Feb 28, 2027 has 4 RDOs across 'Made-up trip' and 'Made-up concert'. A week only has 2.";
+
+  it("US-29: each Occasion in a week with more than two RDOs shows a red warning naming them", async () => {
+    const { el } = await show([{ ...trip, dayTypes: { "2027-03-01": "rdo", "2027-03-02": "rdo" } }, concert]);
+    for (const name of ["Made-up trip", "Made-up concert"]) {
+      const w = warning(card(el, name))!;
+      expect(text(w).trim()).toBe(MESSAGE);
+      expect(w.classList).toContain("clash-messages"); // The existing red Clash styling.
+    }
+  });
+
+  it("US-29: one Occasion alone says 'in', and a week with two RDOs shows nothing", async () => {
+    const { el } = await show([
+      { ...trip, end: "2027-03-03", dayTypes: { "2027-03-01": "rdo", "2027-03-02": "rdo", "2027-03-03": "rdo" } },
+    ]);
+    expect(text(warning(card(el, "Made-up trip"))!).trim()).toBe(
+      "Too many RDOs: the week of Sun Feb 28, 2027 has 3 RDOs in 'Made-up trip'. A week only has 2.",
+    );
+    await mounted!.unmount();
+    mounted = null;
+    const fine = await show([trip, concert]);
+    expect(fine.el.querySelector(".rdo-warning")).toBeNull();
+  });
+
+  it("US-29: 'Choose days' warns live while editing and highlights the extra RDO rows, but Save still works", async () => {
+    const { el, onChange } = await show([trip, concert]);
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    const editor = () => card(el, "Made-up trip").querySelector(".day-editor")!;
+    expect(warning(editor())).toBeNull();
+
+    const select = editor().querySelectorAll("select")[0];
+    await act(async () => {
+      select.value = "rdo";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flush();
+    expect(text(warning(editor())!).trim()).toBe(
+      "Too many RDOs: the week of Sun Feb 28, 2027 has 3 RDOs across 'Made-up trip' and 'Made-up concert'. A week only has 2.",
+    );
+    const rows = [...editor().querySelectorAll(".day")];
+    expect(rows.map((r) => r.classList.contains("too-many-rdos"))).toEqual([true, false]);
+    // Nothing is saved until Save, and Save isn't refused: it's a warning.
+    expect(onChange).not.toHaveBeenCalled();
+    await click(button(card(el, "Made-up trip"), "Save"));
+    expect(saved(onChange).find((o) => o.id === "trip")!.dayTypes).toEqual({
+      "2027-03-01": "rdo",
+      "2027-03-02": "vacation",
+    });
+    expect(text(warning(card(el, "Made-up trip"))!)).toContain("has 3 RDOs");
+  });
+});
+
 describe("nudging toward Floating Holidays", () => {
   // Sam's three 2027 Floating Holidays (Jan 1) are free, so they could cover the trip's two Vacation days.
   const note = (el: HTMLElement, name = "Made-up trip") => card(el, name).querySelector(".fh-nudge");

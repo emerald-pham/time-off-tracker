@@ -564,7 +564,9 @@
   color: var(--muted);
 }
 
-.day.clashing label {
+/* A Clash, or an RDO beyond the week's two (US-29): the same red. */
+.day.clashing label,
+.day.too-many-rdos label {
   background: var(--danger-soft);
   outline: 2px solid var(--danger);
 }

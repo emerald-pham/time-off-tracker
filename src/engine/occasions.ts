@@ -8,6 +8,7 @@ import type {
   IsoDate,
   Occasion,
   OccasionView,
+  RdoOverflow,
   Season,
   SeasonName,
   Weekday,
@@ -147,6 +148,38 @@ export function findClashes(occasions: OccasionView[]): Clash[] {
     .map(([date, entries]) => ({ date, entries }));
 }
 
+/** A week has two days off (US-25). */
+const RDOS_PER_WEEK = 2;
+
+/**
+ * US-29: Sunday–Saturday weeks with more than two RDO Days Off across these
+ * Occasions, by week. A date marked RDO in several overlapping Occasions is
+ * one day off, so it counts once. `occasions` are taken in the order given
+ * (the engine's are sorted by start date).
+ */
+export function findRdoOverflows(
+  occasions: { id: string; name: string; days: { date: IsoDate; dayType: DayType }[] }[],
+): RdoOverflow[] {
+  const weeks = new Map<IsoDate, { dates: Set<IsoDate>; occasions: Map<string, string> }>();
+  for (const o of occasions) {
+    for (const d of o.days) {
+      if (d.dayType !== "rdo") continue;
+      const week = weeks.get(weekOf(d.date)) ?? { dates: new Set<IsoDate>(), occasions: new Map<string, string>() };
+      week.dates.add(d.date);
+      week.occasions.set(o.id, o.name);
+      weeks.set(weekOf(d.date), week);
+    }
+  }
+  return [...weeks]
+    .filter(([, w]) => w.dates.size > RDOS_PER_WEEK)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, w]) => ({
+      week,
+      dates: [...w.dates].sort(),
+      occasions: [...w.occasions].map(([occasionId, occasionName]) => ({ occasionId, occasionName })),
+    }));
+}
+
 /**
  * Occasion views sorted by start date, with each date's Day Type resolved
  * (stored, or the weekly rule over the Occasion's range) and Deducted flagged
@@ -201,6 +234,15 @@ export function occasionViews(
       deducted: days.length > 0 && days.every((d) => d.deducted),
       approved: days.length > 0 && days.every((d) => d.approved),
       floatingHolidaysCouldCover: [],
+      tooManyRdos: [],
     };
   });
+}
+
+/** US-29: each Occasion with the weeks it's in that have more than two RDOs. */
+export function withRdoOverflows(occasions: OccasionView[], overflows: RdoOverflow[]): OccasionView[] {
+  return occasions.map((o) => ({
+    ...o,
+    tooManyRdos: overflows.filter((w) => w.occasions.some((x) => x.occasionId === o.id)),
+  }));
 }
