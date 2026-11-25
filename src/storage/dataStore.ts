@@ -160,7 +160,9 @@ function occasionsFrom(value: unknown): Occasion[] {
       }
     }
     seen.add(o.id);
-    occasions.push({ id: o.id, name: typeof o.name === "string" ? o.name : "", start, end, dayTypes });
+    const name = typeof o.name === "string" ? o.name : "";
+    // Approval is stored only when true, so older saves keep their shape.
+    occasions.push({ id: o.id, name, start, end, dayTypes, ...(o.approved === true && { approved: true }) });
   }
   return occasions;
 }

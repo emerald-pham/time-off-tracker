@@ -85,6 +85,7 @@ export function occasionViews(occasions: Occasion[], settings: Settings, asOf: I
         short: 0,
         season: seasonOf(o.start),
         deducted: days.length > 0 && days.every((d) => d.deducted),
+        approved: o.approved === true,
       };
     });
 }

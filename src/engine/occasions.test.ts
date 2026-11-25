@@ -235,3 +235,17 @@ describe("Season: worked out from the start date", () => {
     expect(view.occasions[0].season).toEqual({ name, year });
   });
 });
+
+describe("approval status", () => {
+  it("US-23: an Occasion not approved yet still Burns, and shows as not approved", () => {
+    const view = computeView(input([occasion("Not approved", "2026-02-24", "2026-02-26")]));
+    expect(view.occasions[0].approved).toBe(false);
+    expect(burnedBy(view, "Not approved")).toHaveLength(3);
+  });
+
+  it("US-23: an approved Occasion shows as approved and Burns the same", () => {
+    const view = computeView(input([{ ...occasion("Approved", "2026-02-24", "2026-02-26"), approved: true }]));
+    expect(view.occasions[0].approved).toBe(true);
+    expect(burnedBy(view, "Approved")).toHaveLength(3);
+  });
+});

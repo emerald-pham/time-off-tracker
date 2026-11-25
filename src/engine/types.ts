@@ -40,6 +40,12 @@ export interface Occasion {
   end: IsoDate;
   /** Day Type per Day Off. Dates in the range that are missing get defaults. */
   dayTypes: Record<IsoDate, DayType>;
+  /**
+   * Approved by the company. Stored only when true: missing (every Occasion
+   * saved before approval existed) means not approved yet. Approval changes
+   * nothing in Burning.
+   */
+  approved?: boolean;
 }
 
 /**
@@ -204,6 +210,8 @@ export interface OccasionView {
   season: Season;
   /** Every Day Off is Deducted: the Occasion is greyed as a whole. */
   deducted: boolean;
+  /** "Approved", or "Not approved yet" when false. */
+  approved: boolean;
 }
 
 /** One Occasion's side of a Clash. */

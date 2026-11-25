@@ -185,6 +185,12 @@ describe("firestore.rules, version 2 documents (ADR 0003)", () => {
     await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "settings"), "none"));
   });
 
+  it("US-23: accepts an Occasion with its approval status, written on its own", async () => {
+    const occasion = { ...samData.occasions[0], approved: true };
+    await assertSucceeds(updateDoc(aliceDoc(), new FieldPath("data", "occasionsById", "o1"), occasion));
+    await assertSucceeds(setDoc(aliceDoc(), { ...v2, data: { ...v2.data, occasionsById: { o1: occasion } } }));
+  });
+
   it("needs a whole-number version", async () => {
     await assertFails(setDoc(aliceDoc(), { ...v2, version: "2" }));
     await assertFails(setDoc(aliceDoc(), { data: v2.data }));
