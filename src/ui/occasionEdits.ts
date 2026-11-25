@@ -1,4 +1,4 @@
-import { computeView, weeklyDayTypes } from "../engine";
+import { computeView, weekOf, weeklyDayTypes } from "../engine";
 import type { Clash, DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { clashMessage } from "./format";
@@ -16,8 +16,26 @@ export function withRange(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDa
   const newRule = weeklyDayTypes(start, end, held);
   const customized = Object.entries(oldRule).some(([date, type]) => (o.dayTypes[date] ?? type) !== type);
   if (!customized) return { ...o, start, end, dayTypes: newRule };
+  const kept = (date: IsoDate) => o.dayTypes[date] !== undefined;
+  // A week has two days off: the person's kept RDOs and other Occasions' come first,
+  // and any RDO the rule gives an added date beyond that becomes Vacation.
+  const taken = new Map<IsoDate, Set<IsoDate>>();
+  const take = (date: IsoDate) => taken.set(weekOf(date), (taken.get(weekOf(date)) ?? new Set<IsoDate>()).add(date));
+  for (const date of held) take(date);
+  for (const date of Object.keys(newRule)) if (kept(date) && o.dayTypes[date] === "rdo") take(date);
   const dayTypes: Record<IsoDate, DayType> = {};
-  for (const [date, type] of Object.entries(newRule)) dayTypes[date] = o.dayTypes[date] ?? type;
+  for (const [date, type] of Object.entries(newRule).sort(([a], [b]) => a.localeCompare(b))) {
+    if (kept(date)) {
+      dayTypes[date] = o.dayTypes[date];
+    } else if (type !== "rdo" || taken.get(weekOf(date))?.has(date)) {
+      dayTypes[date] = type;
+    } else if ((taken.get(weekOf(date))?.size ?? 0) < 2) {
+      take(date);
+      dayTypes[date] = type;
+    } else {
+      dayTypes[date] = "vacation";
+    }
+  }
   return { ...o, start, end, dayTypes };
 }
 

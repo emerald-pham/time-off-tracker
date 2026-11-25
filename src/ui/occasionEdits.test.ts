@@ -68,6 +68,43 @@ describe("US-25: changing an Occasion's range", () => {
   });
 });
 
+describe("US-25: a changed range keeps each week to two days off", () => {
+  // Wed Sep 9 – Sat Sep 12, 2026, customized: RDO, RDO, Floating Holiday, Vacation.
+  const custom: Occasion = {
+    ...beach,
+    dayTypes: { "2026-09-09": "rdo", "2026-09-10": "rdo", "2026-09-11": "floatingHoliday", "2026-09-12": "vacation" },
+  };
+
+  it("US-25: added dates the rule makes RDO become Vacation when the kept days already use the week's two", () => {
+    // Mon Sep 7 – Sat Sep 12: the rule would make Mon and Tue RDO, but Wed and Thu are already.
+    expect(withRange(custom, "2026-09-07", "2026-09-12").dayTypes).toEqual({
+      "2026-09-07": "vacation",
+      "2026-09-08": "vacation",
+      "2026-09-09": "rdo",
+      "2026-09-10": "rdo",
+      "2026-09-11": "floatingHoliday",
+      "2026-09-12": "vacation",
+    });
+  });
+
+  it("US-25: the person's kept choices win, and only what's left of the week goes to added dates", () => {
+    const oneRdo: Occasion = { ...custom, dayTypes: { ...custom.dayTypes, "2026-09-10": "unpaid" } };
+    expect(withRange(oneRdo, "2026-09-07", "2026-09-12").dayTypes).toEqual({
+      "2026-09-07": "rdo",
+      "2026-09-08": "vacation",
+      "2026-09-09": "rdo",
+      "2026-09-10": "unpaid",
+      "2026-09-11": "floatingHoliday",
+      "2026-09-12": "vacation",
+    });
+    // With another Occasion holding Sun Sep 6, nothing is left for the added dates.
+    expect(withRange(oneRdo, "2026-09-07", "2026-09-12", ["2026-09-06"]).dayTypes).toMatchObject({
+      "2026-09-07": "vacation",
+      "2026-09-08": "vacation",
+    });
+  });
+});
+
 describe("checking an Occasion before saving", () => {
   it("resolves defaults for a new Occasion and finds no Clash when there is none", () => {
     const trip: Occasion = { id: "t", name: "Trip", start: "2026-10-02", end: "2026-10-03", dayTypes: {} };
