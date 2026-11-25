@@ -117,6 +117,26 @@ describe("starting up (finding 8)", () => {
     expect(text(mounted.el)).not.toContain("Enter your hire date");
   });
 
+  it("with nothing remembered yet (the first visit after an update), waits for Firebase before showing data", async () => {
+    const hint = { read: () => null, write: vi.fn() };
+    mounted = await render(<AccountRoot local={new LocalDataStore(memoryStorage())} connect={never} signedInHint={hint} />);
+    expect(text(mounted.el)).toContain("Loading your account");
+  });
+
+  it("with nothing remembered, carries on signed out if Firebase can't load", async () => {
+    const hint = { read: () => null, write: vi.fn() };
+    const connect = () => Promise.reject(new Error("Failed to fetch dynamically imported module"));
+    mounted = await render(<AccountRoot local={new LocalDataStore(memoryStorage())} connect={connect} signedInHint={hint} />);
+    expect(text(mounted.el)).toContain("Sign-in isn't available right now");
+    expect(field(mounted.el, "Weekly hours")).toBeTruthy();
+  });
+
+  it("remembered as signed out, shows this device's data at once", async () => {
+    const hint = { read: () => false, write: vi.fn() };
+    mounted = await render(<AccountRoot local={new LocalDataStore(memoryStorage())} connect={never} signedInHint={hint} />);
+    expect(field(mounted.el, "Weekly hours")).toBeTruthy();
+  });
+
   it("remembers being signed in for next time, and forgets on sign-out", async () => {
     const hint = { read: () => false, write: vi.fn() };
     const gw = fakeGateway({ x: accountStore(xData) });

@@ -27,11 +27,12 @@ interface Props {
    */
   connect: (() => Promise<AuthGateway>) | null;
   /**
-   * Whether the last visit ended signed in, so that next time the page says
-   * "Loading your account…" while Firebase starts, instead of showing this
-   * device's empty signed-out copy.
+   * Whether the last visit ended signed in (null: not known yet, as on the
+   * first visit after an update). Unless it's known to have ended signed out,
+   * the page says "Loading your account…" while Firebase starts, instead of
+   * showing this device's signed-out copy to someone who is signed in.
    */
-  signedInHint?: { read(): boolean; write(signedIn: boolean): void };
+  signedInHint?: { read(): boolean | null; write(signedIn: boolean): void };
 }
 
 /**
@@ -45,7 +46,7 @@ interface Props {
 export function AccountRoot({ local, connect, signedInHint }: Props) {
   const [gateway, setGateway] = useState<AuthGateway | null>(null);
   const [state, setState] = useState<State>(() =>
-    connect && signedInHint?.read() ? { kind: "starting" } : { kind: "signed-out" },
+    connect && signedInHint && signedInHint.read() !== false ? { kind: "starting" } : { kind: "signed-out" },
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -89,14 +90,20 @@ export function AccountRoot({ local, connect, signedInHint }: Props) {
     const timer = setTimeout(() => {
       connect().then(
         (gw) => live && setGateway(gw),
-        (e: unknown) => live && setError(`Sign-in isn't available right now: ${message(e)}`),
+        (e: unknown) => {
+          if (!live) return;
+          setError(`Sign-in isn't available right now: ${message(e)}`);
+          // Unless the person is known to be signed in, carry on with this
+          // device's copy rather than wait on Firebase.
+          if (signedInHint?.read() !== true) setState((s) => (s.kind === "starting" ? { kind: "signed-out" } : s));
+        },
       );
     }, 0);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [connect]);
+  }, [connect, signedInHint]);
 
   useEffect(() => {
     if (!gateway) return;

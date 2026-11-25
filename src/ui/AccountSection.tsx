@@ -79,7 +79,8 @@ export function AccountSection({
         <div className="account-error" role="alert">
           <p>
             Some changes on this device haven't reached your account yet, maybe because you're offline. Signing out
-            now would lose them. Get back online and try again, or discard them.
+            now would throw them away, including a Delete my data that hasn't gone through. Get back online and try
+            again, or discard them.
           </p>
           <button type="button" className="button danger" onClick={onDiscardAndSignOut} disabled={busy}>
             Discard unsynced changes and sign out
