@@ -162,7 +162,35 @@ describe("approval status", () => {
 
   it("US-23: an Occasion not approved yet still counts its PTO Days", async () => {
     const { el } = await show();
-    expect(text(card(el, "Made-up trip").querySelector(".pto-count")!).trim()).toBe("2");
+    expect(text(card(el, "Made-up trip").querySelector(".pto")!).trim()).toBe("2 Vacation");
+  });
+
+  it("US-08: the card shows the days by type, with no separate big total", async () => {
+    const mixed: Occasion = {
+      id: "mixed",
+      name: "Made-up mixed trip",
+      start: "2027-03-01",
+      end: "2027-03-06",
+      dayTypes: {
+        "2027-03-01": "vacation",
+        "2027-03-02": "vacation",
+        "2027-03-03": "floatingHoliday",
+        "2027-03-04": "rdo",
+        "2027-03-05": "rdo",
+        "2027-03-06": "unpaid",
+      },
+    };
+    const { el } = await show([mixed]);
+    const pto = card(el, "Made-up mixed trip").querySelector(".pto")!;
+    expect(pto.querySelector(".pto-count")).toBeNull();
+    expect([...pto.querySelectorAll(".chip")].map((c) => text(c).trim())).toEqual([
+      "2 Vacation",
+      "1 Floating Holiday",
+      "2 RDO",
+      "+1 unpaid",
+    ]);
+    // No bare number standing on its own as a total.
+    expect([...pto.querySelectorAll("*")].some((c) => /^\d+$/.test(text(c).trim()))).toBe(false);
   });
 });
 

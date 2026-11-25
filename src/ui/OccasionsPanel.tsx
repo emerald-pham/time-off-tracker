@@ -286,7 +286,6 @@ function OccasionCard({
         <div className="fact">
           <dt>PTO Days</dt>
           <dd className="pto">
-            <span className="pto-count">{o.ptoDays}</span>
             <span className="chips">
               {(["vacation", "floatingHoliday", "rdo"] as const).map(
                 (t) =>
