@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
+  connectAuthEmulator,
   getRedirectResult,
   GoogleAuthProvider,
   indexedDBLocalPersistence,
@@ -13,6 +14,7 @@ import {
 } from "firebase/auth";
 import {
   clearIndexedDbPersistence,
+  connectFirestoreEmulator,
   doc,
   initializeFirestore,
   persistentLocalCache,
@@ -51,7 +53,11 @@ export interface AuthGateway extends Session {
 
 const PENDING_WRITES_WAIT_MS = 4000;
 
-export function connectFirebase(config: FirebaseWebConfig): AuthGateway {
+/**
+ * `useEmulators` points auth and Firestore at the local emulators
+ * (`npm run emulators`), for trying sign-in with a `demo-` project.
+ */
+export function connectFirebase(config: FirebaseWebConfig, useEmulators = false): AuthGateway {
   const app = initializeApp(config);
   const auth = initializeAuth(app, {
     persistence: [indexedDBLocalPersistence, browserLocalPersistence],
@@ -61,6 +67,10 @@ export function connectFirebase(config: FirebaseWebConfig): AuthGateway {
   const db = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   });
+  if (useEmulators) {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  }
 
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
