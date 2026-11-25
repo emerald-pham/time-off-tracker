@@ -29,7 +29,7 @@ Each Occasion has a name, a start date and an end date, and shows its PTO Days a
 
 **US-07: Choose each day's type.**
 Once the dates are in, "Choose days" (see US-24) opens one row per day, written like "Tue, Nov 24th 2026", each with a dropdown: RDO, Floating Holiday, Vacation or Unpaid. Save stores the choices and closes the list.
-- New days default to RDO on my regular days off and to Vacation otherwise.
+- New days get their defaults from the weekly rule (see US-25).
 
 **US-08: PTO Days counts only paid time off.**
 PTO Days counts Floating Holiday and Vacation days. RDO days don't count. Unpaid days show separately, as "+N unpaid".
@@ -45,6 +45,24 @@ Each Occasion has an approval status that I can switch between "Not approved yet
 
 **US-24: Occasions are easy to figure out.**
 Instead of a small caret, each Occasion has large, clearly labelled buttons for what I can do: edit the name and dates, choose each day's type, approve or unapprove, and delete. Every field has a visible label and is obviously something I can tap.
+
+**US-25: Fill in Day Types automatically, week by week.**
+Every week (Sunday to Saturday) has two days off, so the app works out each day's type from where my time off crosses a week break. PTO hugs the Saturday/Sunday break, and the RDOs sit on the far side of it.
+- A *segment* is the Occasion's dates in one week. A segment of n days has min(2, n) RDOs, and the rest are Vacation.
+- Within one week, or running on into the next week only: RDOs first, Vacation at the end. Wed–Sat gives RDO, RDO, Vacation, Vacation: 2 PTO Days.
+- Carrying on from the previous week only: Vacation first, then the RDOs.
+- A full Sunday–Saturday week in the middle: Vacation at both ends and the 2 RDOs in the middle, with ceil((n − 2) / 2) Vacation days before them: Vac, Vac, Vac, RDO, RDO, Vac, Vac.
+- Examples: Wed–Tue across one weekend gives RDO, RDO, Vac, Vac, Vac, RDO, RDO (3 PTO Days). Fri–Sun gives 0 PTO Days.
+- New Occasions, and dates moved to next year, get these types.
+- When I change an Occasion's dates: if I never changed its types, the whole new range is worked out again. Otherwise the dates still in range keep my types, and added dates get the type the rule gives them over the new range.
+- The day editor has a large "Fill in automatically" button that applies the rule to the list; Save keeps it and Cancel throws it away.
+- Clash rules don't change. Settings no longer asks for my regular days off; what was saved there is kept, so older data still loads.
+
+**US-26: Nudge me to use Floating Holidays before Vacation.**
+Floating Holidays expire on Dec 31 and Vacation carries over, so when free Floating Holidays could cover some of an Occasion's Vacation days, its card shows a gentle note, like "2 Floating Holidays could cover days here instead of Vacation. They expire Dec 31."
+- Free means not used by any Occasion, not Expired, from the same calendar year as the day, and earned on or before it. Deducted days aren't counted.
+- A large "Use Floating Holidays" button switches that many of the Occasion's Vacation days, earliest first, to Floating Holiday and saves, with the usual Clash check. Then the note goes away.
+- It's only a nudge: nothing is blocked, and the days that aren't RDOs still default to Vacation (US-25).
 
 ## The Ledger
 

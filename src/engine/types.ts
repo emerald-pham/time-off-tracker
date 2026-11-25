@@ -19,6 +19,10 @@ export interface Settings {
   /** Null until the person enters it; the UI opens on Settings while null. */
   hireDate: IsoDate | null;
   weeklyHours: number;
+  /**
+   * No longer shown or used: the weekly rule (US-25) decides the RDOs. Kept
+   * so saved data loads and saves unchanged (US-18).
+   */
   regularDaysOff: Weekday[];
   sapVacationHours: number;
   sapFloatingHolidayHours: number;

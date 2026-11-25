@@ -33,7 +33,6 @@ The tracker does that bookkeeping.
 | Field | Notes |
 |---|---|
 | Hire date | Drives the Accrual Tier, the Vacation eligibility date and Floating Holiday posting. |
-| Regular days off | Weekday checkboxes. Used only to default new Days Off to RDO. |
 | Weekly hours | Default 40. Used to project Earn Dates. From 1 to 80. |
 | SAP Vacation hours | As shown in SAP. From 0 to 2,000. |
 | SAP Floating Holiday hours | As shown in SAP. From 0 to 2,000. |
@@ -57,8 +56,17 @@ Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday ba
   - An Occasion whose Days Off are all Deducted is labelled "Already taken · counted in your SAP balance".
 - **Day editor:**
   - **Choose days** opens one row per date, e.g. "Tue, Nov 24th 2026", each with a Day Type dropdown: RDO, Floating Holiday, Vacation or Unpaid, colored by its Day Type.
+  - A large **Fill in automatically** button above the list applies the weekly rule (below) to the whole list. It only changes the draft: **Save** keeps it, **Cancel** throws it away.
   - **Save** stores the choices and closes the editor. **Cancel** discards them.
-- **Defaults:** a new date is RDO if it falls on one of the regular days off, and Vacation otherwise. If an Occasion's range changes, dates still in the range keep their type and added dates get defaults.
+- **Defaults: the weekly rule (US-25).** Weeks run Sunday to Saturday, and a *segment* is the Occasion's dates in one week. A segment of n days has r = min(2, n) RDOs and n − r Vacation days. PTO hugs the Saturday/Sunday break the time off crosses, and the RDOs sit on the far side of it:
+  - The Occasion lies within one week, or the segment runs on into the next week only (its last day is a Saturday and the Occasion goes on): RDOs first, Vacation at the end. Wed–Sat: RDO, RDO, Vac, Vac.
+  - The segment carries on from the previous week only (its first day is a Sunday and the Occasion started earlier): Vacation first, then the RDOs.
+  - Both (a full Sunday–Saturday week in the middle): ceil((n − 2) / 2) Vacation, the 2 RDOs, then Vacation: Vac, Vac, Vac, RDO, RDO, Vac, Vac.
+  - Examples: Wed Feb 24 – Tue Mar 2, 2027 is RDO, RDO, Vac, Vac, Vac, RDO, RDO (3 PTO Days). Fri Nov 6 – Sun Nov 8, 2026 is all RDO (0 PTO Days). A one-day Occasion is an RDO.
+  - New Occasions and dates moved to next year get these types, and so does any date with no stored type. The engine works them out (`weeklyDayTypes`).
+  - **Range changes:** if the Occasion's types are what the rule gives its old range (never customized), the whole new range gets the rule's types. Otherwise dates still in range keep their type, and added dates get the type the rule gives them over the new range.
+  - The stored `regularDaysOff` setting is no longer shown or used, but it's kept so older saves load unchanged.
+- **Floating Holiday nudge (US-26):** when free Floating Holidays could cover some of an Occasion's Vacation Days Off, its card shows a gentle, non-blocking note: "2 Floating Holidays could cover days here instead of Vacation. They expire Dec 31." (singular: "1 Floating Holiday could cover a day here … It expires Dec 31."). Free means not used by any Occasion after the full Burn pass and not Expired; a Floating Holiday can cover a Vacation Day Off that isn't Deducted, in its own calendar year, on or after its Earn Date. The engine lists the days per Occasion (`floatingHolidaysCouldCover`), matching days earliest first, and each Occasion counts against the same free Floating Holidays. A large **Use Floating Holidays** button switches those days to Floating Holiday and saves through the usual Clash check; if that's refused, the day editor opens with the clashing dates highlighted. Afterwards the note goes away. Day Types still default to Vacation; this is only a nudge.
 - **PTO Days:** the count of Floating Holiday and Vacation Days Off. If any Days Off are Unpaid, a small "+N unpaid" note shows next to it. If the Occasion is Short, it shows "short by N" in red.
 - **Season:** worked out from the start date.
   - Nov–Dec is Winter of that year.
@@ -228,7 +236,7 @@ RDO and Unpaid Days Off Burn nothing.
 
 All the rules above go in one pure TypeScript module with no UI and no Firebase:
 - **Input:** settings, Occasions, Earn Date edits and today.
-- **Output:** a view model with Ledger groups and rows, each Occasion's PTO Days, unpaid count, Short count, Season and Deducted flags, plus warnings and Clash errors.
+- **Output:** a view model with Ledger groups and rows, each Occasion's PTO Days, unpaid count, Short count, Season, Deducted flags and the Vacation days free Floating Holidays could cover, plus warnings and Clash errors.
 
 The UI only renders that view model and saves edits. Write the engine test-first against the worked examples below.
 
@@ -236,7 +244,7 @@ Recommended stack: React, TypeScript, Vite, Vitest and the Firebase modular SDK.
 
 ## Worked examples (made up; use as tests)
 
-The fixture is "Sam": hired Aug 14, 2024, 40 hours a week, regular days off Saturday and Sunday. Each example starts fresh.
+The fixture is "Sam": hired Aug 14, 2024, 40 hours a week. Each example starts fresh. Unless an example says otherwise, its Occasions have Vacation chosen Monday to Friday and RDO on Saturday and Sunday (the tests' `vacationOnWeekdays`), not the weekly rule's defaults.
 
 **E1, schedule:**
 - **Vacation:** the eligibility date is May 14, 2025.
@@ -257,7 +265,7 @@ The fixture is "Sam": hired Aug 14, 2024, 40 hours a week, regular days off Satu
 - Any Day Off from Sun Sep 20 to Sat Sep 26, 2026 has Payday Thu Oct 1, 2026.
 
 **E4, oldest first:**
-- From E2, add an Occasion for Tue Feb 24 – Thu Feb 26, 2026. All three dates default to Vacation, so PTO Days is 3.
+- From E2, add an Occasion for Tue Feb 24 – Thu Feb 26, 2026. All three dates are Vacation, so PTO Days is 3.
 - It Burns May 14 2025, May 14 2025 and Jul 9 2025.
 
 **E5, Floating Holidays stay in their year:**

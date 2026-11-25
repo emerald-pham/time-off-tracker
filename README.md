@@ -6,7 +6,7 @@
 
 Plans time off against the Vacation and Floating Holidays a Regular Full Time
 cast member earns under Articles 20 and 21 of the STCU agreement (unchanged by
-Addendum B-6). Enter your hire date, weekly hours, regular days off and SAP
+Addendum B-6). Enter your hire date, weekly hours and SAP
 Balance, and the Ledger shows every Benefit Day you have and will earn, this
 year and next.
 

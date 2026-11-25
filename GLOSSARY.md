@@ -18,8 +18,8 @@ _Avoid_: Vacation day, PTO day
 What a Day Off is: RDO, Floating Holiday, Vacation or Unpaid.
 
 **RDO**:
-A Day Off that falls on one of the person's regular days off, so it uses no benefit time.
-_Avoid_: Weekend
+A Day Off that is one of the week's two days off (weeks run Sunday to Saturday), so it uses no benefit time. Which dates are RDO isn't a fixed weekday: the weekly rule puts them on the far side of the week break the time off crosses (US-25).
+_Avoid_: Weekend, regular day off
 
 **Unpaid**:
 A Day Off taken without pay, so it uses no benefit time.
