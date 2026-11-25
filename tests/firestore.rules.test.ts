@@ -135,7 +135,7 @@ describe("firestore.rules, version 2 documents (ADR 0003)", () => {
     version: 2,
     data: {
       settings: samData.settings,
-      occasions: { o1: samData.occasions[0] },
+      occasionsById: { o1: samData.occasions[0] },
       earnDateEdits: samData.earnDateEdits,
     },
   };
@@ -147,12 +147,26 @@ describe("firestore.rules, version 2 documents (ADR 0003)", () => {
     });
   });
 
-  it("lets the owner write the whole document, or one Occasion at a time", async () => {
+  it("lets the owner write the whole document, or one entry at a time", async () => {
     await assertSucceeds(setDoc(aliceDoc(), v2));
     await assertSucceeds(
-      updateDoc(aliceDoc(), new FieldPath("data", "occasions", "o2"), { ...samData.occasions[0], id: "o2" }),
+      updateDoc(aliceDoc(), new FieldPath("data", "occasionsById", "o2"), { ...samData.occasions[0], id: "o2" }),
     );
-    await assertSucceeds(updateDoc(aliceDoc(), new FieldPath("data", "occasions", "o1"), deleteField()));
+    // A deleted Occasion stays as null, so a version 1 list can't bring it back.
+    await assertSucceeds(updateDoc(aliceDoc(), new FieldPath("data", "occasionsById", "o1"), null));
+    await assertSucceeds(updateDoc(aliceDoc(), new FieldPath("data", "earnDateEdits", "vacation:2026:3"), deleteField()));
+  });
+
+  it("lets a new document start with just the entries one edit wrote", async () => {
+    await env.clearFirestore();
+    await assertSucceeds(
+      setDoc(aliceDoc(), { version: 2, data: { occasionsById: { o1: samData.occasions[0] } } }),
+    );
+  });
+
+  it("won't let an older app create a version 1 document any more", async () => {
+    await env.clearFirestore();
+    await assertFails(setDoc(aliceDoc(), { version: 1, data: samData }));
   });
 
   it("stops an older app writing version 1 over it", async () => {
@@ -164,9 +178,11 @@ describe("firestore.rules, version 2 documents (ADR 0003)", () => {
     await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "settings", "extra"), 1));
   });
 
-  it("keeps settings, Occasions and Earn Date edits as maps", async () => {
-    await assertFails(setDoc(aliceDoc(), { ...v2, data: { ...v2.data, occasions: samData.occasions } }));
+  it("keeps each part the right shape: maps, and version 1's Occasion list a list", async () => {
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "occasionsById"), "none"));
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "occasions"), { o1: samData.occasions[0] }));
     await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "earnDateEdits"), "none"));
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "settings"), "none"));
   });
 
   it("needs a whole-number version", async () => {

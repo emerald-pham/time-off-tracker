@@ -56,6 +56,9 @@ export interface AuthGateway extends Session {
 /** How long sign-out gives a change made just now to reach the account. */
 const SYNC_WAIT_MS = 4000;
 
+/** A tab about to clear the offline cache writes here, so every other tab reloads. */
+const SIGNING_OUT_KEY = "time-off-tracker:signing-out";
+
 /**
  * `useEmulators` points auth and Firestore at the local emulators
  * (`npm run emulators`), for trying sign-in with a `demo-` project. It's
@@ -78,9 +81,14 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
 
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  // Another tab signing out shuts this tab's Firestore client down, so a tab
-  // whose account signs out or changes underneath it reloads.
+  // Another tab signing out shuts this tab's Firestore client down, so this
+  // tab reloads when its account signs out or changes, when another tab says
+  // it's signing out (the storage event reaches hidden tabs at once), or when
+  // its client turns out to be shut down.
   const watch = accountWatch(() => window.location.reload());
+  window.addEventListener("storage", (e) => {
+    if (e.key === SIGNING_OUT_KEY && e.newValue) watch.otherTabSignedOut();
+  });
 
   return {
     onAccountChanged(callback) {
@@ -108,6 +116,12 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
       await firebaseSignOut(auth);
       await terminate(db);
       try {
+        // Auth is already signed out, so the other tabs reload signed out.
+        window.localStorage.setItem(SIGNING_OUT_KEY, String(Date.now()));
+      } catch {
+        // Storage is blocked: the other tabs still reload once they see the sign-out.
+      }
+      try {
         // Deleting the cache doesn't wait for other tabs: the SDK closes their
         // connection to it, which shuts down their Firestore client too.
         // That's why every other tab reloads when it sees this sign-out.
@@ -120,7 +134,7 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
     },
 
     accountStore(uid) {
-      return new FirestoreDataStore(doc(db, "users", uid));
+      return new FirestoreDataStore(doc(db, "users", uid), { onClientLost: () => watch.clientLost() });
     },
 
     async redirectError() {

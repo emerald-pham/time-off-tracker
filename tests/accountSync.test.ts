@@ -3,11 +3,12 @@
  * offline, against the emulator. Offline is `disableNetwork`: writes queue on
  * the device and never settle until it's back online, as in the browser.
  */
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { disableNetwork, doc, enableNetwork, getDoc, setDoc, waitForPendingWrites } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { emptyAppData, NewerDataError } from "../src/storage";
+import { FirestoreDataStore } from "../src/storage/firestoreDataStore";
 import type { AppData, StoreState } from "../src/storage";
 import { sam } from "../src/engine/fixtures";
 import { device, eventually, rulesEnvironment, within } from "./emulator";
@@ -168,6 +169,65 @@ describe("two devices on one account", () => {
   });
 });
 
+describe("a device's copy is never written whole over the account (review findings)", () => {
+  it("a device that hadn't seen the new document adds its Occasion without resetting Settings", async () => {
+    const mac = open();
+    const phone = open();
+    expect(await mac.store.load()).toBeNull();
+    expect(await phone.store.load()).toBeNull();
+    await disableNetwork(phone.db);
+
+    await mac.store.update(emptyAppData(), base);
+    await waitForPendingWrites(mac.db);
+    await phone.store.update(emptyAppData(), { ...emptyAppData(), occasions: [visit] });
+    await enableNetwork(phone.db);
+    await within(phone.store.synced(), 5000);
+
+    const final = (await open().store.load())!;
+    expect(final.settings).toEqual(base.settings);
+    expect(final.occasions).toEqual([visit]);
+  });
+
+  it("a device offline with a version 1 copy keeps what others changed after them", async () => {
+    await seedServer({ version: 1, data: { settings: base.settings, occasions: [trip], earnDateEdits: {} } });
+    const mac = open();
+    const phone = open();
+    const macCopy = (await mac.store.load())!;
+    const phoneCopy = (await phone.store.load())!;
+    await disableNetwork(phone.db);
+
+    const withVisit = { ...macCopy, occasions: [...macCopy.occasions, visit] };
+    await mac.store.update(macCopy, withVisit);
+    await mac.store.update(withVisit, withHours(withVisit, 32));
+    await waitForPendingWrites(mac.db);
+    await phone.store.update(phoneCopy, { ...phoneCopy, earnDateEdits: { "vacation:2026:3": "2026-04-06" } });
+    await enableNetwork(phone.db);
+    await within(phone.store.synced(), 5000);
+
+    const final = (await open().store.load())!;
+    expect(final.occasions.map((o) => o.id).sort()).toEqual(["trip", "visit"]);
+    expect(final.settings.weeklyHours).toBe(32);
+    expect(final.earnDateEdits).toEqual({ "vacation:2026:3": "2026-04-06" });
+  });
+
+  it("a device offline with a version 1 copy doesn't bring back data deleted elsewhere", async () => {
+    await seedServer({ version: 1, data: { settings: base.settings, occasions: [trip, visit], earnDateEdits: {} } });
+    const mac = open();
+    const phone = open();
+    await mac.store.load();
+    const phoneCopy = (await phone.store.load())!;
+    await disableNetwork(phone.db);
+
+    await mac.store.clear();
+    await waitForPendingWrites(mac.db);
+    await phone.store.update(phoneCopy, withHours(phoneCopy, 36));
+    await enableNetwork(phone.db);
+    await expect(within(phone.store.synced(), 5000)).rejects.toThrow();
+
+    expect(await serverCopy()).toBeUndefined();
+  });
+});
+
 describe("version 1 documents (Occasions as a list)", () => {
   const v1 = {
     version: 1,
@@ -181,7 +241,7 @@ describe("version 1 documents (Occasions as a list)", () => {
     expect(loaded.earnDateEdits).toEqual({ "vacation:2026:3": "2026-04-06" });
   });
 
-  it("move to version 2 on the first edit, keeping everything", async () => {
+  it("move to version 2 on the first edit, keeping everything, and the list as it was", async () => {
     await seedServer(v1);
     const mac = open();
     const copy = (await mac.store.load())!;
@@ -190,7 +250,7 @@ describe("version 1 documents (Occasions as a list)", () => {
 
     const server = await serverCopy();
     expect(server?.version).toBe(2);
-    expect(Object.keys((server!.data as { occasions: object }).occasions).sort()).toEqual(["trip", "visit"]);
+    expect((server!.data as { occasions: unknown }).occasions).toEqual([trip, visit]);
     const reloaded = (await open().store.load())!;
     expect(reloaded.settings.weeklyHours).toBe(36);
     expect(reloaded.occasions.map((o) => o.id).sort()).toEqual(["trip", "visit"]);
@@ -273,6 +333,22 @@ describe("offline", () => {
     await expect(within(phone.store.synced(), 5000)).rejects.toThrow();
 
     expect(await serverCopy()).toBeUndefined();
+  });
+
+  it("says so when another tab's sign-out shuts this tab's Firestore client down", async () => {
+    const phone = open();
+    const onClientLost = vi.fn();
+    const store = new FirestoreDataStore(doc(phone.db, "users", UID), { onClientLost });
+    const stop = store.subscribe(
+      () => {},
+      () => {},
+    );
+    await store.load();
+    // What the SDK does in this tab when another tab clears the offline cache:
+    // it shuts the client down without marking the Firestore instance terminated.
+    await (phone.db as unknown as { _firestoreClient: { terminate(): Promise<void> } })._firestoreClient.terminate();
+    await eventually(() => onClientLost.mock.calls.length > 0);
+    stop();
   });
 
   it("synced() waits until the server has this store's writes", async () => {

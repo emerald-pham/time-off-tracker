@@ -35,6 +35,34 @@ describe("accountWatch: when a tab must reload", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it("reloads when another tab says it's signing out, even if this tab never hears the account change", () => {
+    // Signed straight back in as the same account, Firebase reports no change here.
+    const reload = vi.fn();
+    const watch = accountWatch(reload);
+    watch.accountChanged("made-up-uid");
+    watch.otherTabSignedOut();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("reloads when this tab's Firestore client was shut down underneath it", () => {
+    const reload = vi.fn();
+    const watch = accountWatch(reload);
+    watch.accountChanged("made-up-uid");
+    watch.clientLost();
+    watch.clientLost();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("ignores both while this tab is the one signing out", () => {
+    const reload = vi.fn();
+    const watch = accountWatch(reload);
+    watch.accountChanged("made-up-uid");
+    watch.leaving();
+    watch.otherTabSignedOut();
+    watch.clientLost();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it("leaves a sign-out started in this tab alone: it reloads by itself once the cache is cleared", () => {
     const reload = vi.fn();
     const watch = accountWatch(reload);

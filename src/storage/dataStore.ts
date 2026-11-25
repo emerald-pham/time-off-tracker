@@ -166,8 +166,8 @@ function earnDateEditsFrom(value: unknown): EarnDateEdits {
 
 /**
  * AppData with Occasions keyed by id, so each setting, Occasion and Earn Date
- * edit is one entry that can change on its own. This is the account
- * document's `data` from version 2 (ADR 0003).
+ * edit is one entry that can change on its own: the unit both stores save
+ * edits in (ADR 0003).
  */
 export interface KeyedAppData {
   settings: Settings;
