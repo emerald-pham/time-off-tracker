@@ -22,15 +22,16 @@ const burnedBySki = (view: ViewModel) =>
 
 describe("Earn Date edits", () => {
   it("moving a row's Earn Date later changes which row an Occasion Burns", () => {
-    // Without the edit, E4 Burns May 14, May 14 and Jul 9, 2025. Moved to Mar 1, 2026, May 14 is
-    // no longer in SAP by the as-of date, so the walk-back's fifth day is the next newest, May 7.
-    const view = computeView(input({ "vacation:hire:1": "2026-03-01" }));
+    // Without the edit, E4 Burns May 14, May 14 and Jul 9, 2025. Moved to Mar 1, 2026, Jul 9 is
+    // no longer in SAP by the as-of date, so the walk-back's fifth day is the next newest
+    // credited, Dec 18, 2024, which unlocks May 14, 2025 with the rest.
+    const view = computeView(input({ "vacation:2025:3": "2026-03-01" }));
     expect(burnedBySki(view)).toEqual([
-      ["vacation:2025:2", "2025-05-07"],
+      ["vacation:2025:1", "2025-05-14"],
+      ["vacation:2025:2", "2025-05-14"],
       ["vacation:hire:2", "2025-05-14"],
-      ["vacation:2025:3", "2025-07-09"],
     ]);
-    expect(row(view, "vacation:hire:1")).toMatchObject({
+    expect(row(view, "vacation:2025:3")).toMatchObject({
       earnDate: "2026-03-01",
       origin: "projected",
       edited: true,
@@ -68,9 +69,10 @@ describe("Earn Date edits", () => {
       // Feb 1, 2026 moved to Nov 1, 2025 (paid Nov 6) is in SAP by Nov 24, so it joins the walk-back.
       const view = computeView(decInput({ "vacation:2026:1": "2025-11-01" }));
       expect(row(view, "vacation:2026:1")).toMatchObject({ origin: "starting", edited: true, estimated: false });
-      expect(row(view, "vacation:hire:1")).toBeUndefined();
+      // The oldest credited day in SAP, Mar 5, 2025, drops out instead.
+      expect(row(view, "vacation:2025:1")).toBeUndefined();
       expect(burnedByDec(view)).toEqual([
-        ["vacation:hire:2", "2025-05-14"],
+        ["vacation:2025:2", "2025-05-14"],
         ["vacation:2025:3", "2025-07-09"],
         ["vacation:2025:4", "2025-09-10"],
         ["vacation:2026:1", "2025-11-01"],
@@ -83,9 +85,10 @@ describe("Earn Date edits", () => {
       // Nov 12, 2025 moved to Dec 15, 2025 (paid Dec 25) isn't in SAP by Nov 24.
       const view = computeView(decInput({ "vacation:2025:5": "2025-12-15" }));
       expect(row(view, "vacation:2025:5")).toMatchObject({ origin: "projected", edited: true, burnedBy: null });
+      // The next newest credited is Dec 18, 2024, which unlocks May 14, 2025.
       expect(burnedByDec(view)).toEqual([
-        ["vacation:2025:2", "2025-05-07"],
-        ["vacation:hire:1", "2025-05-14"],
+        ["vacation:2025:1", "2025-05-14"],
+        ["vacation:2025:2", "2025-05-14"],
         ["vacation:hire:2", "2025-05-14"],
         ["vacation:2025:3", "2025-07-09"],
         ["vacation:2025:4", "2025-09-10"],
@@ -142,8 +145,8 @@ describe("Earn Date edits", () => {
       const starting = shown(view).filter((r) => r.benefitType === "vacation" && r.origin === "starting");
       expect(starting.map((r) => r.key)).toEqual([
         "vacation:2025:5",
-        "vacation:hire:1",
-        "vacation:hire:2",
+        "vacation:2025:1",
+        "vacation:2025:2",
         "vacation:2025:3",
         "vacation:2025:4",
       ]);

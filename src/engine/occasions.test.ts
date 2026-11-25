@@ -29,7 +29,7 @@ describe("E3: paydays decide what is Deducted", () => {
   it("a Day Off on Tue Nov 18, 2025 is paid Nov 27, after E2's as-of date, so it Burns", () => {
     const view = computeView(input([occasion("Long weekend", "2025-11-18")]));
     expect(view.occasions[0].days).toMatchObject([{ date: "2025-11-18", deducted: false }]);
-    expect(burnedBy(view, "Long weekend")).toEqual([["vacation:hire:1", "2025-05-14"]]);
+    expect(burnedBy(view, "Long weekend")).toEqual([["vacation:2025:1", "2025-05-14"]]);
     expect(view.occasions[0].deducted).toBe(false);
   });
 
@@ -49,7 +49,7 @@ describe("E3: paydays decide what is Deducted", () => {
     const view = computeView(input([occasion("Visit", "2025-11-14", "2025-11-17")]));
     expect(view.occasions[0].days.map((d) => d.deducted)).toEqual([true, true, false, false]);
     expect(view.occasions[0].deducted).toBe(false);
-    expect(burnedBy(view, "Visit")).toEqual([["vacation:hire:1", "2025-05-14"]]);
+    expect(burnedBy(view, "Visit")).toEqual([["vacation:2025:1", "2025-05-14"]]);
   });
 });
 
@@ -69,11 +69,11 @@ describe("E4: oldest first", () => {
 
   it("Burns May 14 2025, May 14 2025 and Jul 9 2025", () => {
     expect(burnedBy(view, "Ski week")).toEqual([
-      ["vacation:hire:1", "2025-05-14"],
-      ["vacation:hire:2", "2025-05-14"],
+      ["vacation:2025:1", "2025-05-14"],
+      ["vacation:2025:2", "2025-05-14"],
       ["vacation:2025:3", "2025-07-09"],
     ]);
-    expect(ski.days.map((d) => d.burns)).toEqual(["vacation:hire:1", "vacation:hire:2", "vacation:2025:3"]);
+    expect(ski.days.map((d) => d.burns)).toEqual(["vacation:2025:1", "vacation:2025:2", "vacation:2025:3"]);
     expect(view.ledger.free).toEqual({ vacation: 12, floatingHoliday: 4 });
   });
 });
@@ -171,14 +171,14 @@ describe("rollover with Burning", () => {
   it("last year's Vacation Burned by a Day Off this year was free on Jan 1, so it is Carryover", () => {
     const view = computeView(input([occasion("Jan day", "2026-01-05")], e2, "2026-01-02"));
     const top = view.ledger.groups[0].rows[0];
-    expect([top.key, top.carryover, top.burnedBy?.occasionName]).toEqual(["vacation:hire:1", true, "Jan day"]);
+    expect([top.key, top.carryover, top.burnedBy?.occasionName]).toEqual(["vacation:2025:1", true, "Jan day"]);
   });
 
   it("last year's Vacation Burned by a Day Off last year is not Carryover", () => {
     // Fri Dec 26, 2025 is paid Jan 1, 2026, after the as-of date, so it still Burns.
     const view = computeView(input([occasion("Dec day", "2025-12-26")], e2, "2026-01-02"));
     const burned = rows(view).find((r) => r.burnedBy)!;
-    expect([burned.key, burned.carryover]).toEqual(["vacation:hire:1", false]);
+    expect([burned.key, burned.carryover]).toEqual(["vacation:2025:1", false]);
   });
 });
 

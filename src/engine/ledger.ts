@@ -2,7 +2,7 @@ import { LAST_SUPPORTED_YEAR, isSupportedDate, isoDate, yearOf } from "./dates";
 import { burn } from "./burning";
 import { findClashes, occasionViews } from "./occasions";
 import { paidBy } from "./payday";
-import { projectSchedule } from "./schedule";
+import { eligibilityDate, projectSchedule } from "./schedule";
 import type {
   BenefitCounts,
   BenefitType,
@@ -125,9 +125,13 @@ function latestYear(rows: LedgerRow[]): number {
 
 /**
  * Starting from the SAP Balance: walk the schedule back from the as-of date,
- * newest first, picking one entry per whole SAP day. Entries not yet in SAP
- * are projected. In-SAP entries that weren't picked were used before
+ * newest credited first, picking one entry per whole SAP day. Entries not yet
+ * in SAP are projected. In-SAP entries that weren't picked were used before
  * tracking began and don't appear.
+ *
+ * Whether an entry is in SAP goes by the date its hours were credited, not
+ * its Earn Date: SAP holds a new hire's Vacation from the payday after it's
+ * credited, though it can't be used before the eligibility date.
  */
 function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDate): LedgerRow[] {
   const hire = settings.hireDate;
@@ -140,18 +144,18 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
     ...walkBack({
       benefitType: "vacation",
       days: splitHours(settings.sapVacationHours).days,
-      // A projected Vacation day is in SAP once its Payday is on or before as-of.
-      candidates: vacation.filter((e) => paidBy(e.earnDate, asOf)),
-      projected: vacation.filter((e) => !paidBy(e.earnDate, asOf)),
-      extraDate: hire,
+      // A projected Vacation day is in SAP once the Payday after it's credited is on or before as-of.
+      candidates: vacation.filter((e) => paidBy(e.creditedDate, asOf)),
+      projected: vacation.filter((e) => !paidBy(e.creditedDate, asOf)),
+      extraDate: eligibilityDate(hire),
       extraKeyPrefix: "vacation:extra",
     }),
     ...walkBack({
       benefitType: "floatingHoliday",
       days: splitHours(settings.sapFloatingHolidayHours).days,
       // A Floating Holiday is in SAP from its posting date.
-      candidates: fh.filter((e) => yearOf(e.earnDate) === asOfYear && e.earnDate <= asOf),
-      projected: fh.filter((e) => e.earnDate > asOf),
+      candidates: fh.filter((e) => yearOf(e.creditedDate) === asOfYear && e.creditedDate <= asOf),
+      projected: fh.filter((e) => e.creditedDate > asOf),
       extraDate: isoDate(asOfYear, 1, 1),
       extraKeyPrefix: `fh:${asOfYear}:extra`,
     }),
@@ -168,10 +172,15 @@ function supportedEdits(edits: EarnDateEdits): EarnDateEdits {
  * regeneration (hire date, weekly hours). An edit whose key no longer exists
  * is ignored. Edited entries move before the walk-back, so an entry moved
  * before the as-of date counts as one of SAP's days, and one moved past it is
- * projected.
+ * projected. An edit is a manual override: it sets the credited date too, and
+ * isn't held back to the eligibility date.
  */
 function withEarnDateEdits(schedule: ScheduleEntry[], edits: EarnDateEdits): ScheduleEntry[] {
-  return schedule.map((e) => (Object.hasOwn(edits, e.key) ? { ...e, earnDate: edits[e.key], edited: true } : e));
+  return schedule.map((e) =>
+    Object.hasOwn(edits, e.key)
+      ? { ...e, creditedDate: edits[e.key], earnDate: edits[e.key], edited: true }
+      : e,
+  );
 }
 
 /**
@@ -209,8 +218,8 @@ function fullYearRows(
       .filter((d) => d.dayType === t && d.deducted && yearOf(d.date) === year).length;
   const vacation = schedule.filter((e) => e.benefitType === "vacation");
   const fh = schedule.filter((e) => e.benefitType === "floatingHoliday");
-  const vacationInSap = (e: ScheduleEntry) => paidBy(e.earnDate, asOf);
-  const fhInSap = (e: ScheduleEntry) => e.earnDate <= asOf;
+  const vacationInSap = (e: ScheduleEntry) => paidBy(e.creditedDate, asOf);
+  const fhInSap = (e: ScheduleEntry) => e.creditedDate <= asOf;
 
   const vacationYear = rebuildYear({
     benefitType: "vacation",
@@ -220,7 +229,7 @@ function fullYearRows(
     sapDays: splitHours(settings.sapVacationHours).days,
     deductedDaysOff: deductedDaysOff("vacation"),
     carryoverCandidates: vacation.filter((e) => yearOf(e.earnDate) < year && vacationInSap(e)),
-    extraDate: hire,
+    extraDate: eligibilityDate(hire),
     extraKeyPrefix: "vacation:extra",
   });
   const fhYear = rebuildYear({
@@ -281,10 +290,13 @@ function walkBack(args: {
   extraDate: IsoDate;
   extraKeyPrefix: string;
 }): LedgerRow[] {
-  // Newest first, except that days the person dated themselves come before
-  // estimated ones: moving a day in SAP to an older date keeps it in SAP.
+  // Newest credited first, except that days the person dated themselves come
+  // before estimated ones: moving a day in SAP to an older date keeps it in SAP.
   const newestFirst = [...args.candidates].sort(
-    (a, b) => Number(Boolean(b.edited)) - Number(Boolean(a.edited)) || compareEntries(b, a),
+    (a, b) =>
+      Number(Boolean(b.edited)) - Number(Boolean(a.edited)) ||
+      b.creditedDate.localeCompare(a.creditedDate) ||
+      compareEntries(b, a),
   );
   const picked = newestFirst.slice(0, args.days);
   const extras = Math.max(0, args.days - picked.length);

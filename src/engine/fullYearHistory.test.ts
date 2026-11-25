@@ -27,10 +27,10 @@ describe("E8: full-year history mode", () => {
   describe("with SAP 40 h, c = 5 + 2 − 7 = 0", () => {
     const view = computeView(input({ sapVacationHours: 40 }));
 
-    it("rebuilds all of 2025's Vacation rows from the schedule", () => {
+    it("rebuilds all of 2025's Vacation rows from the schedule, four unlocking on May 14", () => {
       expect(vacation2025(view).map((r) => r.earnDate)).toEqual([
-        "2025-03-05",
-        "2025-05-07",
+        "2025-05-14",
+        "2025-05-14",
         "2025-05-14",
         "2025-05-14",
         "2025-07-09",
@@ -40,11 +40,11 @@ describe("E8: full-year history mode", () => {
       expect(vacation2025(view).some((r) => r.estimated || r.carryover || r.usedNotListed)).toBe(false);
     });
 
-    it("lets the Deducted Jun 10–11 Burn Mar 5 and May 7", () => {
+    it("lets the Deducted Jun 10–11 Burn two of the May 14 rows", () => {
       expect(view.occasions[0].days.every((d) => d.deducted)).toBe(true);
       expect(burnedBy(view, "june")).toEqual([
-        ["vacation:2025:1", "2025-03-05"],
-        ["vacation:2025:2", "2025-05-07"],
+        ["vacation:2025:1", "2025-05-14"],
+        ["vacation:2025:2", "2025-05-14"],
       ]);
       expect(view.ledger.usedNotListed.vacation).toBe(0);
     });
@@ -53,15 +53,15 @@ describe("E8: full-year history mode", () => {
   describe("with SAP 24 h, c = 3 + 2 − 7 = −2", () => {
     const view = computeView(input({ sapVacationHours: 24 }));
 
-    it("lets the Deducted Jun 10–11 Burn first: Mar 5 and May 7", () => {
+    it("lets the Deducted Jun 10–11 Burn first: two of the May 14 rows", () => {
       expect(burnedBy(view, "june")).toEqual([
-        ["vacation:2025:1", "2025-03-05"],
-        ["vacation:2025:2", "2025-05-07"],
+        ["vacation:2025:1", "2025-05-14"],
+        ["vacation:2025:2", "2025-05-14"],
       ]);
       expect(view.occasions[0].short).toBe(0);
     });
 
-    it("then marks the oldest rows still free, May 14 twice, Used (not listed) and tells the user", () => {
+    it("then marks the oldest rows still free, the other two May 14, Used (not listed) and tells the user", () => {
       expect(vacation2025(view).filter((r) => r.usedNotListed).map((r) => r.key)).toEqual([
         "vacation:hire:1",
         "vacation:hire:2",
@@ -72,21 +72,25 @@ describe("E8: full-year history mode", () => {
   });
 
   describe("an early Deducted Day Off isn't left unmet by Used (not listed)", () => {
-    // Mon Mar 10, 2025, Deducted. SAP 32 h: c = 4 + 1 − 7 = −2. Only Mar 5 is earned by Mar 10.
-    const march: Occasion = { id: "march", name: "March day", start: "2025-03-10", end: "2025-03-10", dayTypes: {} };
-    const view = computeView(input({ sapVacationHours: 32 }, [march]));
+    // Mon Jun 2, 2025, Deducted. SAP 8 h: c = 1 + 1 − 7 = −5. Only the four May 14 rows are
+    // earned by Jun 2, so marking five Used (not listed) first would leave it unmet.
+    const june2: Occasion = { id: "june2", name: "June day", start: "2025-06-02", end: "2025-06-02", dayTypes: {} };
+    const view = computeView(input({ sapVacationHours: 8 }, [june2]));
 
-    it("Burns Mar 5, then marks May 7 and the first May 14 Used (not listed)", () => {
-      expect(burnedBy(view, "march")).toEqual([["vacation:2025:1", "2025-03-05"]]);
+    it("Burns a May 14 row, then marks the next five oldest Used (not listed)", () => {
+      expect(burnedBy(view, "june2")).toEqual([["vacation:2025:1", "2025-05-14"]]);
       expect(view.occasions[0].short).toBe(0);
       expect(vacation2025(view).filter((r) => r.usedNotListed).map((r) => r.key)).toEqual([
         "vacation:2025:2",
         "vacation:hire:1",
+        "vacation:hire:2",
+        "vacation:2025:3",
+        "vacation:2025:4",
       ]);
     });
 
-    it("leaves SAP's 4 days free, plus 2026's 10", () => {
-      expect(view.ledger.free.vacation).toBe(4 + 10);
+    it("leaves SAP's 1 day free, plus 2026's 10", () => {
+      expect(view.ledger.free.vacation).toBe(1 + 10);
     });
   });
 });
@@ -109,13 +113,13 @@ describe("full-year history: Carryover from the SAP Balance", () => {
     expect(view.ledger.free.vacation).toBe(12 + 8);
   });
 
-  it("dates Carryover at the hire date once earlier entries run out", () => {
-    // As of Nov 24, 2025 there are no Vacation entries dated before 2025. SAP 72 h: c = 9 − 7 = 2.
-    const v = computeView(input({ sapVacationHours: 72 }, []));
+  it("dates Carryover at the eligibility date once earlier entries run out", () => {
+    // As of Nov 24, 2026, 2025's seven entries are the earlier ones. SAP 152 h: c = 19 − 10 = 9.
+    const v = computeView({ ...input({ sapVacationHours: 152, sapAsOf: "2026-11-24" }, []), today: "2026-11-24" });
     const extra = rows(v).filter((r) => r.origin === "extra" && r.benefitType === "vacation");
     expect(extra.map((r) => [r.key, r.earnDate, r.carryover])).toEqual([
-      ["vacation:extra:1", "2024-08-14", true],
-      ["vacation:extra:2", "2024-08-14", true],
+      ["vacation:extra:1", "2025-05-14", true],
+      ["vacation:extra:2", "2025-05-14", true],
     ]);
   });
 });

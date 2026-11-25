@@ -64,6 +64,17 @@ export interface ScheduleEntry {
   benefitType: BenefitType;
   /** Calendar year whose schedule produced it (the hire year for "vacation:hire:k"). */
   scheduleYear: number;
+  /**
+   * The date the hours are credited: the raw schedule date. It decides
+   * whether the entry is already in the SAP Balance (walk-back and Payday
+   * split). An Earn Date edit moves it too.
+   */
+  creditedDate: IsoDate;
+  /**
+   * The date the Benefit Day becomes usable: the credited date, but never
+   * before the eligibility date for Vacation. Shown on the Ledger and used by
+   * Burning.
+   */
   earnDate: IsoDate;
   /** Moved to the person's Earn Date edit. */
   edited?: boolean;

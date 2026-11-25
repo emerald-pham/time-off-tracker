@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeView } from "./index";
-import type { EngineInput, LedgerRow, Settings } from "./index";
+import type { EngineInput, LedgerRow, Occasion, Settings } from "./index";
 import { sam } from "./fixtures";
 
 function input(settings: Partial<Settings>, today: string): EngineInput {
@@ -89,12 +89,16 @@ describe("SAP Balance beyond what the schedule explains", () => {
   );
   const rows = view.ledger.groups[0].rows;
 
-  it("dates an extra Vacation row at the hire date, Estimated, as Carryover at the top", () => {
+  it("dates an extra Vacation row at the eligibility date (May 14, 2025), Estimated", () => {
     const extra = rows.filter((r) => r.origin === "extra" && r.benefitType === "vacation");
-    expect(extra.map((r) => [r.key, r.earnDate, r.estimated, r.carryover])).toEqual([
-      ["vacation:extra:1", "2024-08-14", true, true],
-    ]);
-    expect(rows[0].key).toBe("vacation:extra:1");
+    expect(extra.map((r) => [r.key, r.earnDate, r.estimated])).toEqual([["vacation:extra:1", "2025-05-14", true]]);
+  });
+
+  it("shows an extra row from an earlier year as Carryover", () => {
+    // As of Nov 24, 2026, SAP has 2026's ten and 2025's seven entries; 144 h is 18 days, one extra.
+    const later = computeView(input({ sapVacationHours: 144, sapAsOf: "2026-11-24" }, "2026-11-24"));
+    const extra = later.ledger.groups[0].rows.find((r) => r.origin === "extra");
+    expect([extra?.key, extra?.earnDate, extra?.carryover]).toEqual(["vacation:extra:1", "2025-05-14", true]);
   });
 
   it("dates an extra Floating Holiday row Jan 1 of the as-of year", () => {
@@ -115,6 +119,40 @@ describe("SAP Balance beyond what the schedule explains", () => {
     );
     expect(decimals.ledger.leftoverHours).toEqual({ vacation: 5.6, floatingHoliday: 4.3 });
     expect(decimals.ledger.free.vacation).toBe(4 + 10);
+  });
+});
+
+describe("a new hire's SAP Balance read before the eligibility date", () => {
+  // Made-up hire date Oct 11, 2025: eligible Jul 11, 2026. By Apr 1, 2026 SAP has been
+  // credited Dec 13, 2025 (paid Dec 18) and Mar 5, 2026 (paid Mar 12): 16 h.
+  const newHire = (sapVacationHours: number, occasions: EngineInput["occasions"] = []) =>
+    computeView({
+      ...input({ hireDate: "2025-10-11", sapVacationHours, sapAsOf: "2026-04-01" }, "2026-04-01"),
+      occasions,
+    });
+  const vacation2026 = (view: ReturnType<typeof computeView>) =>
+    view.ledger.groups[0].rows.filter((r) => r.benefitType === "vacation");
+
+  it("counts SAP's days once, by the date they were credited, each usable from Jul 11", () => {
+    expect(vacation2026(newHire(16)).map((r) => [r.key, r.earnDate, r.origin])).toEqual([
+      ["vacation:2026:1", "2026-07-11", "starting"],
+      ["vacation:hire:1", "2026-07-11", "starting"],
+      ["vacation:2026:2", "2026-07-11", "projected"],
+      ["vacation:2026:3", "2026-07-11", "projected"],
+      ["vacation:2026:4", "2026-09-10", "projected"],
+      ["vacation:2026:5", "2026-11-12", "projected"],
+    ]);
+  });
+
+  it("dates an extra walk-back row no earlier than the eligibility date", () => {
+    const extra = vacation2026(newHire(24)).filter((r) => r.origin === "extra");
+    expect(extra.map((r) => [r.key, r.earnDate])).toEqual([["vacation:extra:1", "2026-07-11"]]);
+  });
+
+  it("can't Burn Vacation before the eligibility date", () => {
+    const april: Occasion = { id: "apr", name: "April", start: "2026-04-20", end: "2026-04-20", dayTypes: {} };
+    const view = newHire(16, [april]);
+    expect(view.occasions[0].short).toBe(1);
   });
 });
 

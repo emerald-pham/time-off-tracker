@@ -62,17 +62,31 @@ function floatingHolidaySchedule(hire: IsoDate, year: number): ScheduleEntry[] {
       key: `fh:${year}:${i + 1}`,
       benefitType: "floatingHoliday",
       scheduleYear: year,
+      creditedDate: earnDate,
       earnDate,
     });
   });
   return entries;
 }
 
+/**
+ * The eligibility date: hire + 9 months, clamped to the last day of a
+ * shorter month (Art. 21 §2). No Vacation is usable before it.
+ */
+export function eligibilityDate(hire: IsoDate): IsoDate {
+  return addMonthsClamped(hire, 9);
+}
+
+/**
+ * Vacation for `year`. Each day is credited on its raw schedule date, but
+ * becomes usable no earlier than the eligibility date, so everything earned
+ * before it unlocks at once on that date.
+ */
 function vacationSchedule(hire: IsoDate, weeklyHours: number, year: number): ScheduleEntry[] {
   if (!(weeklyHours > 0)) return [];
   const hireYear = year === yearOf(hire);
   const start = hireYear ? hire : isoDate(year, 1, 1);
-  const unlock = addMonthsClamped(hire, 9);
+  const eligible = eligibilityDate(hire);
   const { step } = accrualTier(hire, year);
   const entries: ScheduleEntry[] = [];
   for (let k = 1; k * step <= YEARLY_HOURS_LIMIT; k++) {
@@ -82,7 +96,8 @@ function vacationSchedule(hire: IsoDate, weeklyHours: number, year: number): Sch
       key: hireYear ? `vacation:hire:${k}` : `vacation:${year}:${k}`,
       benefitType: "vacation",
       scheduleYear: year,
-      earnDate: hireYear ? maxDate(raw, unlock) : raw,
+      creditedDate: raw,
+      earnDate: maxDate(raw, eligible),
     });
   }
   return entries;
