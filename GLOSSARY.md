@@ -50,8 +50,19 @@ Benefit time credited on fixed posting dates (Article 20, Section 3). It must be
 _Avoid_: Personal holiday, FH, FLHOL
 
 **Earn Date**:
-The date a Benefit Day becomes usable. For Vacation earned in the hire year, this is the date nine months after hire, not the date the hours were worked.
+The date a Benefit Day becomes usable. For Vacation credited before the eligibility date (nine months after hire), this is the eligibility date, not the date the hours were credited, whatever calendar year they were credited in.
 _Avoid_: Accrual date, posting date
+
+**Earned**:
+Describes a Benefit Day whose Earn Date is on or before today.
+
+**Estimated**:
+Describes a Benefit Day whose Earn Date is after today, so it is projected and not yet earned. The opposite of Earned.
+_Avoid_: Using "estimated" for an Earn Date that is only approximate
+
+**Approximate**:
+Describes an Earn Date assigned by the SAP walk-back, or beyond what the schedule explains, rather than known. Shown with "*".
+_Avoid_: Estimated
 
 **Accrual Tier**:
 The yearly rate Vacation is earned at (1, 2, 3 or 4 weeks), set by which hire anniversary falls in the calendar year.

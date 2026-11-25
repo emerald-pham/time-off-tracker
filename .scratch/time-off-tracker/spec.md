@@ -31,7 +31,7 @@ The tracker does that bookkeeping.
 
 | Field | Notes |
 |---|---|
-| Hire date | Drives the Accrual Tier, the first-year unlock and Floating Holiday posting. |
+| Hire date | Drives the Accrual Tier, the Vacation eligibility date and Floating Holiday posting. |
 | Regular days off | Weekday checkboxes. Used only to default new Days Off to RDO. |
 | Weekly hours | Default 40. Used to project Earn Dates. From 1 to 80. |
 | SAP Vacation hours | As shown in SAP. From 0 to 2,000. |
@@ -67,8 +67,8 @@ Every Day Off and Benefit Day is 8 hours. A balance that isn't a multiple of 8 b
 ## Ledger (left)
 
 One row per Benefit Day, with three columns:
-- **Earn Date:** like "Mar 5". Earn Dates outside the year group show the year.
-- **Type:** Vacation, "Vacation (Previous Year)" for Carryover, or Floating Holiday.
+- **Earn Date:** like "Mar 5". Earn Dates outside the year group show the year. An Estimated Earn Date (later than today) is in italics; an Earned one (on or before today) is upright.
+- **Type:** the Benefit Type and whether it's earned yet: "Vacation (Earned)", "Vacation (Estimated)", "Floating Holiday (Earned)" or "Floating Holiday (Estimated)". Carryover is "Vacation (Previous Year)", since it's earned by definition.
 - **Occasion:** the name of the Occasion that Burns this Benefit Day. Blank if it's free.
 
 **Groups and order:**
@@ -82,7 +82,8 @@ One row per Benefit Day, with three columns:
 - **Lost to cap:** greyed and struck through. Can't be Burned.
 - **Expired:** an unburned Floating Holiday from a past year. Hidden once that year ends, unless its Earn Date was edited, so the edit can still be reset.
 - **Floating Holiday warning:** a current-year Floating Holiday that's still free shows "expires Dec 31".
-- **Estimated:** the Earn Date was assigned by walking back (see below) or is beyond what the schedule explains.
+- **Earned / Estimated:** a row is Earned when its Earn Date is on or before today, and Estimated (not yet earned) when it's later. Estimated dates are in italics; Earned dates never are.
+- **Approximate:** the Earn Date was assigned by walking back (see below) or is beyond what the schedule explains. Shown with "*" after the date, and a legend line: "* approximate date".
 - **Edited:** the user changed the Earn Date. Shown with a dot.
 - **Used (not listed):** SAP shows the day used and no listed Day Off explains it. Full-year history mode marks these (see below). An edited row moved among the days SAP already shows used is marked too.
 
@@ -104,10 +105,13 @@ H is the hire date and W is weekly hours.
 Hours count toward one year up to 1,800 (Art. 21 §1).
 
 **Vacation schedule for year Y:**
-- Day k (k = 1, 2, …, while k × step ≤ 1800) has Earn Date = start + floor(k × step ÷ W × 7) days.
+- Day k (k = 1, 2, …, while k × step ≤ 1800) is credited on start + floor(k × step ÷ W × 7) days.
 - start is Jan 1 of Y. In the hire year, start is H.
-- Stop at the first date that falls outside Y.
-- **Hire year:** the Earn Date is the later of that date and H + 9 months (Art. 21 §2). If that month is shorter than H's day of the month, use the month's last day (May 31 + 9 months → Feb 28 or 29).
+- Stop at the first credited date that falls outside Y.
+- **Eligibility date:** H + 9 months (Art. 21 §2). If that month is shorter than H's day of the month, use the month's last day (May 31 + 9 months → Feb 28 or 29).
+- **Earn Date:** the later of the credited date and the eligibility date. So all the Vacation a new employee earns before the eligibility date becomes usable at once, on that date, whichever calendar year it was credited in.
+- The credited date decides whether a day is already in the SAP Balance (the walk-back and the Payday split below). The Earn Date is what the Ledger shows and what Burning uses.
+- *Example (made-up hire date Oct 11, 2025, 40 h a week):* the eligibility date is Jul 11, 2026. The hire-year day credited Dec 13, 2025 and the 2026 days credited Mar 5, May 7 and Jul 9 all have Earn Date Jul 11, 2026. Sep 10 and Nov 12 keep their own dates.
 
 **Floating Holiday schedule for year Y** (Art. 20 §3):
 - If H + 1 year ≤ Jan 1 of Y: three Floating Holidays dated Jan 1.
@@ -122,15 +126,15 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 
 - A Payroll Week runs Sunday to Saturday. Payday(d) is the Sunday on or before d, plus 11 days (a Thursday).
 - A Day Off is Deducted when Payday(date) ≤ the SAP Balance as-of date.
-- *Assumption:* a projected Vacation day is in SAP once Payday(Earn Date) ≤ as-of. A Floating Holiday is in SAP from its posting date.
+- *Assumption:* a projected Vacation day is in SAP once Payday(credited date) ≤ as-of, even if its Earn Date (the eligibility date) is later. A Floating Holiday is in SAP from its posting date.
 
 ### Starting from the SAP Balance (default, ADR 0002)
 
 **Vacation:**
 - n = floor(SAP Vacation hours ÷ 8).
-- The candidates are every schedule entry from the hire year on that is in SAP by the as-of date, sorted newest Earn Date first, except that entries with an Earn Date edit come before the rest.
-- The first n candidates become the starting Benefit Days, marked Estimated.
-- If n is more than the number of candidates, the extra rows get Earn Date = H, marked Estimated.
+- The candidates are every schedule entry from the hire year on that is in SAP by the as-of date, sorted newest credited date first, except that entries with an Earn Date edit come before the rest.
+- The first n candidates become the starting Benefit Days, marked Approximate. Each keeps its Earn Date, so a day credited before the eligibility date can't be Burned before it.
+- If n is more than the number of candidates, the extra rows get Earn Date = the eligibility date, marked Approximate.
 - Every schedule entry not yet in SAP by the as-of date becomes a projected Benefit Day.
 - Schedule entries that are in SAP but weren't picked don't appear. They were used before tracking began.
 
@@ -142,8 +146,8 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 ### Earn Date edits
 
 - Tapping an Earn Date opens a date picker. The edit is stored against the row's schedule key and survives any regeneration, including a hire date or weekly hours change.
-- Edits move schedule entries before anything else looks at their dates, so the walk-back and the in-SAP split use the edited Earn Date. An entry moved before the as-of date (by Payday) counts as one of SAP's days, not an extra one. An entry moved past it is projected.
-- In the walk-back, edited entries come before estimated ones, so moving a day that's in SAP to an older date keeps it in SAP. An edited entry that's still left out (more edited days in SAP than SAP has, or a Floating Holiday moved into an earlier year) is listed as Used (not listed).
+- Edits move schedule entries before anything else looks at their dates, so the walk-back and the in-SAP split use the edited Earn Date. An edit is a manual override: it sets the credited date and the Earn Date alike, and isn't held back to the eligibility date. An entry moved before the as-of date (by Payday) counts as one of SAP's days, not an extra one. An entry moved past it is projected.
+- In the walk-back, edited entries come before approximate ones, so moving a day that's in SAP to an older date keeps it in SAP. An edited entry that's still left out (more edited days in SAP than SAP has, or a Floating Holiday moved into an earlier year) is listed as Used (not listed).
 - The picker allows dates from the hire date to 2100. A Floating Holiday's picker stays within its calendar year.
 - "Reset to projected" deletes the edit.
 - An edit whose key no longer exists is ignored.
@@ -154,12 +158,12 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 - The current year's Benefit Days are rebuilt in full from the schedule.
 - All of this year's Days Off take part in Burning, Deducted ones included.
 - Let c = SAP days + Vacation Days Off this year with Payday ≤ as-of − this year's Vacation entries in SAP by the as-of date.
-  - If c > 0: add c Carryover rows, with Earn Dates found by walking back through earlier years' entries, newest first. Use H once those run out.
+  - If c > 0: add c Carryover rows, with Earn Dates found by walking back through earlier years' entries, newest credited first. Use the eligibility date once those run out.
   - If c < 0: SAP shows |c| days used that no listed Day Off explains. This year's Deducted Days Off Burn first, oldest row first as usual. Then, before any Day Off that isn't Deducted, the |c| oldest Vacation rows in SAP by the as-of date that are still free become **Used (not listed)**, and the user is told. Used (not listed) rows Burn nothing and don't count toward the Vacation Cap. (Paydays only move forward, so every Deducted Day Off comes before the first one that isn't.)
 
 **Floating Holidays:**
 - The same calculation, using Floating Holiday Days Off.
-- If c > 0, add extra rows dated Jan 1, marked Estimated.
+- If c > 0, add extra rows dated Jan 1, marked Approximate.
 
 ## Burning (one pass in date order)
 
@@ -228,16 +232,16 @@ Recommended stack: React, TypeScript, Vite, Vitest and the Firebase modular SDK.
 The fixture is "Sam": hired Aug 14, 2024, 40 hours a week, regular days off Saturday and Sunday. Each example starts fresh.
 
 **E1, schedule:**
-- **Vacation:**
-  - Hire year: raw dates Oct 16 and Dec 18, 2024 (a third would fall in 2025, so it stops), so 2 days dated May 14, 2025.
-  - 2025, 1 week: Mar 5, May 7, Jul 9, Sep 10, Nov 12.
+- **Vacation:** the eligibility date is May 14, 2025.
+  - Hire year: credited Oct 16 and Dec 18, 2024 (a third would fall in 2025, so it stops), so 2 days dated May 14, 2025.
+  - 2025, 1 week: credited Mar 5, May 7, Jul 9, Sep 10, Nov 12. Mar 5 and May 7 fall before the eligibility date, so the Earn Dates are May 14, May 14, Jul 9, Sep 10, Nov 12.
   - 2026, 2 weeks: Feb 1, Mar 5, Apr 5, May 7, Jun 7, Jul 9, Aug 9, Sep 10, Oct 11, Nov 12.
   - 2027: the same dates as 2026.
 - **Floating Holidays:** 2024: Sep 1. 2025: Mar 1, Jun 1, Sep 1. 2026: Jan 1 ×3. 2027: Jan 1 ×3.
 
 **E2, starting balance:**
 - As of Mon Nov 24, 2025: SAP Vacation 40 h and SAP Floating Holiday 8 h.
-- **Vacation rows:** Nov 12 2025, Sep 10 2025, Jul 9 2025, May 14 2025, May 14 2025. No 2025 Vacation is left to project.
+- **Vacation rows:** walking back by credited date picks Nov 12, Sep 10, Jul 9, May 7 and Mar 5, 2025, shown as Nov 12 2025, Sep 10 2025, Jul 9 2025, May 14 2025, May 14 2025. No 2025 Vacation is left to project.
 - **Floating Holiday row:** Sep 1, 2025, showing "expires Dec 31".
 - **Projected:** all of E1's 2026 entries.
 
@@ -264,10 +268,10 @@ The fixture is "Sam": hired Aug 14, 2024, 40 hours a week, regular days off Satu
 
 **E8, full-year history mode:**
 - Sam, as of Nov 24, 2025, with an Occasion for Tue Jun 10 – Wed Jun 11, 2025, both Vacation and Deducted.
-- The 2025 Vacation rows are Mar 5, May 7, May 14, May 14, Jul 9, Sep 10 and Nov 12.
-- With SAP 40 h: c = 5 + 2 − 7 = 0. Jun 10–11 Burn Mar 5 and May 7.
-- With SAP 24 h: c = −2. Jun 10–11 Burn Mar 5 and May 7 first, then May 14 ×2 become Used (not listed).
-- With SAP 32 h and one Deducted Day Off on Mon Mar 10, 2025 instead: c = 4 + 1 − 7 = −2. Mar 10 Burns Mar 5 (the only row earned by then), then May 7 and one May 14 become Used (not listed). Nothing is Short.
+- The 2025 Vacation rows are May 14 ×4, Jul 9, Sep 10 and Nov 12.
+- With SAP 40 h: c = 5 + 2 − 7 = 0. Jun 10–11 Burn two of the May 14 rows.
+- With SAP 24 h: c = −2. Jun 10–11 Burn two May 14 rows first, then the other two May 14 rows become Used (not listed).
+- With SAP 8 h and one Deducted Day Off on Mon Jun 2, 2025 instead: c = 1 + 1 − 7 = −5. Jun 2 Burns a May 14 row (only the May 14 rows are earned by then), then the five oldest still free (three May 14, Jul 9, Sep 10) become Used (not listed). Nothing is Short.
 
 **Seasons:** see the Occasions section.
 
