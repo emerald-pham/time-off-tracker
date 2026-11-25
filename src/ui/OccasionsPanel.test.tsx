@@ -141,6 +141,25 @@ describe("approval status", () => {
     expect(badge(el)).toBe("Not approved yet");
   });
 
+  it("US-23: a Deducted Occasion shows no approval badge or Approve button: 'Already taken' says it all", async () => {
+    // Mon Jan 5 – Tue Jan 6, 2026, paid long before SAP was read on Nov 1.
+    const taken: Occasion = { id: "jan", name: "January days", start: "2026-01-05", end: "2026-01-06", dayTypes: {} };
+    const { el } = await show([trip, taken]);
+    const c = card(el, "January days");
+    expect(text(c)).toContain("Already taken");
+    expect(c.querySelector(".badge")).toBeNull();
+    expect(text(c)).not.toMatch(/approved/i);
+    expect(maybeButton(c, "Approve")).toBeUndefined();
+    expect(maybeButton(c, "Unapprove")).toBeUndefined();
+    expect([...c.querySelectorAll(".occasion-actions button")].map((b) => b.textContent?.trim())).toEqual([
+      "Edit",
+      "Choose days",
+      "Delete",
+    ]);
+    // An Occasion ahead still shows both.
+    expect(badge(el)).toBe("Not approved yet");
+  });
+
   it("US-23: an Occasion not approved yet still counts its PTO Days", async () => {
     const { el } = await show();
     expect(text(card(el, "Made-up trip").querySelector(".pto-count")!).trim()).toBe("2");

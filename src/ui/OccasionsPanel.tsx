@@ -254,9 +254,12 @@ function OccasionCard({
         <h3 className="occasion-name" id={nameId}>
           {o.name}
         </h3>
-        <span className={o.approved ? "badge approved" : "badge pending"}>
-          {o.approved ? "Approved" : "Not approved yet"}
-        </span>
+        {/* US-23: a past Occasion is already taken, so approval no longer matters. */}
+        {!past && (
+          <span className={o.approved ? "badge approved" : "badge pending"}>
+            {o.approved ? "Approved" : "Not approved yet"}
+          </span>
+        )}
       </div>
 
       {yearCheck !== null && (
@@ -336,9 +339,11 @@ function OccasionCard({
         >
           Choose days
         </button>
-        <button type="button" className={o.approved ? "act-unapprove" : "act-approve"} onClick={onApprove}>
-          {o.approved ? "Unapprove" : "Approve"}
-        </button>
+        {!past && (
+          <button type="button" className={o.approved ? "act-unapprove" : "act-approve"} onClick={onApprove}>
+            {o.approved ? "Unapprove" : "Approve"}
+          </button>
+        )}
         <button
           type="button"
           className={open?.kind === "delete" ? "act-delete danger on" : "act-delete danger"}

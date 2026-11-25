@@ -42,6 +42,7 @@ If a new Occasion's dates are already in the past, the app says so and offers to
 
 **US-23: Mark an Occasion approved or not.**
 Each Occasion has an approval status that I can switch between "Not approved yet" and "Approved", and it's shown clearly on the Occasion. Not-approved Occasions still plan their Benefit Days, so I can see what they'd use. Occasions saved before this existed load as not approved.
+- An Occasion that's already taken (labelled "Already taken", see US-10) shows no approval badge and no Approve or Unapprove button, since "Already taken" says it all.
 
 **US-24: Occasions are easy to figure out.**
 Instead of a small caret, each Occasion has large, clearly labelled buttons for what I can do: edit the name and dates, choose each day's type, approve or unapprove, and delete. Every field has a visible label and is obviously something I can tap.
