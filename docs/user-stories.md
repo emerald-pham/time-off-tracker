@@ -1,6 +1,6 @@
 # User stories
 
-These are the owner's requests from the design and build conversations, written as user stories. Each one has a stable ID, and its acceptance tests name the ID in the test title (for example `US-07: …`), so `npx vitest -t "US-07"` runs that story. Terms follow [GLOSSARY.md](../GLOSSARY.md). Examples use the spec's fictional cast members; this repo is public, so no real person's data goes here.
+Every piece of the owner's guidance becomes a user story here, with at least one acceptance test (see CLAUDE.md). These come from the design and build conversations. Each one has a stable ID, and its acceptance tests name the ID in the test title (for example `US-07: …`), so `npx vitest -t "US-07"` runs that story. Terms follow [GLOSSARY.md](../GLOSSARY.md). Examples use the spec's fictional cast members; this repo is public, so no real person's data goes here.
 
 ## Setting up
 
@@ -72,6 +72,11 @@ Coworkers (IATSE Local 631 Regular Full Time) can sign in with their own account
 Every update is backwards compatible. Data saved by an earlier version, on the device or in the account (including Earn Date edits, which stay attached to the same rows), still loads.
 
 ## Looks
+
+**US-21: Three panels, as I described them.**
+- On wide screens: the Ledger on the left, Occasions in the middle and Settings (hire date, SAP Balance) on the right.
+- On a phone, the same three are tabs.
+- The day-type dropdown offers RDO, Floating Holiday, Vacation and Unpaid, and nothing else (no sick time).
 
 **US-19: It works on my iPhone.**
 Nothing overflows its card in iPhone Safari, date fields included.
