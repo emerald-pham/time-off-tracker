@@ -46,7 +46,7 @@ describe("Earn Date edits", () => {
     expect(burnedBySki(view).map(([key]) => key)).not.toContain("vacation:hire:1");
   });
 
-  it("still applies edits saved under the schedule keys from before the eligibility-date change", () => {
+  it("US-18: still applies edits saved under the schedule keys from before the eligibility-date change", () => {
     // SAP 72 h is 9 days: 7 schedule entries in SAP plus 2 extra rows.
     const saved = {
       "vacation:hire:1": "2025-06-02",

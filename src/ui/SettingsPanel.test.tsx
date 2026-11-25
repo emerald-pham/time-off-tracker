@@ -81,7 +81,7 @@ describe("SAP hours fields say what the app counts", () => {
   const hint = (input: HTMLInputElement) =>
     document.getElementById(input.getAttribute("aria-describedby") ?? "")?.textContent;
 
-  it("shows whole days under each balance, and any hours left over", async () => {
+  it("US-04: shows whole days under each balance, and any hours left over", async () => {
     const { el } = await show({ ...configured, sapVacationHours: 43, sapFloatingHolidayHours: 8 });
     expect(hint(field(el, "SAP Vacation hours"))).toBe("Counts as 5 days (3 hrs left over, less than a day)");
     expect(hint(field(el, "SAP Floating Holiday hours"))).toBe("Counts as 1 day");

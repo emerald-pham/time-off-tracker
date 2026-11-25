@@ -74,20 +74,20 @@ function expectComputesWithEditsAttached(view: ViewModel) {
 }
 
 describe("data saved by the previous version", () => {
-  it("loads from local storage and computes, with every Earn Date edit on its row", async () => {
+  it("US-18: loads from local storage and computes, with every Earn Date edit on its row", async () => {
     const data = await new LocalDataStore(storageWith(localSave)).load();
     expect(data).toEqual({ settings: savedSettings, occasions: [ski, beach], earnDateEdits: savedEarnDateEdits });
     expectComputesWithEditsAttached(computeView({ ...data!, today: "2025-11-24" }));
   });
 
-  it("saves back to local storage in the same shape", async () => {
+  it("US-18: saves back to local storage in the same shape", async () => {
     const storage = storageWith(localSave);
     const store = new LocalDataStore(storage);
     await store.save((await store.load())!);
     expect(JSON.parse(storage.raw.get("time-off-tracker")!)).toEqual(JSON.parse(localSave));
   });
 
-  it("loads a Firestore version 2 document (with a version 1 list) and computes", () => {
+  it("US-18: loads a Firestore version 2 document (with a version 1 list) and computes", () => {
     const data = fromStoredData(firestoreV2.data);
     expect(data.occasions).toEqual([ski, beach]);
     expectComputesWithEditsAttached(computeView({ ...data, today: "2025-11-24" }));

@@ -74,7 +74,7 @@ describe("Vacation earned before the eligibility date (hire + 9 months)", () => 
   const schedule = projectSchedule({ ...sam, hireDate: "2025-10-11" }, 2026);
   const vacation = schedule.filter((e) => e.benefitType === "vacation");
 
-  it("becomes usable all at once on the eligibility date, whatever year it was earned in", () => {
+  it("US-03: becomes usable all at once on the eligibility date, whatever year it was earned in", () => {
     expect(vacation.map((e) => [e.key, e.earnDate])).toEqual([
       ["vacation:hire:1", "2026-07-11"],
       ["vacation:2026:1", "2026-07-11"],

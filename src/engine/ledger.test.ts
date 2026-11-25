@@ -116,7 +116,7 @@ describe("Earned and Estimated (not yet earned) rows", () => {
   );
   const [y2025, y2026] = view.ledger.groups;
 
-  it("marks an Earn Date on or before today as earned", () => {
+  it("US-15: marks an Earn Date on or before today as earned", () => {
     expect(y2025.rows.map((r) => [r.earnDate, r.notYetEarned])).toEqual([
       ["2025-05-14", false],
       ["2025-05-14", false],
@@ -127,7 +127,7 @@ describe("Earned and Estimated (not yet earned) rows", () => {
     ]);
   });
 
-  it("marks an Earn Date later than today as not yet earned", () => {
+  it("US-15: marks an Earn Date later than today as not yet earned", () => {
     expect(y2026.rows.every((r) => r.notYetEarned)).toBe(true);
   });
 
@@ -169,7 +169,7 @@ describe("SAP Balance beyond what the schedule explains", () => {
     ]);
   });
 
-  it("rounds balances down to whole days and ignores the hours left over", () => {
+  it("US-04: rounds balances down to whole days and ignores the hours left over", () => {
     const decimals = computeView(
       input({ sapVacationHours: 37.6, sapFloatingHolidayHours: 12.3, sapAsOf: "2025-11-24" }, "2025-11-24"),
     );
@@ -202,7 +202,7 @@ describe("a new hire's SAP Balance read before the eligibility date", () => {
   const vacation2026 = (view: ReturnType<typeof computeView>) =>
     view.ledger.groups[0].rows.filter((r) => r.benefitType === "vacation");
 
-  it("counts SAP's days once, by the date they were credited, each usable from Jul 11", () => {
+  it("US-03: counts SAP's days once, by the date they were credited, each usable from Jul 11", () => {
     expect(vacation2026(newHire(16)).map((r) => [r.key, r.earnDate, r.origin])).toEqual([
       ["vacation:2026:1", "2026-07-11", "starting"],
       ["vacation:hire:1", "2026-07-11", "starting"],
@@ -213,12 +213,12 @@ describe("a new hire's SAP Balance read before the eligibility date", () => {
     ]);
   });
 
-  it("dates an extra walk-back row no earlier than the eligibility date", () => {
+  it("US-03: dates an extra walk-back row no earlier than the eligibility date", () => {
     const extra = vacation2026(newHire(24)).filter((r) => r.origin === "extra");
     expect(extra.map((r) => [r.key, r.earnDate])).toEqual([["vacation:extra:1", "2026-07-11"]]);
   });
 
-  it("can't Burn Vacation before the eligibility date", () => {
+  it("US-03: can't Burn Vacation before the eligibility date", () => {
     const april: Occasion = { id: "apr", name: "April", start: "2026-04-20", end: "2026-04-20", dayTypes: {} };
     const view = newHire(16, [april]);
     expect(view.occasions[0].short).toBe(1);

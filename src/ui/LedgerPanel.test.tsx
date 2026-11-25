@@ -73,20 +73,20 @@ describe("Earned, Estimated and Approximate Earn Dates", () => {
   const dateButton = (el: HTMLElement, key: string) =>
     rowEl(el, key).querySelector<HTMLButtonElement>("button.earn-date-button")!;
 
-  it("marks a date later than today not yet earned, for italics, and labels it Estimated", async () => {
+  it("US-15: marks a date later than today not yet earned, for italics, and labels it Estimated", async () => {
     const el = await ledger();
     expect(rowEl(el, "vacation:2026:1").classList.contains("not-yet-earned")).toBe(true);
     expect(text(rowEl(el, "vacation:2026:1"))).toContain("Vacation (Estimated)");
   });
 
-  it("leaves an earned date upright, labelled Earned", async () => {
+  it("US-15: leaves an earned date upright, labelled Earned", async () => {
     const el = await ledger();
     expect(rowEl(el, "vacation:2025:5").classList.contains("not-yet-earned")).toBe(false);
     expect(text(rowEl(el, "vacation:2025:5"))).toContain("Vacation (Earned)");
     expect(text(rowEl(el, "fh:2025:3"))).toContain("Floating Holiday (Earned)");
   });
 
-  it("puts '*' after an approximate date, with a legend line, and no '~'", async () => {
+  it("US-15: puts '*' after an approximate date, with a legend line, and no '~'", async () => {
     const el = await ledger();
     expect(text(dateButton(el, "vacation:2025:5")).trim()).toBe("Nov 12 *");
     expect(text(dateButton(el, "vacation:2026:1")).trim()).toBe("Feb 1");
