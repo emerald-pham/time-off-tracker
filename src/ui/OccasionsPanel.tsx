@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonLabel } from "./format";
@@ -193,6 +194,13 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
   );
 }
 
+const FIRST_DATE = `${FIRST_SUPPORTED_YEAR}-01-01`;
+const LAST_DATE = `${LAST_SUPPORTED_YEAR}-12-31`;
+const DATE_RANGE_MESSAGE = `Enter dates between ${FIRST_SUPPORTED_YEAR} and ${LAST_SUPPORTED_YEAR}.`;
+
+/** Both dates real and from 1950 to 2100; an empty end means a one-day Occasion. */
+const datesSupported = (start: IsoDate, end: IsoDate) => isSupportedDate(start) && (end === "" || isSupportedDate(end));
+
 function AddOccasionForm({
   onAdd,
   disabled,
@@ -203,6 +211,7 @@ function AddOccasionForm({
   const [name, setName] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [messages, setMessages] = useState<string[]>([]);
 
   return (
     <form
@@ -210,6 +219,11 @@ function AddOccasionForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim() || !start) return;
+        if (!datesSupported(start, end)) {
+          setMessages([DATE_RANGE_MESSAGE]);
+          return;
+        }
+        setMessages([]);
         const last = end && end >= start ? end : start;
         // Clear the form either way: a Clash opens the new Occasion's day editor instead.
         onAdd(name.trim(), start, last);
@@ -218,17 +232,31 @@ function AddOccasionForm({
         setEnd("");
       }}
     >
+      <Messages messages={messages} />
       <label className="field name">
         <span>Occasion</span>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
       </label>
       <label className="field">
         <span>Start</span>
-        <input type="date" value={start} onChange={(e) => setStart(e.target.value)} required />
+        <input
+          type="date"
+          value={start}
+          min={FIRST_DATE}
+          max={LAST_DATE}
+          onChange={(e) => setStart(e.target.value)}
+          required
+        />
       </label>
       <label className="field">
         <span>End</span>
-        <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} />
+        <input
+          type="date"
+          value={end}
+          min={start || FIRST_DATE}
+          max={LAST_DATE}
+          onChange={(e) => setEnd(e.target.value)}
+        />
       </label>
       <button type="submit" className="primary" disabled={disabled}>
         Add
@@ -329,6 +357,10 @@ function DetailsEditor({
       onSubmit={(e) => {
         e.preventDefault();
         if (!draft.name.trim() || !draft.start) return;
+        if (!datesSupported(draft.start, draft.end)) {
+          onChange({ ...editing, messages: [DATE_RANGE_MESSAGE] });
+          return;
+        }
         const end = draft.end >= draft.start ? draft.end : draft.start;
         onSave(withRange({ ...draft, name: draft.name.trim() }, draft.start, end));
       }}
@@ -341,11 +373,24 @@ function DetailsEditor({
       <div className="date-pair">
         <label className="field">
           <span>Start</span>
-          <input type="date" value={draft.start} onChange={(e) => set({ start: e.target.value })} required />
+          <input
+            type="date"
+            value={draft.start}
+            min={FIRST_DATE}
+            max={LAST_DATE}
+            onChange={(e) => set({ start: e.target.value })}
+            required
+          />
         </label>
         <label className="field">
           <span>End</span>
-          <input type="date" value={draft.end} min={draft.start} onChange={(e) => set({ end: e.target.value })} />
+          <input
+            type="date"
+            value={draft.end}
+            min={draft.start || FIRST_DATE}
+            max={LAST_DATE}
+            onChange={(e) => set({ end: e.target.value })}
+          />
         </label>
       </div>
       <div className="actions">
