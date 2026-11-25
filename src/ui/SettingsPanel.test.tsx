@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { useState } from "react";
+import { act, useState } from "react";
 import type { Settings } from "../engine";
 import { sam } from "../engine/fixtures";
 import { SettingsPanel } from "./SettingsPanel";
@@ -117,6 +117,64 @@ describe("the SAP Balance as-of date is always a real date (finding 15)", () => 
     await leave(asOf);
     expect(saves).toEqual([]);
     expect(asOf.value).toBe("2026-11-01");
+  });
+});
+
+/** Like `show`, but a test can also deliver stored settings, as a late snapshot does. */
+async function showWithEchoes(initial: Settings) {
+  let deliver: (s: Settings) => void = () => {};
+  const saves: Settings[] = [];
+  function Harness() {
+    const [settings, setSettings] = useState(initial);
+    deliver = setSettings;
+    return (
+      <SettingsPanel
+        settings={settings}
+        today={TODAY}
+        onChange={(next) => {
+          saves.push(next);
+          setSettings(next);
+        }}
+      />
+    );
+  }
+  mounted = await render(<Harness />);
+  return {
+    el: mounted.el,
+    saves,
+    echo: (s: Settings) => act(async () => deliver(s)),
+  };
+}
+
+describe("a field someone is typing in isn't rewritten by a late snapshot", () => {
+  it("an older save's echo doesn't change the number being typed", async () => {
+    const { el, saves, echo } = await showWithEchoes(configured);
+    const balance = field(el, "SAP Vacation hours");
+    await typeInto(balance, "12");
+    await typeInto(balance, "123");
+    await echo({ ...configured, sapVacationHours: 12, sapAsOf: TODAY }); // the "12" save, arriving late
+    expect(balance.value).toBe("123");
+    await typeInto(balance, "1234");
+    expect(saves.at(-1)?.sapVacationHours).toBe(1234);
+  });
+
+  it("an older save's echo doesn't change the date being typed", async () => {
+    const { el, echo } = await showWithEchoes(configured);
+    const hire = field(el, "Hire date");
+    await typeInto(hire, "2024-08-15");
+    await echo(configured); // still the old hire date
+    expect(hire.value).toBe("2024-08-15");
+  });
+
+  it("shows another device's change once the field is left, without writing the old value back", async () => {
+    const { el, saves, echo } = await showWithEchoes(configured);
+    const hours = field(el, "Weekly hours");
+    await act(async () => hours.focus());
+    await echo({ ...configured, weeklyHours: 32 });
+    expect(hours.value).toBe("40");
+    await leave(hours);
+    expect(hours.value).toBe("32");
+    expect(saves).toEqual([]);
   });
 });
 

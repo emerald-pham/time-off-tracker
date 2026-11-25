@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { IsoDate, Settings, Weekday } from "../engine";
 import { BALANCE_HOURS, WEEKLY_HOURS } from "../storage";
@@ -100,6 +100,38 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
 }
 
 /**
+ * Tracks whether someone is in a field and has typed since they entered it.
+ * While they're in it, the field shows what they typed, never the stored
+ * value: a save's own snapshot can arrive after the next keystroke, and
+ * putting its older value back mid-typing turns "1234" into "124". On
+ * leaving, a field nobody typed in shows the stored value, which may have
+ * changed on another device meanwhile, without saving anything.
+ */
+function useEditing() {
+  const inField = useRef(false);
+  const typed = useRef(false);
+  return {
+    get inField() {
+      return inField.current;
+    },
+    enter() {
+      inField.current = true;
+      typed.current = false;
+    },
+    typing() {
+      typed.current = true;
+    },
+    /** Leaves the field; true if something was typed since entering it. */
+    leave() {
+      inField.current = false;
+      const wasTyped = typed.current;
+      typed.current = false;
+      return wasTyped;
+    },
+  };
+}
+
+/**
  * A number input that lets the field be blank, or out of range, while
  * typing. Only a value within `range` is saved as it's typed. On leaving the
  * field, an out-of-range value is clamped and saved; a blank one saves
@@ -119,8 +151,9 @@ function NumberField({
   onChange: (n: number) => void;
 }) {
   const [text, setText] = useState(String(value));
+  const editing = useEditing();
   useEffect(() => {
-    if (Number(text) !== value) setText(String(value));
+    if (!editing.inField && Number(text) !== value) setText(String(value));
     // Only resync when the stored value changes from outside.
   }, [value]);
 
@@ -139,12 +172,18 @@ function NumberField({
         max={range.max}
         step="any"
         value={text}
+        onFocus={editing.enter}
         onChange={(e) => {
+          editing.typing();
           setText(e.target.value);
           const n = Number(e.target.value);
           if (e.target.value !== "" && Number.isFinite(n) && n >= range.min && n <= range.max) onChange(n);
         }}
         onBlur={() => {
+          if (!editing.leave()) {
+            setText(String(value));
+            return;
+          }
           const n = Number(text);
           if (text.trim() === "" || !Number.isFinite(n)) {
             if (whenBlank !== undefined) commit(whenBlank);
@@ -176,8 +215,9 @@ function DateField({
   onClear?: () => void;
 }) {
   const [text, setText] = useState(value ?? "");
+  const editing = useEditing();
   useEffect(() => {
-    setText(value ?? "");
+    if (!editing.inField) setText(value ?? "");
   }, [value]);
 
   return (
@@ -189,13 +229,16 @@ function DateField({
         max={LAST_DATE}
         required={!onClear}
         value={text}
+        onFocus={editing.enter}
         onChange={(e) => {
+          editing.typing();
           setText(e.target.value);
           if (isSupportedDate(e.target.value) && e.target.value !== value) onChange(e.target.value);
           else if (e.target.value === "" && onClear && value !== null) onClear();
         }}
         onBlur={() => {
-          if (!isSupportedDate(text) && !(text === "" && onClear)) setText(value ?? "");
+          const typed = editing.leave();
+          if (!typed || (!isSupportedDate(text) && !(text === "" && onClear))) setText(value ?? "");
         }}
       />
     </label>
