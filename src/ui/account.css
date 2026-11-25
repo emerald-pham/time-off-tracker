@@ -2,6 +2,8 @@
 
 .account {
   margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
 }
 
 .account-status,
@@ -21,27 +23,31 @@
 .button {
   font: inherit;
   font-size: 0.95rem;
+  font-weight: 600;
   min-height: 44px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
 
 .button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
 
 .button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--surface);
+  background: var(--header-gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgb(194 37 92 / 0.25);
 }
 
 .button.danger {
+  background: var(--danger-soft);
+  border-color: transparent;
   color: var(--danger);
 }
 
@@ -57,11 +63,13 @@
 
 .handoff {
   max-width: 520px;
-  margin: 15vh auto 0;
+  margin: 12vh auto 0;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise-in 0.35s ease-out both;
 }
 
 .handoff h2 {

@@ -1,58 +1,9 @@
-/* Occasions panel, day editor, and the Ledger states Burning adds. */
-
-:root {
-  --danger-soft: #fbe9e7;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --danger-soft: #3a2220;
-  }
-}
-
-/* Ledger states */
-.ledger .lost-to-cap .note {
-  display: inline-block; /* keeps the row's strike-through off the label */
-  text-decoration: none;
-}
-
-.ledger .burned .occasion-name {
-  font-weight: 500;
-}
-
-.ledger .occasion-name {
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 480px) {
-  .ledger th,
-  .ledger td {
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  .ledger tr > :first-child {
-    padding-left: 2px;
-  }
-  .ledger tr > :last-child {
-    padding-right: 2px;
-  }
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-}
-
-.note {
-  color: var(--muted);
-  font-size: 0.85em;
-}
+/* Occasions: the add form, one card per Occasion with big labelled buttons, and its editors (US-24). */
 
 .short {
   color: var(--danger);
   font-size: 0.85em;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -69,38 +20,51 @@
 .occasions input[type="text"],
 .occasions input[type="date"],
 .occasions select {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .occasions .actions button,
-.add-occasion button {
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.add-occasion button,
+.year-check button {
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
   background: var(--surface);
+  font-weight: 600;
   cursor: pointer;
 }
 
 .occasions button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--surface);
-  font-weight: 600;
+  background: var(--header-gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgb(194 37 92 / 0.25);
 }
 
 .occasions button.primary:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
+  box-shadow: none;
   cursor: default;
 }
 
 .occasions button.danger {
   color: var(--danger);
+}
+
+.occasions button.danger.solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--surface);
 }
 
 /* Add form */
@@ -109,92 +73,362 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: end;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--floating-holiday-soft));
+}
+
+.add-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 1rem;
 }
 
 .add-occasion .name,
-.add-occasion button {
+.add-occasion button,
+.add-occasion .clash-messages {
   grid-column: 1 / -1;
 }
 
-/* Occasions table */
-.occasion-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.92rem;
+.add-occasion input[type="text"],
+.add-occasion input[type="date"] {
+  background: var(--surface);
 }
 
-.occasion-table th,
-.occasion-table td {
-  text-align: left;
-  padding: 7px 6px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-.occasion-table thead th {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  font-weight: 600;
-  vertical-align: bottom;
-}
-
-@media (max-width: 480px) {
-  .occasion-table th,
-  .occasion-table td {
-    padding: 7px 4px;
-  }
-  .occasion-table th:first-child,
-  .occasion-table td:first-child {
-    padding-left: 0;
-  }
-  .occasion-table th:last-child,
-  .occasion-table td:last-child {
-    padding-right: 0;
-  }
-}
-
-.occasion-table button.link,
-.occasion-table button.caret-button {
-  border: 0;
-  background: none;
+/* The list of Occasions */
+.occasion-list {
+  list-style: none;
+  margin: 0;
   padding: 0;
-  text-align: left;
-  cursor: pointer;
-  font-size: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.occasion-table button.link {
+.occasion-card {
+  position: relative;
+  min-width: 0;
+  padding: 14px 14px 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise-in 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.occasion-card::before {
+  /* The Season's color down the left edge. */
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 5px;
+  border-radius: 0 5px 5px 0;
+  background: var(--season, var(--accent));
+}
+
+.occasion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.occasion-name {
+  flex: 1 1 10rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.12rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Approval status (US-23) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.badge.approved {
+  background: var(--ok-soft);
+  color: var(--ok);
+  animation: pop 0.45s ease-out;
+}
+
+.badge.approved::before {
+  content: "✓";
+}
+
+.badge.pending {
+  background: var(--warn-soft);
+  color: var(--warn);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.badge.pending::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+/* Dates, PTO Days and Season, each with its label */
+.occasion-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 5.6rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.fact dt {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fact dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.fact .dates {
   font-weight: 600;
-  color: var(--accent);
 }
 
-.caret-button .caret {
-  margin-left: 4px;
-  color: var(--accent);
+.pto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
-.occasion-table .pto,
-.caret-button .date,
-.caret-button .caret {
+.pto-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--header-gradient);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.chips {
+  display: contents;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--type-soft);
+  color: var(--type);
+  font-size: 0.8rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.occasion-table .pto .note,
-.occasion-table .pto .short {
-  display: block;
+.season-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--season-soft);
+  color: var(--season);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.occasion.deducted td,
-.occasion.deducted button {
+/* One colored bar per Day Off */
+.day-strip {
+  display: flex;
+  gap: 3px;
+  margin: 10px 0 2px;
+}
+
+.day-strip > span {
+  flex: 1 1 0;
+  max-width: 34px;
+  min-width: 3px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--type);
+}
+
+.day-strip > span.deducted {
+  opacity: 0.4;
+}
+
+.past-label {
+  display: inline-block;
+  margin: 8px 0 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--unpaid-soft);
+  color: var(--unpaid);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.occasion-card.deducted .occasion-name,
+.occasion-card.deducted .fact dd {
   color: var(--muted);
 }
 
-.editor-row > td {
-  background: var(--bg);
-  padding: 10px;
+/* The big labelled buttons on each Occasion */
+.occasion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.occasion-actions button {
+  flex: 1 1 8.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.occasion-actions button::before {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.occasion-actions .act-edit {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.occasion-actions .act-edit::before {
+  content: "✎";
+}
+
+.occasion-actions .act-days {
+  background: var(--rdo-soft);
+  color: var(--rdo);
+}
+.occasion-actions .act-days::before {
+  content: "▦";
+}
+
+.occasion-actions .act-approve {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.occasion-actions .act-approve::before {
+  content: "✓";
+}
+
+.occasion-actions .act-unapprove {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.occasion-actions .act-unapprove::before {
+  content: "↺";
+}
+
+.occasion-actions .act-delete {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.occasion-actions .act-delete::before {
+  content: "✕";
+}
+
+.occasion-actions button.on {
+  border-color: currentColor;
+}
+
+@media (hover: hover) {
+  .occasion-actions button:hover {
+    border-color: currentColor;
+  }
+}
+
+/* Editors inside a card */
+.occasion-card .reveal {
+  margin-top: 12px;
+}
+
+.occasion-card .day-editor,
+.occasion-card .details-editor,
+.confirm-delete,
+.new-draft {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.editor-title {
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.confirm-delete {
+  background: var(--danger-soft);
+}
+
+.confirm-delete p {
+  margin: 0;
+}
+
+/* "These dates are in the past. Did you mean 2027?" (US-10) */
+.year-check {
+  margin: 0 0 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border: 1.5px solid color-mix(in srgb, var(--warn) 50%, transparent);
+  animation: rise-in 0.3s ease-out both;
+}
+
+.year-check p {
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.year-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.year-check-actions button {
+  flex: 1 1 9rem;
 }
 
 /* Day editor */
@@ -204,26 +438,50 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .day label {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 4px 6px;
-  border-radius: 8px;
+  gap: 6px 10px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .day .day-label {
-  flex: 1;
+  flex: 1 1 9rem;
   min-width: 0;
+  font-weight: 600;
 }
 
-.occasions .day select {
+/* Each choice wears its Day Type's color. */
+.occasions select.type-select {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 10.5rem;
   width: auto;
-  min-width: 10.5em;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding-right: 34px;
+  border-color: var(--type);
+  background-color: var(--type-soft);
+  color: var(--type);
+  font-weight: 700;
+  /* A small chevron drawn in the text color. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 19px) 52%,
+    calc(100% - 14px) 52%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
 }
 
 .day.deducted .day-label {
@@ -232,13 +490,13 @@
 
 .day.clashing label {
   background: var(--danger-soft);
-  outline: 1px solid var(--danger);
+  outline: 2px solid var(--danger);
 }
 
 .clash-messages {
   color: var(--danger);
   margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .clash-messages p {
@@ -247,9 +505,10 @@
 
 .occasions .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .occasions .actions .spacer {
@@ -262,6 +521,11 @@
   gap: 10px;
 }
 
+.details-editor input[type="text"],
+.details-editor input[type="date"] {
+  background: var(--surface);
+}
+
 .date-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -269,11 +533,8 @@
 }
 
 .new-draft {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
   margin-bottom: 14px;
-  background: var(--bg);
+  border: 1.5px solid var(--border);
 }
 
 .draft-title {

@@ -191,7 +191,15 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
 export function AppHeader() {
   return (
     <header className="app-header">
-      <h1>Time Off Tracker</h1>
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">
+          🌴
+        </span>
+        <div>
+          <h1>Time Off Tracker</h1>
+          <p className="tagline">Plan your days off and see what's left.</p>
+        </div>
+      </div>
       <p className="label">IATSE Local 631 Regular Full Time (Entertainment Technicians, Costuming, Cosmetology)</p>
       <p className="disclaimer">Estimates only. SAP is the official record.</p>
     </header>

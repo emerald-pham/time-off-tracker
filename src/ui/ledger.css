@@ -1,19 +1,264 @@
-/* Ledger corrections: the Earn Date picker, Edited and Used (not listed) rows. */
+/* The Ledger: the "Earned now" card, year rows with their totals, row states and the Earn Date picker. */
 
+/* "Earned now" */
+.summary {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(120deg, var(--vacation), var(--floating-holiday)) border-box;
+  border: 2px solid transparent;
+  box-shadow: var(--shadow);
+  animation: rise-in 0.4s ease-out both;
+}
+
+.stat-title {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--type-soft);
+  color: var(--type);
+  font-weight: 700;
+}
+
+.stat-card .stat .count {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.stat-unit {
+  font-size: 0.9rem;
+}
+
+/* The table */
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.ledger th,
+.ledger td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.ledger thead th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ledger tbody tr.row {
+  animation: fade-in 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+  transition: background-color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .ledger tbody tr.row:hover td {
+    background: var(--surface-2);
+  }
+}
+
+/* One separator per year, carrying that year's "By end of" totals (US-13, US-22). */
+.ledger .year-row th {
+  padding: 14px 0 8px;
+  border-bottom: 0;
+}
+
+.year-row-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--year-bg), color-mix(in srgb, var(--year-bg) 40%, transparent));
+  animation: rise-in 0.35s ease-out both;
+}
+
+.year-label {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: var(--text-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.year-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.totals-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.year-totals .stat {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  gap: 4px;
+}
+
+.year-totals .stat .count {
+  font-size: 1rem;
+}
+
+.year-totals .stat-unit {
+  font-size: 0.82rem;
+}
+
+.ledger .earn-date {
+  white-space: nowrap;
+}
+
+/* The Benefit Type, in its color with a dot. */
+.type-label {
+  color: var(--type);
+  font-weight: 600;
+}
+
+.type-label::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--type);
+  vertical-align: 1px;
+}
+
+.ledger .carryover td {
+  background: color-mix(in srgb, var(--vacation-soft) 55%, transparent);
+}
+
+/* "*": an approximate Earn Date (US-15). */
+.approximate-mark {
+  color: var(--accent);
+  font-weight: 800;
+  font-style: normal;
+}
+
+.ledger .lost-to-cap td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.ledger .lost-to-cap .type-label {
+  color: var(--muted);
+}
+
+.ledger .lost-to-cap .note {
+  display: inline-block; /* keeps the row's strike-through off the label */
+  text-decoration: none;
+}
+
+.ledger .burned .occasion-name {
+  font-weight: 600;
+}
+
+.ledger .occasion-name {
+  overflow-wrap: anywhere;
+}
+
+.warning {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.78em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+@media (max-width: 480px) {
+  .ledger th,
+  .ledger td {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .ledger tr > :first-child {
+    padding-left: 2px;
+  }
+  .ledger tr > :last-child {
+    padding-right: 2px;
+  }
+  .type-label::before {
+    margin-right: 4px;
+  }
+}
+
+/* Ledger corrections: the Earn Date picker, Edited and Used (not listed) rows. */
 .ledger button.earn-date-button {
   border: 0;
   background: none;
   padding: 0;
   font: inherit;
-  color: var(--accent);
+  font-weight: 600;
+  color: var(--accent-2);
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
+  text-decoration: underline dotted color-mix(in srgb, var(--accent-2) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 /* Estimated: the Earn Date is later than today, so the day isn't earned yet. */
 .ledger .not-yet-earned button.earn-date-button {
   font-style: italic;
+  font-weight: 500;
 }
 
 .ledger .lost-to-cap button.earn-date-button {
@@ -34,15 +279,16 @@
 
 .used-not-listed-message {
   margin: 0 0 12px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--warn);
-  border-radius: 8px;
+  border-radius: 12px;
+  background: var(--warn-soft);
   color: var(--warn);
   font-size: 0.88rem;
 }
 
 .earn-date-editor-row > td {
-  background: var(--bg);
+  background: var(--surface-2);
   padding: 10px;
 }
 
@@ -66,24 +312,24 @@
 .earn-date-editor button {
   font: inherit;
   font-size: 16px; /* stops iOS Safari zooming on focus */
-  min-height: 42px;
+  font-weight: 600;
+  min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
 
 .earn-date-editor button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--surface);
-  font-weight: 600;
+  background: var(--header-gradient);
+  border-color: transparent;
+  color: #fff;
 }
 
 .earn-date-editor button.primary:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -96,19 +342,22 @@
 
 .field.toggle > span {
   font-size: 0.95rem;
+  font-weight: 500;
   color: var(--text);
 }
 
 .toggle input[type="checkbox"] {
   margin-top: 3px;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex: none;
+  accent-color: var(--accent-2);
 }
 
 .toggle .hint {
   display: block;
   color: var(--muted);
   font-size: 0.82rem;
+  font-weight: 400;
   margin-top: 2px;
 }
