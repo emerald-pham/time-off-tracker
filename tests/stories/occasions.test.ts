@@ -182,6 +182,19 @@ describe("US-29: Flag a week with more than two RDOs", () => {
     expect(flagged[0].occasions.map((o) => o.occasionId)).toEqual(["a", "b", "c"]);
   });
 
+  it("US-29: a date that's RDO in one Occasion but paid in an overlapping one is a paid day off, not an RDO", () => {
+    // A has Mon–Wed RDO; B marks Wed Vacation, and C marks Tue Floating Holiday: only Mon is an RDO.
+    const a = occasion("a", "Made-up A", "2027-03-08", "2027-03-10", rdos("2027-03-08", "2027-03-09", "2027-03-10"));
+    const b = occasion("b", "Made-up B", "2027-03-10", "2027-03-10", { "2027-03-10": "vacation" });
+    const c = occasion("c", "Made-up C", "2027-03-09", "2027-03-09", { "2027-03-09": "floatingHoliday" });
+    const v = view(samE2, today, { occasions: [a, b, c] });
+    expect(v.tooManyRdos).toEqual([]);
+    expect(v.occasions.every((o) => o.tooManyRdos.length === 0)).toBe(true);
+
+    // Without B and C, A's three RDOs are flagged.
+    expect(view(samE2, today, { occasions: [a] }).tooManyRdos).toHaveLength(1);
+  });
+
   it("US-29: a single Occasion with 3 RDOs set by hand in one week is flagged", () => {
     // Mon Mar 8 – Fri Mar 12, 2027 with Mon, Wed and Fri chosen as RDO.
     const o = occasion("solo", "Made-up solo", "2027-03-08", "2027-03-12", {

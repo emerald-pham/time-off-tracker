@@ -83,6 +83,7 @@ Floating Holidays expire on Dec 31 and Vacation carries over, so when free Float
 **US-29: Red-flag a week with more than two RDOs.**
 A week (Sunday to Saturday) only has two days off, so when Occasions overlap the same week, or I set the types by hand, the app flags any week with more than two RDOs.
 - RDOs count by date: a date that's RDO in two overlapping Occasions is one day off, so it counts once.
+- A date that's RDO in one Occasion but Vacation or Floating Holiday in an overlapping one is a paid day off, so it doesn't count as an RDO.
 - Each Occasion in that week shows a red warning, like "Too many RDOs: the week of Sun Mar 7 has 3 RDOs across 'A' and 'B'. A week only has 2."
 - In "Choose days" the same warning shows live as I change the types, and the extra RDO rows are highlighted red.
 - It's a warning, not a block: Save still works.
