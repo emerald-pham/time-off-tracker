@@ -23,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { FirestoreDataStore } from "../storage/firestoreDataStore";
 import type { DataStore } from "../storage";
+import { accountWatch } from "./accountWatch";
 import type { FirebaseWebConfig } from "./config";
 import { writesSyncedWithin } from "./pendingWrites";
 import { signInMethod } from "./signInMethod";
@@ -76,12 +77,17 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
 
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
+  // Another tab signing out shuts this tab's Firestore client down, so a tab
+  // whose account signs out or changes underneath it reloads.
+  const watch = accountWatch(() => window.location.reload());
 
   return {
     onAccountChanged(callback) {
-      return onAuthStateChanged(auth, (user) =>
-        callback(user ? { uid: user.uid, email: user.email } : null),
-      );
+      return onAuthStateChanged(auth, (user) => {
+        if (watch.accountChanged(user?.uid ?? null)) {
+          callback(user ? { uid: user.uid, email: user.email } : null);
+        }
+      });
     },
 
     async signIn() {
@@ -97,6 +103,7 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
     },
 
     async signOut() {
+      watch.leaving();
       await firebaseSignOut(auth);
       await terminate(db);
       try {
