@@ -62,6 +62,7 @@ Every week (Sunday to Saturday) has two days off, so the app works out each day'
 **US-26: Nudge me to use Floating Holidays before Vacation.**
 Floating Holidays expire on Dec 31 and Vacation carries over, so when free Floating Holidays could cover some of an Occasion's Vacation days, its card shows a gentle note, like "2 Floating Holidays could cover days here instead of Vacation. They expire Dec 31."
 - Free means not used by any Occasion, not Expired, from the same calendar year as the day, and earned on or before it. Deducted days aren't counted.
+- Occasions share the free Floating Holidays, earliest Occasion first, so the notes never add up to more than there are.
 - A large "Use Floating Holidays" button switches that many of the Occasion's Vacation days, earliest first, to Floating Holiday and saves, with the usual Clash check. Then the note goes away.
 - It's only a nudge: nothing is blocked, and the days that aren't RDOs still default to Vacation (US-25).
 

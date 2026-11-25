@@ -99,11 +99,13 @@ export function computeView(input: EngineInput): ViewModel {
  * calendar year that it is earned by. Days are taken earliest first, each
  * using any Floating Holiday still unmatched: one earned by an earlier day is
  * earned by every later one too, so this covers as many days as possible.
+ *
+ * The Occasions share one pool, in start-date order (`occasions` is sorted),
+ * so the suggestions never add up to more than the free Floating Holidays.
  */
 function suggestFloatingHolidays(occasions: OccasionView[], rows: LedgerRow[]): OccasionView[] {
-  const free = rows.filter((r) => r.benefitType === "floatingHoliday" && isFree(r));
+  const unmatched = rows.filter((r) => r.benefitType === "floatingHoliday" && isFree(r));
   return occasions.map((o) => {
-    const unmatched = [...free];
     const covered: IsoDate[] = [];
     for (const day of o.days) {
       if (day.dayType !== "vacation" || day.deducted) continue;

@@ -286,6 +286,32 @@ describe("US-26: Floating Holidays that could cover Vacation Days Off", () => {
     expect(couldCover(view, "Autumn day")).toEqual([]);
   });
 
+  it("US-26: two Occasions share two free Floating Holidays, earliest Occasion first, never promising more", () => {
+    const view = computeView(
+      input([
+        // Listed out of order: the earlier Occasion still gets first pick.
+        occasion("Later week", "2026-03-09", "2026-03-10"),
+        occasion("Early week", "2026-03-02", "2026-03-03"),
+        // Uses one of 2026's three Floating Holidays, leaving two free.
+        occasion("Autumn day", "2026-10-05", "2026-10-05", { "2026-10-05": "floatingHoliday" }),
+      ]),
+    );
+    expect(couldCover(view, "Early week")).toEqual(["2026-03-02", "2026-03-03"]);
+    expect(couldCover(view, "Later week")).toEqual([]);
+  });
+
+  it("US-26: an Occasion gets what the earlier ones leave", () => {
+    const view = computeView(
+      input([
+        occasion("Early day", "2026-03-02", "2026-03-02"),
+        occasion("Later week", "2026-03-09", "2026-03-10"),
+        occasion("Autumn day", "2026-10-05", "2026-10-05", { "2026-10-05": "floatingHoliday" }),
+      ]),
+    );
+    expect(couldCover(view, "Early day")).toEqual(["2026-03-02"]);
+    expect(couldCover(view, "Later week")).toEqual(["2026-03-09"]);
+  });
+
   it("US-26: leaves out Floating Holidays not earned on or before the day", () => {
     // Sam as of Sat Feb 1, 2025: 2025's Floating Holidays post Mar 1, Jun 1 and Sep 1.
     const early: Partial<Settings> = { sapVacationHours: 0, sapFloatingHolidayHours: 0, sapAsOf: "2025-02-01" };
