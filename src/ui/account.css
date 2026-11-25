@@ -51,6 +51,10 @@
   font-size: 0.9rem;
 }
 
+.account-error p {
+  margin: 0 0 8px;
+}
+
 .handoff {
   max-width: 520px;
   margin: 15vh auto 0;
