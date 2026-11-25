@@ -49,6 +49,20 @@ describe("handOffOnSignIn", () => {
     expect(ask).not.toHaveBeenCalled();
   });
 
+  it("moves the device's data up without asking when the account holds only defaults", async () => {
+    // Another device signed in fresh, ticked a weekday on and off, and so saved the defaults.
+    const device = memoryStore(deviceData);
+    const account = memoryStore(emptyAppData());
+    const ask = vi.fn();
+
+    const data = await handOffOnSignIn({ device, account, ask });
+
+    expect(ask).not.toHaveBeenCalled();
+    expect(data).toEqual(deviceData);
+    expect(await account.load()).toEqual(deviceData);
+    expect(await device.load()).toBeNull();
+  });
+
   it("asks when the account already has data, and can keep the account's data", async () => {
     const device = memoryStore(deviceData);
     const account = memoryStore(accountData);

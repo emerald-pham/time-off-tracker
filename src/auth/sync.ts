@@ -35,11 +35,13 @@ export async function handOffOnSignIn({ device, account, ask }: Handoff): Promis
   const saved = await device.load();
   const local = saved === null || isEmptyAppData(saved) ? null : saved;
   const remote = await account.load();
+  // Either side holding only the defaults counts as empty, so nothing is asked.
+  const remoteHasData = remote !== null && !isEmptyAppData(remote);
 
   let result = remote;
   if (local !== null) {
     const keepAccount =
-      remote !== null && (sameAppData(local, remote) || (await ask()) === "keep-account");
+      remoteHasData && (sameAppData(local, remote) || (await ask()) === "keep-account");
     if (!keepAccount) {
       await account.save(local);
       result = local;
