@@ -6,6 +6,7 @@ import { projectSchedule } from "./schedule";
 import type {
   BenefitCounts,
   BenefitType,
+  EarnDateEdits,
   EngineInput,
   IsoDate,
   LedgerGroup,
@@ -25,11 +26,12 @@ const HOURS_PER_DAY = 8;
  * Pipeline (later tickets slot in as marked):
  *   1. project the schedule through the last year shown
  *   2. turn it into Ledger rows, starting from the SAP Balance (ADR 0002)
- *      [ticket 03: apply Earn Date edits; full-year history mode]
- *   3. resolve each Occasion's Days Off, then Burn rows in one date-order pass
+ *      [ticket 03: full-year history mode]
+ *   3. apply Earn Date edits by schedule key
+ *   4. resolve each Occasion's Days Off, then Burn rows in one date-order pass
  *      (see burning.ts; Vacation Cap marks rows Lost to cap)
- *   4. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
- *   5. group by year and count free rows
+ *   5. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
+ *   6. group by year and count free rows
  */
 export function computeView(input: EngineInput): ViewModel {
   const { settings, today } = input;
@@ -39,7 +41,7 @@ export function computeView(input: EngineInput): ViewModel {
 
   const schedule = projectSchedule(settings, lastYear);
   const occasions = occasionViews(input.occasions, settings, asOf);
-  const burned = startingRows(schedule, settings, asOf);
+  const burned = applyEarnDateEdits(startingRows(schedule, settings, asOf), input.earnDateEdits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
     leftoverVacationHours: settings.sapVacationHours % HOURS_PER_DAY,
@@ -94,6 +96,17 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
       extraKeyPrefix: `fh:${asOfYear}:extra`,
     }),
   ];
+}
+
+/**
+ * Earn Date edits are stored by schedule key, so they survive any
+ * regeneration (hire date, weekly hours). An edit whose key no longer exists
+ * is ignored. The edited date is the user's, so the row is no longer Estimated.
+ */
+function applyEarnDateEdits(rows: LedgerRow[], edits: EarnDateEdits): LedgerRow[] {
+  return rows.map((r) =>
+    Object.hasOwn(edits, r.key) ? { ...r, earnDate: edits[r.key], edited: true, estimated: false } : r,
+  );
 }
 
 function walkBack(args: {
