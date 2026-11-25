@@ -1,7 +1,7 @@
 # Time Off Tracker: spec
 
 Status: agreed 2026-11-24 (grilling session)
-Vocabulary: [GLOSSARY.md](../../GLOSSARY.md). Decisions: [ADR 0001](../../docs/adr/0001-firebase-with-per-person-accounts.md) (Firebase, optional sign-in), [ADR 0002](../../docs/adr/0002-sap-balance-anchors-the-ledger.md) (SAP Balance anchors the Ledger).
+Vocabulary: [GLOSSARY.md](../../GLOSSARY.md). Decisions: [ADR 0001](../../docs/adr/0001-firebase-with-per-person-accounts.md) (Firebase, optional sign-in), [ADR 0002](../../docs/adr/0002-sap-balance-anchors-the-ledger.md) (SAP Balance anchors the Ledger), [ADR 0003](../../docs/adr/0003-account-document-merges-edits-by-entry.md) (the account document merges edits entry by entry).
 
 This repo is public. Every example in this spec, the tests and the README is made up. Never commit a real person's hire date, balances or Occasion names.
 
@@ -177,24 +177,39 @@ Every change recalculates everything from scratch. Walk dates in order. On any d
 
 RDO and Unpaid Days Off Burn nothing.
 
-## Accounts and sync (ADR 0001)
+## Accounts and sync (ADR 0001, ADR 0003)
 
-**Hosting:** Firebase Hosting. The source is in a public GitHub repo with an MIT license.
+**Hosting:** Firebase Hosting. The source is in a public GitHub repo with an MIT license. Every path is served `no-cache` except the hashed files in `/assets/`, which are cached for a year; a missing `/assets/` file is a 404, never the page.
 
 **Signed out:** data stays in this browser's local storage.
+- Safari deletes a site's storage after 7 days without a visit, unless the app is on the Home Screen. The app asks the browser to keep its storage, and the Account section says so: sign in, or add the app to the Home Screen.
+- If the browser refuses storage altogether, the app keeps working in memory and says changes last only until the page closes.
 
 **Signed in with Google:**
-- **Storage:** one Firestore document per user at `users/{uid}`, holding settings, Occasions and Earn Date edits.
-- **Access:** security rules allow read and write only when `request.auth.uid == uid`.
-- **Offline:** offline persistence is on.
+- **Storage:** one Firestore document per user at `users/{uid}`, holding settings, Occasions (keyed by id) and Earn Date edits. Its `version` is 2 (ADR 0003).
+- **Access:** security rules allow read and write only when `request.auth.uid == uid`. The rules also whitelist the fields, require the version 2 maps, and never let the version go down.
+- **Offline:** offline persistence is on. A save lands on the device at once and syncs when online; nothing waits on the server except sign-out and "Delete my data".
+
+**Sync between devices and tabs:**
+- The app follows the stored data live, so an edit on one device or tab shows up on the others as it syncs. Nothing is re-read on a timer or on returning to the app.
+- Each edit writes only the entries it changed: one setting, one Occasion (always whole) or one Earn Date edit. Edits to different entries on different devices all survive, online or offline. Edits to the same entry end with whichever reached the account last. Signed out, two tabs follow the same rule through local storage.
+- A version 1 document (Occasions as a list) loads as before and is rewritten whole as version 2 on its first edit.
+- Data saved by a newer version of the app is never overwritten: the app says to reload to update it.
+- When a tab's account signs out or changes in another tab, that tab reloads.
 
 **First sign-in on a device with local data:**
-- If the account is empty, the local data moves into it.
+- If the account is empty, or holds only the defaults, the local data moves into it without asking.
 - If the account already has data, ask once: "Keep your account's data" or "Replace it with this device's data". Never merge.
+- The question belongs to the account it was asked for: if the account changes meanwhile, it's dropped, and so is any handoff that finishes late.
+- If the account's data can't be loaded (say, offline on a new device), the person stays signed in and sees the error with "Try again" and "Sign out". This device's data is left alone.
 
-**Sign out:** clears the device copy.
+**Sign out:** clears the device copy. It first waits a few seconds for every change to reach the account. If some haven't (offline), sign-out is refused with an explanation, and "Discard unsynced changes and sign out" signs out anyway.
 
 **Delete my data:** deletes the user's Firestore document and the local copy.
+- It's done on this device at once, and from then on no edit is saved, so nothing can bring the document back.
+- Signed in, sign-out waits until the server has the delete, because signing out wipes the offline queue the delete is waiting in. Offline, the app says it finishes when the device is back online.
+
+**Startup:** the app shows at once, on this device's copy, and loads Firebase behind it. Someone who was signed in last time sees "Loading your account…" instead. Errors never leave a blank page: loading, saving and Ledger errors are shown with Settings and the Account section still reachable.
 
 **iOS:** Google sign-in must work in iPhone and iPad Safari and from a home-screen icon. A web app manifest makes it installable.
 
