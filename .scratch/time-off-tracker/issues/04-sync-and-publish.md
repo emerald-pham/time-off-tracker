@@ -1,6 +1,6 @@
 # 04: Sync and publish
 
-Status: resolved
+Status: needs-info
 Blocked by: 01 (easiest after 02)
 Spec: [spec.md](../spec.md), section Accounts and sync. [ADR 0001](../../../docs/adr/0001-firebase-with-per-person-accounts.md).
 
@@ -46,3 +46,4 @@ Resolved on branch `time-off-tracker`.
 - **Delete my data:** requires a connection to the server.
 - **Testing:** emulator suites for the rules (41 tests) and hosting (6 tests).
 - **Go-live:** deployed by the coordinator from the CLI to https://time-off-tracker-20261124.web.app. Tested on the live site: signed-out read, list and write are all refused with PERMISSION_DENIED. The browser key is restricted to the app's own domains.
+- **Still open:** Google sign-in is not enabled yet. Firebase requires an OAuth support email, which is shown on the sign-in screen, and we're waiting for the owner to approve using their address. Until then the app runs signed-out only, and the iPhone sign-in check hasn't been done.
