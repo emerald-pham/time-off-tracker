@@ -33,6 +33,21 @@ export async function render(ui: ReactElement): Promise<Rendered> {
   };
 }
 
+/**
+ * For a test where a render error is expected: React reports it again on
+ * `window` in development, and jsdom would print it. Returns the undo.
+ */
+export function expectRenderErrors(): () => void {
+  const quiet = (e: ErrorEvent) => e.preventDefault();
+  window.addEventListener("error", quiet);
+  const log = console.error;
+  console.error = () => {};
+  return () => {
+    window.removeEventListener("error", quiet);
+    console.error = log;
+  };
+}
+
 /** Lets pending promises, timers at 0 ms and React updates run. */
 export async function flush(): Promise<void> {
   for (let i = 0; i < 3; i++) {

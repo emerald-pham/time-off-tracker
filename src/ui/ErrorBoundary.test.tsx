@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { ErrorBoundary, PageError } from "./ErrorBoundary";
-import { button, render, text } from "./testDom";
+import { button, expectRenderErrors, render, text } from "./testDom";
 import type { Rendered } from "./testDom";
 
 function Breaks({ when }: { when: boolean }) {
@@ -10,15 +10,16 @@ function Breaks({ when }: { when: boolean }) {
 }
 
 let mounted: Rendered | null = null;
+const onCleanup: (() => void)[] = [];
 afterEach(async () => {
   await mounted?.unmount();
   mounted = null;
-  vi.restoreAllMocks();
+  while (onCleanup.length) onCleanup.pop()!();
 });
 
 describe("ErrorBoundary", () => {
   it("shows the fallback instead of a blank page, and leaves the rest alone", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    onCleanup.push(expectRenderErrors());
     mounted = await render(
       <div>
         <ErrorBoundary fallback={(e) => <p>Couldn't show this: {e.message}</p>}>
@@ -32,7 +33,7 @@ describe("ErrorBoundary", () => {
   });
 
   it("tries again when its reset key changes", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    onCleanup.push(expectRenderErrors());
     const ui = (broken: boolean, key: number) => (
       <ErrorBoundary resetKey={key} fallback={() => <p>Broken</p>}>
         <Breaks when={broken} />
