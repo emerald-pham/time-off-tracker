@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --only firestore --project demo-time-off-tracker \"vitest run --config vitest.rules.config.ts\"",
+    "test:hosting": "npm run build && firebase emulators:exec --only hosting --project demo-time-off-tracker \"vitest run --config vitest.hosting.config.ts\"",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-time-off-tracker",
     "deploy": "node scripts/check-deploy-env.mjs && npm run build && firebase deploy --only hosting,firestore:rules"
   },

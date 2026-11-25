@@ -14,5 +14,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.rules.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.rules.config.ts", "vitest.hosting.config.ts"]
 }
