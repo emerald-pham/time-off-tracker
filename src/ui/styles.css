@@ -1,0 +1,273 @@
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6b6b70;
+  --border: #e2e0db;
+  --accent: #2f5d8a;
+  --accent-soft: #e6eef6;
+  --warn: #9a5b00;
+  --danger: #b3261e;
+  --year-bg: #efede8;
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618;
+    --surface: #202023;
+    --text: #ececee;
+    --muted: #9c9ca3;
+    --border: #34343a;
+    --accent: #8ab4e0;
+    --accent-soft: #24303d;
+    --warn: #e0a64a;
+    --danger: #f2827a;
+    --year-bg: #2a2a2e;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.app-header p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.app-header .disclaimer {
+  color: var(--warn);
+}
+
+/* Tabs (narrow screens) */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 4px;
+  background: var(--year-bg);
+  border-radius: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tab {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.columns {
+  display: block;
+}
+
+.panel {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.panel.active {
+  display: block;
+}
+
+.panel-title {
+  display: none;
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+/* Three columns (iPad landscape, Mac): Ledger, Occasions, Settings */
+@media (min-width: 1024px) {
+  .tabs {
+    display: none;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.8fr);
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+  .panel {
+    display: block;
+  }
+  .panel-title {
+    display: block;
+  }
+}
+
+.empty {
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Ledger */
+.summary {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.leftover {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.ledger th,
+.ledger td {
+  text-align: left;
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.ledger thead th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ledger .year-row th {
+  background: var(--year-bg);
+  font-weight: 700;
+  padding: 5px 6px;
+}
+
+.ledger .earn-date {
+  white-space: nowrap;
+}
+
+.ledger .carryover td {
+  background: var(--accent-soft);
+}
+
+.ledger .estimated .earn-date {
+  font-style: italic;
+}
+
+.estimated-mark {
+  color: var(--muted);
+}
+
+.ledger .lost-to-cap td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.warning {
+  color: var(--warn);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.legend {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Settings */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-heading {
+  margin: 6px 0 -4px;
+  font-size: 0.95rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.field > span,
+.field > legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.field input[type="date"],
+.field input[type="number"] {
+  font: inherit;
+  font-size: 16px; /* stops iOS Safari zooming on focus */
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+  min-height: 42px;
+}
+
+.weekday-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weekday {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
