@@ -44,6 +44,10 @@ describe("Occasion formatting", () => {
     expect(formatDayOff("2026-11-22")).toBe("Sun, Nov 22nd 2026");
   });
 
+  it("keeps the weekday right for a two-digit year (Jan 5, 0026 is a Monday)", () => {
+    expect(formatRange("0026-01-05", "0026-01-05")).toBe("Mon Jan 5");
+  });
+
   it("labels the Season like 'Winter 2026'", () => {
     expect(seasonLabel({ name: "Winter", year: 2026 })).toBe("Winter 2026");
   });

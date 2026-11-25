@@ -1,3 +1,4 @@
+import { weekdayOf } from "../engine";
 import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -5,7 +6,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function parts(d: IsoDate) {
   const [y, m, day] = d.split("-").map(Number);
-  return { y, month: MONTHS[m - 1], day, weekday: WEEKDAYS[new Date(Date.UTC(y, m - 1, day)).getUTCDay()] };
+  return { y, month: MONTHS[m - 1], day, weekday: WEEKDAYS[weekdayOf(d)] };
 }
 
 function ordinal(n: number): string {
