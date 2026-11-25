@@ -88,6 +88,21 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
     }
   };
 
+  /** US-26: switches the Vacation days free Floating Holidays could cover, then saves through the Clash check. */
+  const switchToFloatingHolidays = (o: OccasionView) => {
+    const resolved = withResolvedTypes(stored(o.id), o);
+    const switched: Occasion = {
+      ...resolved,
+      dayTypes: {
+        ...resolved.dayTypes,
+        ...Object.fromEntries(o.floatingHolidaysCouldCover.map((d) => [d, "floatingHoliday" as const])),
+      },
+    };
+    const { refused } = trySave(switched);
+    if (refused) setEditing({ kind: "days", draft: switched, isNew: false, ...refused });
+    else if (editing?.draft.id === o.id) setEditing(null);
+  };
+
   const setApproved = (id: string, approved: boolean) =>
     onChange(data.occasions.map((o) => (o.id === id ? withApproval(o, approved) : o)));
 
@@ -151,6 +166,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                   })
                 }
                 onApprove={() => setApproved(o.id, !o.approved)}
+                onUseFloatingHolidays={() => switchToFloatingHolidays(o)}
                 onDelete={() => toggle({ kind: "delete", draft: stored(o.id) })}
                 onMoveToNextYear={() => moveToNextYear(o.id)}
                 onKeepDates={() => setYearCheck(null)}
@@ -199,6 +215,7 @@ function OccasionCard({
   onEdit,
   onChooseDays,
   onApprove,
+  onUseFloatingHolidays,
   onDelete,
   onMoveToNextYear,
   onKeepDates,
@@ -213,6 +230,7 @@ function OccasionCard({
   onEdit: () => void;
   onChooseDays: () => void;
   onApprove: () => void;
+  onUseFloatingHolidays: () => void;
   onDelete: () => void;
   onMoveToNextYear: () => void;
   onKeepDates: () => void;
@@ -294,6 +312,8 @@ function OccasionCard({
         ))}
       </div>
 
+      <FloatingHolidayNudge count={o.floatingHolidaysCouldCover.length} onUse={onUseFloatingHolidays} />
+
       {past && <p className="past-label">Already taken · counted in your SAP balance</p>}
 
       <div className="occasion-actions">
@@ -328,6 +348,28 @@ function OccasionCard({
 
       <Reveal open={editor !== null}>{editor}</Reveal>
     </li>
+  );
+}
+
+/**
+ * US-26: a gentle, non-blocking nudge to use free Floating Holidays before
+ * Vacation, since they expire Dec 31 and Vacation carries over.
+ */
+function FloatingHolidayNudge({ count, onUse }: { count: number; onUse: () => void }) {
+  if (count === 0) return null;
+  const one = count === 1;
+  return (
+    <div className="fh-nudge" role="note">
+      <p>
+        <strong>
+          {count} Floating Holiday{one ? "" : "s"}
+        </strong>{" "}
+        could cover {one ? "a day" : "days"} here instead of Vacation. {one ? "It expires" : "They expire"} Dec 31.
+      </p>
+      <button type="button" className="act-use-fh" onClick={onUse}>
+        Use Floating Holidays
+      </button>
+    </div>
   );
 }
 

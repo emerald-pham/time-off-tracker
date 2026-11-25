@@ -434,6 +434,53 @@
   flex: 1 1 9rem;
 }
 
+/* "2 Floating Holidays could cover days here instead of Vacation." (US-26): a gentle nudge. */
+.fh-nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--floating-holiday-soft);
+  border: 1.5px dashed color-mix(in srgb, var(--floating-holiday) 45%, transparent);
+  animation: rise-in 0.3s ease-out both;
+}
+
+.fh-nudge p {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.fh-nudge strong {
+  color: var(--floating-holiday);
+}
+
+.occasions .fh-nudge button.act-use-fh {
+  flex: 1 1 12rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: var(--floating-holiday);
+  color: var(--surface);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.occasions .fh-nudge button.act-use-fh::before {
+  content: "🎈";
+  line-height: 1;
+}
+
 /* Day editor */
 
 /* "Fill in automatically": the weekly rule (US-25), in the RDO and Vacation colors. */

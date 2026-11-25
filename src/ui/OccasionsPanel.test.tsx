@@ -304,3 +304,62 @@ describe("filling in Day Types automatically", () => {
     expect(chosenTypes(el)).toEqual(["vacation", "vacation"]);
   });
 });
+
+describe("nudging toward Floating Holidays", () => {
+  // Sam's three 2027 Floating Holidays (Jan 1) are free, so they could cover the trip's two Vacation days.
+  const note = (el: HTMLElement, name = "Made-up trip") => card(el, name).querySelector(".fh-nudge");
+
+  it("US-26: shows a gentle note when free Floating Holidays could cover Vacation days", async () => {
+    const { el } = await show();
+    expect(text(note(el)!).trim()).toContain(
+      "2 Floating Holidays could cover days here instead of Vacation. They expire Dec 31.",
+    );
+  });
+
+  it("US-26: 'Use Floating Holidays' switches those days and saves, and the note goes away", async () => {
+    const { el, onChange } = await show();
+    await click(button(card(el, "Made-up trip"), "Use Floating Holidays"));
+    expect(saved(onChange)[0].dayTypes).toEqual({ "2027-03-01": "floatingHoliday", "2027-03-02": "floatingHoliday" });
+    expect(note(el)).toBeNull();
+  });
+
+  it("US-26: says it in the singular for one day", async () => {
+    const { el } = await show([{ ...trip, dayTypes: { "2027-03-01": "vacation", "2027-03-02": "unpaid" } }]);
+    expect(text(note(el)!).trim()).toContain(
+      "1 Floating Holiday could cover a day here instead of Vacation. It expires Dec 31.",
+    );
+  });
+
+  it("US-26: switches only as many days as there are free Floating Holidays, earliest first", async () => {
+    // Mon Mar 1 – Fri Mar 5, 2027: five Vacation days, three free Floating Holidays.
+    const week: Occasion = {
+      ...trip,
+      end: "2027-03-05",
+      dayTypes: Object.fromEntries(["01", "02", "03", "04", "05"].map((d) => [`2027-03-${d}`, "vacation" as const])),
+    };
+    const { el, onChange } = await show([week]);
+    await click(button(card(el, "Made-up trip"), "Use Floating Holidays"));
+    expect(saved(onChange)[0].dayTypes).toEqual({
+      "2027-03-01": "floatingHoliday",
+      "2027-03-02": "floatingHoliday",
+      "2027-03-03": "floatingHoliday",
+      "2027-03-04": "vacation",
+      "2027-03-05": "vacation",
+    });
+  });
+
+  it("US-26: shows no note when there is no Vacation to cover", async () => {
+    const { el } = await show([{ ...trip, dayTypes: { "2027-03-01": "rdo", "2027-03-02": "rdo" } }]);
+    expect(note(el)).toBeNull();
+  });
+
+  it("US-26: goes through the Clash check, opening the day editor if the switch is refused", async () => {
+    // Saved before the Clash check could stop it (say, synced from two devices): Mar 1 is Vacation in both.
+    const overlap: Occasion = { id: "overlap", name: "Made-up overlap", start: "2027-03-01", end: "2027-03-01", dayTypes: { "2027-03-01": "vacation" } };
+    const { el, onChange } = await show([trip, overlap]);
+    await click(button(card(el, "Made-up trip"), "Use Floating Holidays"));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(text(card(el, "Made-up trip"))).toContain("Mar 1 is already Vacation in 'Made-up overlap'");
+    expect(card(el, "Made-up trip").querySelector(".day.clashing")).not.toBeNull();
+  });
+});
