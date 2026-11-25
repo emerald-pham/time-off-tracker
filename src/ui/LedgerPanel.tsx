@@ -86,7 +86,12 @@ function LedgerRowView({ row, groupYear }: { row: LedgerRow; groupYear: number }
       </td>
       <td>
         {typeLabel(row)}
-        {row.expiresWarning && <span className="warning"> expires Dec 31</span>}
+        {row.expiresWarning && (
+          <>
+            {" "}
+            <span className="warning">expires Dec 31</span>
+          </>
+        )}
       </td>
       <td className="occasion-name">
         {row.burnedBy?.occasionName ?? (row.lostToCap ? <span className="note">Lost to cap</span> : "")}

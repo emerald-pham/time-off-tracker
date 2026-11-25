@@ -20,6 +20,24 @@
   font-weight: 500;
 }
 
+.ledger .occasion-name {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .ledger th,
+  .ledger td {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .ledger tr > :first-child {
+    padding-left: 2px;
+  }
+  .ledger tr > :last-child {
+    padding-right: 2px;
+  }
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -120,7 +138,22 @@
   letter-spacing: 0.04em;
   color: var(--muted);
   font-weight: 600;
-  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+@media (max-width: 480px) {
+  .occasion-table th,
+  .occasion-table td {
+    padding: 7px 4px;
+  }
+  .occasion-table th:first-child,
+  .occasion-table td:first-child {
+    padding-left: 0;
+  }
+  .occasion-table th:last-child,
+  .occasion-table td:last-child {
+    padding-right: 0;
+  }
 }
 
 .occasion-table button.link,
@@ -144,7 +177,8 @@
 }
 
 .occasion-table .pto,
-.occasion-table .season {
+.caret-button .date,
+.caret-button .caret {
   white-space: nowrap;
 }
 

@@ -126,7 +126,17 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                             )
                           }
                         >
-                          <span className="dates">{formatRange(o.start, o.end)}</span>
+                          <span className="dates">
+                            {/* Each date stays whole; the line may break after the dash. */}
+                            {formatRange(o.start, o.end)
+                              .split(" – ")
+                              .map((part, i, all) => (
+                                <Fragment key={i}>
+                                  {i > 0 && " "}
+                                  <span className="date">{i < all.length - 1 ? `${part} –` : part}</span>
+                                </Fragment>
+                              ))}
+                          </span>
                           <span className="caret" aria-hidden="true">
                             {open?.kind === "days" ? "▾" : "▸"}
                           </span>
