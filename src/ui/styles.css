@@ -141,6 +141,21 @@ body {
   margin: 0;
 }
 
+.app-error,
+.app-notice {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.app-notice {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
 /* Ledger */
 .summary {
   margin: 0 0 12px;

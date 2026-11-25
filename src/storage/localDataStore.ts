@@ -59,6 +59,9 @@ export class LocalDataStore implements DataStore {
     this.notifyAll();
   }
 
+  /** Local writes are done when they return. */
+  async synced(): Promise<void> {}
+
   subscribe(onChange: (state: StoreState) => void, onError: (error: Error) => void): () => void {
     const listener = { onChange, onError };
     this.listeners.add(listener);

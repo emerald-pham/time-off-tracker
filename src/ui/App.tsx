@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { computeView } from "../engine";
 import type { IsoDate } from "../engine";
-import { emptyAppData } from "../storage";
+import { emptyAppData, sameAppData } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { resetEarnDate, setEarnDate } from "./earnDateEdits";
 import { LedgerPanel } from "./LedgerPanel";
@@ -23,19 +23,32 @@ function localToday(): IsoDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** `account` is the Settings "Account" section, rendered below the settings. */
+/**
+ * `account` is the Settings "Account" section, rendered below the settings.
+ *
+ * The data on screen follows the store live, so edits made on another tab or
+ * device show up here, and each edit saves only what it changed.
+ */
 export function App({ store, account }: { store: DataStore; account?: React.ReactNode }) {
   const [data, setData] = useState<AppData | null>(null);
   const [tab, setTab] = useState<Section>("settings");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const today = localToday();
 
   useEffect(() => {
-    store.load().then((loaded) => {
-      const initial = loaded ?? emptyAppData();
-      setData(initial);
-      // On first run, with no hire date yet, open on Settings.
-      setTab(initial.settings.hireDate ? "ledger" : "settings");
-    });
+    let first = true;
+    return store.subscribe(
+      ({ data: stored }) => {
+        const next = stored ?? emptyAppData();
+        setData((current) => (current && sameAppData(current, next) ? current : next));
+        if (first) {
+          first = false;
+          // On first run, with no hire date yet, open on Settings.
+          setTab(next.settings.hireDate ? "ledger" : "settings");
+        }
+      },
+      (e) => setSaveError(e.message),
+    );
   }, [store]);
 
   const view = useMemo(
@@ -46,8 +59,10 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
   if (!data || !view) return null;
 
   const update = (next: AppData) => {
+    const before = data;
     setData(next);
-    void store.save(next);
+    setSaveError(null);
+    store.update(before, next).catch((e: unknown) => setSaveError(`Couldn't save that change: ${message(e)}`));
   };
 
   return (
@@ -59,6 +74,11 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
         </p>
         <p className="disclaimer">Estimates only. SAP is the official record.</p>
       </header>
+      {saveError && (
+        <p className="app-error" role="alert">
+          {saveError}
+        </p>
+      )}
 
       <nav className="tabs" role="tablist" aria-label="Sections">
         {SECTIONS.map((s) => (
@@ -108,6 +128,10 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
       </main>
     </div>
   );
+}
+
+function message(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
 
 function Panel({ id, active, children }: { id: Section; active: Section; children: React.ReactNode }) {

@@ -11,7 +11,17 @@ import {
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import type { RulesTestContext, RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  FieldPath,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import { FirestoreDataStore } from "../src/storage/firestoreDataStore";
 import type { AppData } from "../src/storage";
@@ -117,5 +127,50 @@ describe("firestore.rules", () => {
     const alice = db(env.authenticatedContext("alice"));
     await assertFails(getDoc(doc(alice, "other", "alice")));
     await assertFails(setDoc(doc(alice, "users", "alice", "sub", "x"), { a: 1 }));
+  });
+});
+
+describe("firestore.rules, version 2 documents (ADR 0003)", () => {
+  const v2 = {
+    version: 2,
+    data: {
+      settings: samData.settings,
+      occasions: { o1: samData.occasions[0] },
+      earnDateEdits: samData.earnDateEdits,
+    },
+  };
+  const aliceDoc = () => doc(db(env.authenticatedContext("alice")), "users", "alice");
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (admin) => {
+      await setDoc(doc(db(admin), "users", "alice"), v2);
+    });
+  });
+
+  it("lets the owner write the whole document, or one Occasion at a time", async () => {
+    await assertSucceeds(setDoc(aliceDoc(), v2));
+    await assertSucceeds(
+      updateDoc(aliceDoc(), new FieldPath("data", "occasions", "o2"), { ...samData.occasions[0], id: "o2" }),
+    );
+    await assertSucceeds(updateDoc(aliceDoc(), new FieldPath("data", "occasions", "o1"), deleteField()));
+  });
+
+  it("stops an older app writing version 1 over it", async () => {
+    await assertFails(setDoc(aliceDoc(), { version: 1, data: samData }));
+  });
+
+  it("refuses fields it doesn't know under data or settings", async () => {
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "extra"), 1));
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "settings", "extra"), 1));
+  });
+
+  it("keeps settings, Occasions and Earn Date edits as maps", async () => {
+    await assertFails(setDoc(aliceDoc(), { ...v2, data: { ...v2.data, occasions: samData.occasions } }));
+    await assertFails(updateDoc(aliceDoc(), new FieldPath("data", "earnDateEdits"), "none"));
+  });
+
+  it("needs a whole-number version", async () => {
+    await assertFails(setDoc(aliceDoc(), { ...v2, version: "2" }));
+    await assertFails(setDoc(aliceDoc(), { data: v2.data }));
   });
 });

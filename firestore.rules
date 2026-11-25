@@ -1,18 +1,41 @@
 rules_version = '2';
 
 // One document per person at users/{uid}, readable and writable only by that
-// signed-in person (ADR 0001). Everything else is denied, including listing
-// the users collection, which a `get`-style match on one id never allows.
+// signed-in person (ADR 0001). From version 2 its settings, Occasions (keyed
+// by id) and Earn Date edits are maps, so each device writes only the entries
+// it changed (ADR 0003). Everything else is denied, including listing the
+// users collection, which a `get`-style match on one id never allows.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{uid} {
       allow get, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['version', 'data', 'updatedAt']);
+      allow create: if isOwner(uid) && isUserDocument(request.resource.data);
+      // The version never goes down, so an app older than the document can't
+      // overwrite it in a shape it doesn't understand.
+      allow update: if isOwner(uid) && isUserDocument(request.resource.data)
+        && request.resource.data.version >= resource.data.get('version', 0);
     }
   }
 
   function isOwner(uid) {
     return request.auth != null && request.auth.uid == uid;
+  }
+
+  function isUserDocument(d) {
+    return d.keys().hasOnly(['version', 'data', 'updatedAt'])
+      && d.version is int && d.version >= 1
+      && d.data is map
+      && d.data.keys().hasOnly(['settings', 'occasions', 'earnDateEdits'])
+      && (!('updatedAt' in d) || d.updatedAt is timestamp)
+      && (d.version == 1 || isKeyedData(d.data));
+  }
+
+  // Version 2 on: everything is a map, and settings hold only known fields.
+  function isKeyedData(data) {
+    return data.settings is map && data.occasions is map && data.earnDateEdits is map
+      && data.settings.keys().hasOnly([
+        'hireDate', 'weeklyHours', 'regularDaysOff', 'sapVacationHours',
+        'sapFloatingHolidayHours', 'sapAsOf', 'fullYearHistory'
+      ]);
   }
 }

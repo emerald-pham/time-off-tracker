@@ -1,22 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import { deleteMyData, handOffOnSignIn, signOut } from "./sync";
-import { emptyAppData } from "../storage";
+import { emptyAppData, LocalDataStore, memoryStorage } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { sam } from "../engine/fixtures";
 
-/** An in-memory DataStore standing in for local storage or Firestore. */
+/** An in-memory DataStore standing in for local storage or Firestore, counting full saves. */
 function memoryStore(initial: AppData | null = null): DataStore & { saves: number } {
-  let saved = initial === null ? null : structuredClone(initial);
+  const inner = new LocalDataStore(memoryStorage());
+  if (initial !== null) void inner.save(initial);
   const store = {
     saves: 0,
-    load: async () => (saved === null ? null : structuredClone(saved)),
+    load: () => inner.load(),
     save: async (data: AppData) => {
       store.saves++;
-      saved = structuredClone(data);
+      await inner.save(data);
     },
-    clear: async () => {
-      saved = null;
-    },
+    update: (before: AppData, after: AppData) => inner.update(before, after),
+    clear: () => inner.clear(),
+    synced: () => inner.synced(),
+    subscribe: inner.subscribe.bind(inner),
   };
   return store;
 }

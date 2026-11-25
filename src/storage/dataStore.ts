@@ -38,8 +38,25 @@ export interface DataStore {
   load(): Promise<AppData | null>;
   /** Replaces everything this store holds with `data` (the first-sign-in handoff). Never merges. */
   save(data: AppData): Promise<void>;
+  /**
+   * Saves an edit made on `before`: writes only the settings, Occasions and
+   * Earn Date edits that differ in `after`, so changes made meanwhile on
+   * another tab or device to anything else survive.
+   */
+  update(before: AppData, after: AppData): Promise<void>;
   /** Removes this store's copy ("Sign out" / "Delete my data"). */
   clear(): Promise<void>;
+  /**
+   * Resolves once every write made through this store has reached where it's
+   * kept (the server, for the account, which waits until it's online).
+   * Rejects if the last one was refused.
+   */
+  synced(): Promise<void>;
+  /**
+   * Calls `onChange` with what's stored now, then after every change made
+   * here or on another tab or device. Returns the unsubscribe.
+   */
+  subscribe(onChange: (state: StoreState) => void, onError: (error: Error) => void): () => void;
 }
 
 /** The saved data comes from a newer version of the app, which this one mustn't overwrite. */

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Account, AuthGateway } from "../auth/firebase";
 import { deleteMyData, handOffOnSignIn, signOut } from "../auth/sync";
 import type { HandoffChoice } from "../auth/sync";
-import { sameAppData } from "../storage";
-import type { AppData, DataStore } from "../storage";
+import type { DataStore } from "../storage";
 import { AccountSection } from "./AccountSection";
 import { App } from "./App";
 import "./account.css";
@@ -63,38 +62,8 @@ export function AccountRoot({ local, gateway }: Props) {
   }, [gateway, local]);
 
   const signedIn = state.kind === "signed-in" ? state : null;
+  // The app follows its store live, so edits on other devices show up as they sync.
   const active = signedIn ? signedIn.store : local;
-
-  // Remembers what the app last loaded or saved, so a returning app can tell
-  // whether another device changed the data meanwhile.
-  const last = useRef<AppData | null>(null);
-  const tracked = useMemo<DataStore>(
-    () => ({
-      load: async () => (last.current = await active.load()),
-      save: async (data) => {
-        last.current = data;
-        await active.save(data);
-      },
-      clear: () => active.clear(),
-    }),
-    [active],
-  );
-
-  // When a signed-in app comes back to the foreground, pick up edits made
-  // on another device.
-  useEffect(() => {
-    if (!signedIn) return;
-    const onVisible = async () => {
-      if (document.visibilityState !== "visible") return;
-      const latest = await signedIn.store.load().catch(() => undefined);
-      if (latest === undefined) return;
-      const unchanged =
-        latest === null ? last.current === null : last.current !== null && sameAppData(latest, last.current);
-      if (!unchanged) setGeneration((g) => g + 1);
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [signedIn]);
 
   const run = useCallback(async (action: () => Promise<void>) => {
     setBusy(true);
@@ -150,7 +119,7 @@ export function AccountRoot({ local, gateway }: Props) {
     />
   );
 
-  return <App key={`${state.kind}:${generation}`} store={tracked} account={account} />;
+  return <App key={`${state.kind}:${generation}`} store={active} account={account} />;
 }
 
 function HandoffQuestion({
