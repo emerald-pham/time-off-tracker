@@ -46,6 +46,20 @@ describe("Earn Date edits", () => {
     expect(burnedBySki(view).map(([key]) => key)).not.toContain("vacation:hire:1");
   });
 
+  it("still applies edits saved under the schedule keys from before the eligibility-date change", () => {
+    // SAP 72 h is 9 days: 7 schedule entries in SAP plus 2 extra rows.
+    const saved = {
+      "vacation:hire:1": "2025-06-02",
+      "vacation:2025:2": "2025-04-01",
+      "vacation:extra:1": "2025-02-03",
+      "fh:2026:2": "2026-02-02",
+    };
+    const view = computeView(input(saved, { sapVacationHours: 72 }));
+    for (const [key, date] of Object.entries(saved)) {
+      expect(row(view, key)).toMatchObject({ earnDate: date, edited: true });
+    }
+  });
+
   it("ignores an edit whose key no longer exists", () => {
     const view = computeView(input({ "vacation:hire:2": "2025-01-02" }, { weeklyHours: 32 }));
     expect(row(view, "vacation:hire:2")).toBeUndefined();
