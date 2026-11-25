@@ -33,6 +33,7 @@ Once the dates are in, "Choose days" (see US-24) opens one row per day, written 
 
 **US-08: PTO Days counts only paid time off.**
 PTO Days counts Floating Holiday and Vacation days. RDO days don't count. Unpaid days show separately, as "+N unpaid".
+- The Occasion card shows the days broken down by type, like "4 Vacation" and "2 RDO", not a separate big total.
 
 **US-09: Overlapping Occasions are fine unless paid time clashes.**
 Two Occasions may share dates, especially Unpaid or RDO days. If the same date is Vacation or Floating Holiday in both, it's a Clash, and Save is refused with a message naming the other Occasion.
@@ -119,11 +120,11 @@ Nothing overflows its card in iPhone Safari, date fields included. On a phone th
 - The Occasion name sits on its own line beneath, not squeezed into a narrow column.
 - Nothing scrolls sideways.
 
-**US-20: It's pretty, not garish.**
-Calm and polished, in the style of a good iPhone app:
-- Neutral surfaces, with color used as a small accent.
-- One color per Day Type and Season, shown as a small dot or muted text, never a big colored block.
-- No gradients or glow on content, and no gradient text.
-- A compact header, and tabs that look like an iPhone segmented control.
-- Text and its background meet WCAG AA contrast (4.5:1) in light and dark.
-- Motion is subtle: short fades and slides, editors opening smoothly. All of it turns off when Reduce Motion is on.
+**US-20: It's pretty.**
+Clear colors for each type of day, Season colors, and animations. Motion is turned off when Reduce Motion is on.
+- A vivid palette in light and dark, with one color per Day Type (Vacation, Floating Holiday, RDO, Unpaid) used the same way on the Ledger, the day editor and the PTO counts, and one per Season.
+- A friendly header and a colorful "Earned now" card; the year rows, Estimated italics and the "*" stay easy to spot.
+- Editors open and close smoothly, rows and cards fade in, tabs slide, buttons press and counts roll to their new value.
+- System fonts only, and nothing loaded from other sites.
+- A softly animated, out-of-focus bokeh background drifts behind everything, in the app's sunset colors.
+- Text stays readable (WCAG AA 4.5:1) on the surface it sits on.

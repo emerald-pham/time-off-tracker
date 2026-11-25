@@ -13,6 +13,11 @@
   font-size: 0.9rem;
 }
 
+/* "Loading…" sits right on the page, over the bokeh, so it takes full-strength text to stay readable. */
+.app > .account-status {
+  color: var(--text);
+}
+
 .account-actions,
 .handoff-actions {
   display: flex;
@@ -69,7 +74,7 @@
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow);
-  animation: rise-in 0.35s ease-out both;
+  animation: rise-in 0.35s ease-out backwards;
 }
 
 .handoff h2 {

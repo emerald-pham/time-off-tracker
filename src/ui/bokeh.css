@@ -1,0 +1,143 @@
+/*
+ * The bokeh background (US-20): a few huge, diffuse orbs in the app's sunset
+ * colors (hot pink, sunset orange, violet, teal) behind everything, like
+ * out-of-focus bokeh, drifting and breathing very slowly.
+ *
+ * Only `transform` and `opacity` animate, so the browser can composite it
+ * cheaply. Each loop starts where its orb rests, so a paused animation, or
+ * Reduce Motion, leaves the same still picture. An orb is never brighter than
+ * --orb-alpha, which the contrast test in looks.test.tsx uses.
+ */
+:root {
+  --orb-pink: #ff4f9a;
+  --orb-orange: #ff8a3d;
+  --orb-violet: #8b5cf6;
+  --orb-teal: #2cc6c0;
+  --orb-alpha: 0.32;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --orb-pink: #ff2d8a;
+    --orb-orange: #ff6a1f;
+    --orb-violet: #7c3aed;
+    --orb-teal: #14b8b0;
+    --orb-alpha: 0.3;
+  }
+}
+
+.bokeh {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--orb-size);
+  height: var(--orb-size);
+  margin: calc(var(--orb-size) / -2) 0 0 calc(var(--orb-size) / -2);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--orb-color) 0%, transparent 70%);
+  opacity: var(--orb-alpha);
+  will-change: transform;
+}
+
+.orb-1 {
+  --orb-color: var(--orb-pink);
+  --orb-size: 80vmax;
+  --x: 6%;
+  --y: 8%;
+  animation: drift-a 47s ease-in-out infinite;
+}
+
+.orb-2 {
+  --orb-color: var(--orb-violet);
+  --orb-size: 74vmax;
+  --x: 96%;
+  --y: 20%;
+  animation: drift-b 61s ease-in-out infinite;
+}
+
+.orb-3 {
+  --orb-color: var(--orb-teal);
+  --orb-size: 66vmax;
+  --x: 14%;
+  --y: 90%;
+  animation: drift-c 73s ease-in-out infinite;
+}
+
+.orb-4 {
+  --orb-color: var(--orb-orange);
+  --orb-size: 60vmax;
+  --x: 88%;
+  --y: 84%;
+  animation: drift-b 53s ease-in-out infinite reverse;
+}
+
+.orb-5 {
+  --orb-color: var(--orb-pink);
+  --orb-size: 52vmax;
+  --x: 52%;
+  --y: 50%;
+  animation: breathe 37s ease-in-out infinite;
+}
+
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: none;
+  }
+  33% {
+    transform: translate(9vmax, 6vmax) scale(1.08);
+  }
+  66% {
+    transform: translate(3vmax, 12vmax) scale(0.94);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: translate(-10vmax, 8vmax) scale(1.1);
+  }
+  75% {
+    transform: translate(-4vmax, -5vmax) scale(0.95);
+  }
+}
+
+@keyframes drift-c {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translate(12vmax, -9vmax) scale(1.12);
+  }
+}
+
+/* Breathes within its resting brightness, never brighter than --orb-alpha. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: none;
+    opacity: var(--orb-alpha);
+  }
+  50% {
+    transform: translate(-6vmax, 4vmax) scale(1.15);
+    opacity: calc(var(--orb-alpha) * 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb {
+    animation: none;
+  }
+}

@@ -7,6 +7,7 @@ import { askToKeepStorage } from "./storage/keepStorage";
 import { AccountRoot } from "./ui/AccountRoot";
 import { ErrorBoundary, PageError } from "./ui/ErrorBoundary";
 import "./ui/styles.css";
+import "./ui/bokeh.css";
 
 // Without VITE_FIREBASE_* config the app runs signed-out only, and the
 // Firebase SDK is never loaded.
