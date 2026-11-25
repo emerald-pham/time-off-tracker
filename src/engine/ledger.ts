@@ -8,6 +8,7 @@ import type {
   BenefitType,
   EarnDateEdits,
   EngineInput,
+  FreeOutlook,
   IsoDate,
   LedgerGroup,
   LedgerRow,
@@ -85,8 +86,32 @@ export function computeView(input: EngineInput): ViewModel {
     ledger: {
       groups,
       free: countFree(shown),
+      freeBy: freeOutlook(shown, today, currentYear),
       usedNotListed: countUsedNotListed(shown),
     },
+  };
+}
+
+/**
+ * Free rows usable now, on Dec 31 of this year and on Dec 31 of next year.
+ * A Floating Holiday is only usable in its own year, so by the end of next
+ * year only next year's count.
+ */
+function freeOutlook(rows: LedgerRow[], today: IsoDate, thisYear: number): FreeOutlook {
+  const free = rows.filter(isFree);
+  const count = (usableOn: IsoDate) =>
+    countFree(
+      free.filter(
+        (r) =>
+          r.earnDate <= usableOn &&
+          (r.benefitType === "vacation" || yearOf(r.earnDate) === yearOf(usableOn)),
+      ),
+    );
+  return {
+    thisYear,
+    earnedNow: count(today),
+    endOfThisYear: count(isoDate(thisYear, 12, 31)),
+    endOfNextYear: count(isoDate(thisYear + 1, 12, 31)),
   };
 }
 

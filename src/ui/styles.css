@@ -159,6 +159,8 @@ body {
 /* Ledger */
 .summary {
   margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
   font-weight: 600;
 }
 

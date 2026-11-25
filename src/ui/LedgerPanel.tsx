@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
-import { formatEarnDate, freeSummary, typeLabel, usedNotListedMessage } from "./format";
+import { formatEarnDate, freeSummaryLines, typeLabel, usedNotListedMessage } from "./format";
 import "./ledger.css";
 
 interface Props {
@@ -40,7 +40,11 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
 
   return (
     <>
-      <p className="summary">{freeSummary(ledger.free)}</p>
+      <ul className="summary">
+        {freeSummaryLines(ledger.freeBy).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
       {usedMessage && (
         <p className="used-not-listed-message" role="status">
           {usedMessage}

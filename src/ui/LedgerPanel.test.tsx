@@ -55,6 +55,19 @@ describe("the Earn Date picker (finding 14)", () => {
   });
 });
 
+describe("the summary", () => {
+  it("US-22: shows free days earned now, by the end of this year and by the end of next year", async () => {
+    const el = await ledger();
+    const lines = [...el.querySelectorAll(".summary li")].map((li) => text(li));
+    expect(lines).toEqual([
+      "Earned now: 5 Vacation, 1 Floating Holiday",
+      "By end of 2025: 5 Vacation, 1 Floating Holiday",
+      "By end of 2026: 15 Vacation, 3 Floating Holidays",
+    ]);
+    expect(text(el)).not.toContain("Free:");
+  });
+});
+
 describe("Earned, Estimated and Approximate Earn Dates", () => {
   const rowEl = (el: HTMLElement, key: string) => el.querySelector<HTMLElement>(`tr[data-key="${key}"]`)!;
   const dateButton = (el: HTMLElement, key: string) =>

@@ -1,5 +1,5 @@
 import { sapBalanceDays, weekdayOf } from "../engine";
-import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
+import type { BenefitCounts, Clash, DayType, FreeOutlook, IsoDate, LedgerRow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -62,9 +62,18 @@ export function typeLabel(row: Pick<LedgerRow, "benefitType" | "carryover" | "no
   return `${type} (${row.notYetEarned ? "Estimated" : "Earned"})`;
 }
 
-export function freeSummary(free: BenefitCounts): string {
+function freeCounts(free: BenefitCounts): string {
   const fh = free.floatingHoliday === 1 ? "Floating Holiday" : "Floating Holidays";
-  return `Free: ${free.vacation} Vacation, ${free.floatingHoliday} ${fh}`;
+  return `${free.vacation} Vacation, ${free.floatingHoliday} ${fh}`;
+}
+
+/** The Ledger summary: free days earned now, by the end of this year and by the end of next year. */
+export function freeSummaryLines(outlook: FreeOutlook): string[] {
+  return [
+    `Earned now: ${freeCounts(outlook.earnedNow)}`,
+    `By end of ${outlook.thisYear}: ${freeCounts(outlook.endOfThisYear)}`,
+    `By end of ${outlook.thisYear + 1}: ${freeCounts(outlook.endOfNextYear)}`,
+  ];
 }
 
 /** Settings helper under an SAP hours field: "Counts as 5 days (3 hrs left over, less than a day)". */

@@ -4,7 +4,7 @@ import {
   formatDayOff,
   formatRange,
   formatEarnDate,
-  freeSummary,
+  freeSummaryLines,
   sapBalanceNote,
   seasonLabel,
   typeLabel,
@@ -81,9 +81,19 @@ describe("Ledger formatting", () => {
     expect(label("vacation", true, false)).toBe("Vacation (Previous Year)");
   });
 
-  it("summarizes free days like 'Free: 6 Vacation, 2 Floating Holidays'", () => {
-    expect(freeSummary({ vacation: 6, floatingHoliday: 2 })).toBe("Free: 6 Vacation, 2 Floating Holidays");
-    expect(freeSummary({ vacation: 15, floatingHoliday: 1 })).toBe("Free: 15 Vacation, 1 Floating Holiday");
+  it("US-22: summarizes free days earned now, by the end of this year and by the end of next year", () => {
+    expect(
+      freeSummaryLines({
+        thisYear: 2026,
+        earnedNow: { vacation: 5, floatingHoliday: 1 },
+        endOfThisYear: { vacation: 14, floatingHoliday: 2 },
+        endOfNextYear: { vacation: 20, floatingHoliday: 3 },
+      }),
+    ).toEqual([
+      "Earned now: 5 Vacation, 1 Floating Holiday",
+      "By end of 2026: 14 Vacation, 2 Floating Holidays",
+      "By end of 2027: 20 Vacation, 3 Floating Holidays",
+    ]);
   });
 
   it("says what an SAP balance counts as, with any hours left over", () => {

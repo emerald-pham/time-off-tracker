@@ -72,11 +72,14 @@ One row per Benefit Day, with three columns:
 - **Occasion:** the name of the Occasion that Burns this Benefit Day. Blank if it's free.
 
 **Groups and order:**
-- Rows are grouped by calendar year: the current year, next year, and any later year an Occasion or an edited Earn Date reaches. Every row with an Earn Date edit is shown somewhere, so "Reset to projected" is always reachable, and the Free count only counts rows that are shown.
+- Rows are grouped by calendar year: the current year, next year, and any later year an Occasion or an edited Earn Date reaches. Every row with an Earn Date edit is shown somewhere, so "Reset to projected" is always reachable, and the summary only counts rows that are shown.
 - One separator row, showing the year, sits between groups.
 - Within a group, rows are sorted by Earn Date. Carryover sits at the top of the current year.
 
-**Summary line:** at the top, the count of free Benefit Days by type, for example "Free: 6 Vacation, 2 Floating Holidays".
+**Summary (US-22):** at the top, three lines counting free Benefit Days (not used by any Occasion, not Lost to cap, Expired or Used (not listed)) by type:
+- "Earned now: 5 Vacation, 2 Floating Holidays": Earn Date on or before today.
+- "By end of 2026: …" (this year): Earn Date on or before Dec 31 of this year. This year's Floating Holidays count, since they're still usable that day.
+- "By end of 2027: …" (next year): Earn Date on or before Dec 31 of next year. This year's Floating Holidays don't count, because they expire on Dec 31; next year's do.
 
 **Row states, each with its own look:**
 - **Lost to cap:** greyed and struck through. Can't be Burned.

@@ -141,10 +141,27 @@ export interface BenefitCounts {
   floatingHoliday: number;
 }
 
+/**
+ * Free Benefit Days (not used by any Occasion, not Lost to cap, Expired or
+ * Used (not listed)) that are usable at three points in time.
+ */
+export interface FreeOutlook {
+  /** The current year, for "By end of 2026". */
+  thisYear: number;
+  /** Earn Date on or before today. */
+  earnedNow: BenefitCounts;
+  /** Earn Date on or before Dec 31 of this year. */
+  endOfThisYear: BenefitCounts;
+  /** Earn Date on or before Dec 31 of next year; this year's Floating Holidays have expired by then. */
+  endOfNextYear: BenefitCounts;
+}
+
 export interface LedgerView {
   groups: LedgerGroup[];
-  /** Free Benefit Days by type, for "Free: 6 Vacation, 2 Floating Holidays". */
+  /** Free Benefit Days by type, whenever they're earned. */
   free: BenefitCounts;
+  /** Free Benefit Days earned now, and by the end of this year and next year. */
+  freeBy: FreeOutlook;
   /**
    * Full-year history mode: rows marked Used (not listed) because SAP shows
    * days used that no listed Day Off explains, so the UI can tell the user.

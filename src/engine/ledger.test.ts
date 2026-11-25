@@ -75,6 +75,40 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
   });
 });
 
+describe("free time off now, by the end of this year and by the end of next year", () => {
+  // E2's balance (as of Nov 24, 2025) viewed on Mar 1, 2026. A made-up Occasion on
+  // Mon Jun 1 – Tue Jun 2, 2026 uses one Floating Holiday and one Vacation day.
+  const june: Occasion = {
+    id: "june",
+    name: "June days",
+    start: "2026-06-01",
+    end: "2026-06-02",
+    dayTypes: { "2026-06-01": "floatingHoliday", "2026-06-02": "vacation" },
+  };
+  const view = computeView({
+    ...input({ sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" }, "2026-03-01"),
+    occasions: [june],
+  });
+
+  it("US-22: counts Benefit Days not used by any Occasion, earned now and by each year end", () => {
+    expect(view.ledger.freeBy).toEqual({
+      thisYear: 2026,
+      // 5 Carryover + Feb 1, less the one Jun 2 uses; 2026's three Jan 1 Floating Holidays, less Jun 1's.
+      earnedNow: { vacation: 5, floatingHoliday: 2 },
+      // All ten 2026 days are earned by Dec 31.
+      endOfThisYear: { vacation: 14, floatingHoliday: 2 },
+      // 2027 earns 6 more before the 160 h cap; 2026's Floating Holidays expire, 2027's three count.
+      endOfNextYear: { vacation: 20, floatingHoliday: 3 },
+    });
+  });
+
+  it("US-22: leaves out days Lost to cap", () => {
+    const lost = view.ledger.groups.flatMap((g) => g.rows).filter((r) => r.lostToCap);
+    expect(lost.length).toBe(4);
+    expect(lost.every((r) => r.earnDate.startsWith("2027"))).toBe(true);
+  });
+});
+
 describe("Earned and Estimated (not yet earned) rows", () => {
   // E2's balance viewed on Nov 12, 2025, the day the last 2025 Vacation day is earned.
   const view = computeView(
