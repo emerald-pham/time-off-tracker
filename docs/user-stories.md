@@ -87,6 +87,7 @@ A week (Sunday to Saturday) only has two days off, so when Occasions overlap the
 - Each Occasion in that week shows a red warning, like "Too many RDOs: the week of Sun Mar 7 has 3 RDOs across 'A' and 'B'. A week only has 2."
 - In "Choose days" the same warning shows live as I change the types, and the extra RDO rows are highlighted red.
 - It's a warning, not a block: Save still works.
+- A week whose RDOs are all Deducted (already taken) isn't flagged, since there's nothing left to change.
 - Filling in Day Types automatically (US-25) shares each week's two days off, so it never causes this.
 
 **US-27: Fill in the end date for me.**

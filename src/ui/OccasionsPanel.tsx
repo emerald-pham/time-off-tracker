@@ -595,7 +595,10 @@ function DayEditor({
   const held = rdoDates(others);
   /** US-29: weeks with more than two RDOs once the draft's choices count, kept live while editing. */
   const tooManyRdos = findRdoOverflows(
-    [...others, { ...draft, days: dates.map((date) => ({ date, dayType: draft.dayTypes[date] })) }].sort(
+    [
+      ...others,
+      { ...draft, days: dates.map((date) => ({ date, dayType: draft.dayTypes[date], deducted: deducted.has(date) })) },
+    ].sort(
       (a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id),
     ),
   ).filter((w) => w.occasions.some((o) => o.occasionId === draft.id));

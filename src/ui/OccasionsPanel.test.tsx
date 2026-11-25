@@ -645,6 +645,24 @@ describe("too many RDOs in a week", () => {
     }
   });
 
+  it("US-29: an already-taken week with three RDOs shows no warning, on the card or in 'Choose days'", async () => {
+    // Mon Jan 5 – Wed Jan 7, 2026, all RDO, paid long before SAP was read on Nov 1.
+    const rdo = "rdo" as const;
+    const taken: Occasion = {
+      id: "jan",
+      name: "January days",
+      start: "2026-01-05",
+      end: "2026-01-07",
+      dayTypes: { "2026-01-05": rdo, "2026-01-06": rdo, "2026-01-07": rdo },
+    };
+    const { el } = await show([taken]);
+    expect(warning(card(el, "January days"))).toBeNull();
+    await click(button(card(el, "January days"), "Choose days"));
+    expect(card(el, "January days").querySelector(".day-editor")).not.toBeNull();
+    expect(warning(card(el, "January days"))).toBeNull();
+    expect(card(el, "January days").querySelectorAll(".too-many-rdos")).toHaveLength(0);
+  });
+
   it("US-29: one Occasion alone says 'in', and a week with two RDOs shows nothing", async () => {
     const { el } = await show([
       { ...trip, end: "2027-03-03", dayTypes: { "2027-03-01": "rdo", "2027-03-02": "rdo", "2027-03-03": "rdo" } },

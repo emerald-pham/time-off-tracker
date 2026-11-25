@@ -195,6 +195,19 @@ describe("US-29: Flag a week with more than two RDOs", () => {
     expect(view(samE2, today, { occasions: [a] }).tooManyRdos).toHaveLength(1);
   });
 
+  it("US-29: a week whose RDOs are all Deducted (already taken) isn't flagged, since nothing can change", () => {
+    // Mon Oct 6 – Wed Oct 8, 2025, all RDO: paid Oct 16, before SAP was read on Nov 24.
+    const taken = occasion("taken", "Made-up taken", "2025-10-06", "2025-10-08", rdos("2025-10-06", "2025-10-07", "2025-10-08"));
+    const v = view(samE2, today, { occasions: [taken] });
+    expect(v.occasions[0].days.every((d) => d.deducted)).toBe(true);
+    expect(v.tooManyRdos).toEqual([]);
+    expect(v.occasions[0].tooManyRdos).toEqual([]);
+
+    // The same three RDOs a year later, not yet paid, are flagged.
+    const ahead = occasion("ahead", "Made-up ahead", "2026-10-05", "2026-10-07", rdos("2026-10-05", "2026-10-06", "2026-10-07"));
+    expect(view(samE2, today, { occasions: [ahead] }).tooManyRdos).toHaveLength(1);
+  });
+
   it("US-29: a single Occasion with 3 RDOs set by hand in one week is flagged", () => {
     // Mon Mar 8 – Fri Mar 12, 2027 with Mon, Wed and Fri chosen as RDO.
     const o = occasion("solo", "Made-up solo", "2027-03-08", "2027-03-12", {

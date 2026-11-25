@@ -155,25 +155,28 @@ const RDOS_PER_WEEK = 2;
  * US-29: Sunday–Saturday weeks with more than two RDO Days Off across these
  * Occasions, by week. A date marked RDO in several overlapping Occasions is
  * one day off, so it counts once. A date that's Vacation or Floating Holiday
- * in any of them is a paid day off, so it isn't an RDO. `occasions` are taken
- * in the order given (the engine's are sorted by start date).
+ * in any of them is a paid day off, so it isn't an RDO. A week whose RDOs are
+ * all Deducted is already taken, so it isn't flagged: nothing can change.
+ * `occasions` are taken in the order given (the engine's are sorted by start
+ * date).
  */
 export function findRdoOverflows(
-  occasions: { id: string; name: string; days: { date: IsoDate; dayType: DayType }[] }[],
+  occasions: { id: string; name: string; days: { date: IsoDate; dayType: DayType; deducted?: boolean }[] }[],
 ): RdoOverflow[] {
   const paid = new Set(occasions.flatMap((o) => o.days.filter((d) => isPaid(d.dayType)).map((d) => d.date)));
-  const weeks = new Map<IsoDate, { dates: Set<IsoDate>; occasions: Map<string, string> }>();
+  const weeks = new Map<IsoDate, { dates: Set<IsoDate>; occasions: Map<string, string>; open: boolean }>();
   for (const o of occasions) {
     for (const d of o.days) {
       if (d.dayType !== "rdo" || paid.has(d.date)) continue;
-      const week = weeks.get(weekOf(d.date)) ?? { dates: new Set<IsoDate>(), occasions: new Map<string, string>() };
+      const week = weeks.get(weekOf(d.date)) ?? { dates: new Set<IsoDate>(), occasions: new Map<string, string>(), open: false };
       week.dates.add(d.date);
       week.occasions.set(o.id, o.name);
+      week.open ||= !d.deducted;
       weeks.set(weekOf(d.date), week);
     }
   }
   return [...weeks]
-    .filter(([, w]) => w.dates.size > RDOS_PER_WEEK)
+    .filter(([, w]) => w.open && w.dates.size > RDOS_PER_WEEK)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, w]) => ({
       week,
