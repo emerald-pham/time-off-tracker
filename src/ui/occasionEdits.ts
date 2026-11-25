@@ -1,5 +1,13 @@
-import { approvedDates, computeView, datesInRange, weekOf, weeklyDayTypes, withApprovedDays } from "../engine";
-import { addMonthsClamped } from "../engine/dates";
+import {
+  approvedDates,
+  computeView,
+  datesInRange,
+  isSupportedDate,
+  weekOf,
+  weeklyDayTypes,
+  withApprovedDays,
+} from "../engine";
+import { addDays, addMonthsClamped } from "../engine/dates";
 import type { Clash, DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { clashMessage } from "./format";
@@ -45,6 +53,19 @@ function withRangeTypes(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDate
     }
   }
   return { ...o, start, end, dayTypes };
+}
+
+/**
+ * US-27: the end date to show once a start date is entered. An empty end, or
+ * one earlier than the start, becomes the day after the start; an end the
+ * person chose on or after the start stays. Nothing changes until the start
+ * is a real date from 1950 to 2100, so the partial years a date field passes
+ * through while typing are left alone.
+ */
+export function endAfterStart(start: string, end: string): string {
+  if (!isSupportedDate(start) || (end !== "" && end >= start)) return end;
+  const next = addDays(start, 1);
+  return isSupportedDate(next) ? next : start;
 }
 
 /** The same date `years` later (Feb 29 becomes Feb 28 in a year without one). */

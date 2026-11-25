@@ -82,6 +82,7 @@ Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday ba
   - Examples: Sep 9 2026 → Autumn 2026. Nov 6 2026 → Winter 2026. Jan 15 2027 → Winter 2026. Feb 24 2027 → Spring 2027.
 - **Deducted Days Off:** shown greyed as history. They Burn nothing. An Occasion whose Days Off are all Deducted is greyed as a whole.
 - **Editing:** Occasions can be renamed, have their dates changed, or be deleted.
+- **End date autofill (US-27):** in the add form and in Edit, entering a start date that's a real date from 1950 to 2100 sets the end date to the start + 1 day when the end is empty or earlier than the new start. An end on or after the start is left as the person chose it, so a one-day Occasion is an end equal to the start.
 - **Clash:** a date may belong to several Occasions. If one date is Vacation or Floating Holiday in two Occasions, that's a Clash, and Save is refused with a message like "Sep 10 is already Vacation in '<other Occasion>'". This check applies to the day editor and to date-range changes. When a new Occasion's defaults would Clash, open the day editor with the clashing dates highlighted.
 
 ## Ledger (left)

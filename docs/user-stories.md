@@ -72,6 +72,13 @@ Floating Holidays expire on Dec 31 and Vacation carries over, so when free Float
 - A large "Use Floating Holidays" button switches that many of the Occasion's Vacation days, earliest first, to Floating Holiday and saves, with the usual Clash check. Then the note goes away.
 - It's only a nudge: nothing is blocked, and the days that aren't RDOs still default to Vacation (US-25).
 
+**US-27: Fill in the end date for me.**
+Once I enter a start date, in "Plan an Occasion" or in "Edit the name and dates", the end date fills itself in as the day after.
+- An empty end date becomes the start + 1 day.
+- An end date earlier than the new start also becomes the start + 1 day.
+- An end date I chose that's on or after the start is never overwritten.
+- It waits for a real date, so the years a date field passes through while I type don't fill anything in.
+
 ## The Ledger
 
 **US-11: Time off fills the Ledger oldest first.**

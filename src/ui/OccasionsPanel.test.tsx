@@ -104,9 +104,10 @@ describe("Occasion dates must be real and between 1950 and 2100 (finding 16)", (
     const { el, onChange } = await show();
     await addOccasion(el, "Fixed trip", "2027-01-05");
     expect(onChange).toHaveBeenCalledOnce();
+    // The end date fills in as the day after (US-27).
     expect(saved(onChange).find((o) => o.name === "Fixed trip")).toMatchObject({
       start: "2027-01-05",
-      end: "2027-01-05",
+      end: "2027-01-06",
     });
   });
 
@@ -119,6 +120,76 @@ describe("Occasion dates must be real and between 1950 and 2100 (finding 16)", (
     await submitUnchecked(details);
     expect(onChange).not.toHaveBeenCalled();
     expect(text(el)).toContain("between 1950 and 2100");
+  });
+});
+
+describe("filling in the end date", () => {
+  const details = (el: HTMLElement) => el.querySelector<HTMLFormElement>("form.details-editor")!;
+
+  it("US-27: entering a start date in Add Occasion sets an empty end date to the day after", async () => {
+    const { el } = await show([]);
+    await typeInto(field(addForm(el), "Start"), "2027-03-01");
+    expect(field(addForm(el), "End").value).toBe("2027-03-02");
+  });
+
+  it("US-27: works across a month and a year end", async () => {
+    const { el } = await show([]);
+    await typeInto(field(addForm(el), "Start"), "2026-12-31");
+    expect(field(addForm(el), "End").value).toBe("2027-01-01");
+  });
+
+  it("US-27: an end date earlier than the new start moves to the day after it", async () => {
+    const { el } = await show([]);
+    await typeInto(field(addForm(el), "Start"), "2027-03-01");
+    await typeInto(field(addForm(el), "Start"), "2027-03-10");
+    expect(field(addForm(el), "End").value).toBe("2027-03-11");
+  });
+
+  it("US-27: never overwrites a valid end date I chose", async () => {
+    const { el, onChange } = await show([]);
+    await typeInto(field(addForm(el), "Occasion name"), "Made-up week away");
+    await typeInto(field(addForm(el), "Start"), "2027-03-01");
+    await typeInto(field(addForm(el), "End"), "2027-03-07");
+    await typeInto(field(addForm(el), "Start"), "2027-03-03");
+    expect(field(addForm(el), "End").value).toBe("2027-03-07");
+    // The same day as the start is a valid end too: a one-day Occasion.
+    await typeInto(field(addForm(el), "End"), "2027-03-03");
+    await typeInto(field(addForm(el), "Start"), "2027-03-03");
+    expect(field(addForm(el), "End").value).toBe("2027-03-03");
+    await click(button(addForm(el), "Add Occasion"));
+    expect(saved(onChange)[0]).toMatchObject({ start: "2027-03-03", end: "2027-03-03" });
+  });
+
+  it("US-27: waits for a real date, not the partial years a date field passes through", async () => {
+    const { el } = await show([]);
+    await typeInto(field(addForm(el), "Start"), "0002-03-01");
+    expect(field(addForm(el), "End").value).toBe("");
+    await typeInto(field(addForm(el), "Start"), "2027-03-01");
+    expect(field(addForm(el), "End").value).toBe("2027-03-02");
+  });
+
+  it("US-27: in 'Edit name and dates', an end date earlier than the new start moves to the day after it", async () => {
+    const { el, onChange } = await show();
+    await click(button(card(el, "Made-up trip"), "Edit"));
+    await typeInto(field(details(el), "Start"), "2027-03-05");
+    expect(field(details(el), "End").value).toBe("2027-03-06");
+    await click(button(details(el), "Save"));
+    expect(saved(onChange)[0]).toMatchObject({ start: "2027-03-05", end: "2027-03-06" });
+  });
+
+  it("US-27: in 'Edit name and dates', a cleared end date is set to the day after the start", async () => {
+    const { el } = await show();
+    await click(button(card(el, "Made-up trip"), "Edit"));
+    await typeInto(field(details(el), "End"), "");
+    await typeInto(field(details(el), "Start"), "2027-02-27");
+    expect(field(details(el), "End").value).toBe("2027-02-28");
+  });
+
+  it("US-27: in 'Edit name and dates', a valid end date stays as it is", async () => {
+    const { el } = await show();
+    await click(button(card(el, "Made-up trip"), "Edit"));
+    await typeInto(field(details(el), "Start"), "2027-02-25");
+    expect(field(details(el), "End").value).toBe("2027-03-02");
   });
 });
 
@@ -371,7 +442,7 @@ describe("wrong-year safeguards", () => {
   it("US-10: dates more than a year back move to the first year they're ahead, named on the button", async () => {
     const { el, onChange } = await show([]);
     // Mar 1, 2024 is still past in 2025 and 2026, so it moves to Mar 1, 2027.
-    await addOccasion(el, "Long-ago typo", "2024-03-01");
+    await addOccasion(el, "Long-ago typo", "2024-03-01", "2024-03-01");
     expect(text(el)).toContain("These dates are in the past. Did you mean 2027?");
     await click(button(el, "Move to 2027"));
     expect(saved(onChange)[0]).toMatchObject({ start: "2027-03-01", end: "2027-03-01" });

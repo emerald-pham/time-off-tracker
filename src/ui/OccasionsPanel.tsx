@@ -13,7 +13,14 @@ import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonClass, seasonLabel, typeClass } from "./format";
 import { Reveal } from "./motion";
-import { checkOccasion, movedForward, withRange, withResolvedTypes, yearsToMove } from "./occasionEdits";
+import {
+  checkOccasion,
+  endAfterStart,
+  movedForward,
+  withRange,
+  withResolvedTypes,
+  yearsToMove,
+} from "./occasionEdits";
 import "./occasions.css";
 
 const DAY_TYPES: DayType[] = ["rdo", "floatingHoliday", "vacation", "unpaid"];
@@ -474,7 +481,10 @@ function AddOccasionForm({
           value={start}
           min={FIRST_DATE}
           max={LAST_DATE}
-          onChange={(e) => setStart(e.target.value)}
+          onChange={(e) => {
+            setStart(e.target.value);
+            setEnd(endAfterStart(e.target.value, end));
+          }}
           required
         />
       </label>
@@ -656,7 +666,7 @@ function DetailsEditor({
             value={draft.start}
             min={FIRST_DATE}
             max={LAST_DATE}
-            onChange={(e) => set({ start: e.target.value })}
+            onChange={(e) => set({ start: e.target.value, end: endAfterStart(e.target.value, draft.end) })}
             required
           />
         </label>
