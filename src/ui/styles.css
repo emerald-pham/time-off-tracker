@@ -440,7 +440,8 @@ button:not(:disabled):active {
 }
 
 .field input[type="date"],
-.field input[type="number"] {
+.field input[type="number"],
+.field input[inputmode="decimal"] {
   font: inherit;
   font-size: 16px; /* stops iOS Safari zooming on focus */
   padding: 9px 12px;

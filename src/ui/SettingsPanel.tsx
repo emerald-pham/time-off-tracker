@@ -103,12 +103,24 @@ function useEditing() {
   };
 }
 
+/** Hours as a person types them: digits with at most one ".", like "44", "44.5", "44." or ".5". */
+const HOURS = /^\s*(\d+\.?\d*|\.\d+)\s*$/;
+
+/** The number typed, or NaN for anything else (blank included). */
+const parseHours = (typed: string): number => (HOURS.test(typed) ? Number(typed) : NaN);
+
 /**
  * A number input that lets the field be blank, or out of range, while
  * typing. Only a value within `range` is saved as it's typed. On leaving the
  * field, an out-of-range value is clamped and saved; a blank one saves
- * `whenBlank` if given, or else puts back the saved value. A `hint` about the
- * saved value shows under the field.
+ * `whenBlank` if given, or else puts back the saved value, and anything that
+ * isn't a number puts back the saved value. A `hint` about the saved value
+ * shows under the field.
+ *
+ * It's a text field with the decimal keypad, not `type="number"` (US-28): a
+ * number field reports "" for what it can't read yet, such as "44." partway
+ * through "44.5", so leaving it there looked like a cleared field and saved 0
+ * over the balance.
  */
 function NumberField({
   label,
@@ -142,29 +154,30 @@ function NumberField({
     <label className="field">
       <span>{label}</span>
       <input
-        type="number"
+        type="text"
         inputMode="decimal"
-        min={range.min}
-        max={range.max}
-        step="any"
+        autoComplete="off"
         aria-describedby={hint ? hintId : undefined}
         value={text}
         onFocus={editing.enter}
         onChange={(e) => {
           editing.typing();
           setText(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value !== "" && Number.isFinite(n) && n >= range.min && n <= range.max) onChange(n);
+          const n = parseHours(e.target.value);
+          if (Number.isFinite(n) && n >= range.min && n <= range.max) onChange(n);
         }}
         onBlur={() => {
           if (!editing.leave()) {
             setText(String(value));
             return;
           }
-          const n = Number(text);
-          if (text.trim() === "" || !Number.isFinite(n)) {
-            if (whenBlank !== undefined) commit(whenBlank);
-            else setText(String(value));
+          if (text.trim() === "" && whenBlank !== undefined) {
+            commit(whenBlank);
+            return;
+          }
+          const n = parseHours(text);
+          if (!Number.isFinite(n)) {
+            setText(String(value));
             return;
           }
           commit(Math.min(range.max, Math.max(range.min, n)));

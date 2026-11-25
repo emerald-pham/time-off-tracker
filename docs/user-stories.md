@@ -22,6 +22,13 @@ SAP hours that don't divide by 8 round down to a multiple of 8. The leftover hou
 **US-05: SAP lags until payday.**
 SAP only takes a Day Off out of my balance the week its paycheck comes out: the Thursday after its Sunday–Saturday Payroll Week. Until then, that Day Off still uses up a Benefit Day.
 
+**US-28: Entering my current PTO totals doesn't break.**
+When I type my current SAP Vacation and Floating Holiday hours into Settings, the way I really type them, the Ledger always updates correctly and nothing errors.
+- After every keystroke ("4", "44", "44.5"), the "Counts as N days" note and the Ledger's free counts match what's in the field.
+- Clearing a field and leaving it counts as 0. A number too big, like a pasted 99999, becomes 2,000 hours when I leave the field.
+- A leading "0" is fine, and a "." left at the end keeps the number before it. A typo that isn't a number puts back what was saved, never 0.
+- Signed in, my account echoing earlier keystrokes back while I'm still typing never changes what's in the field or what's saved.
+
 ## Planning Occasions
 
 **US-06: Add an Occasion with a name and dates.**
