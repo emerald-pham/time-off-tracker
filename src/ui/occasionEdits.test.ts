@@ -38,6 +38,20 @@ describe("US-25: changing an Occasion's range", () => {
     expect(withRange(o, "2026-09-10", "2026-09-11").dayTypes).toEqual({ "2026-09-10": "rdo", "2026-09-11": "rdo" });
   });
 
+  it("US-25: a refilled range gets only the days off another Occasion hasn't taken that week", () => {
+    const o: Occasion = { ...beach, dayTypes: {} };
+    // Another Occasion holds Fri Sep 11 and Sat Sep 12 as RDO: the week's two days off are gone.
+    expect(withRange(o, "2026-09-08", "2026-09-09", ["2026-09-11", "2026-09-12"]).dayTypes).toEqual({
+      "2026-09-08": "vacation",
+      "2026-09-09": "vacation",
+    });
+    // One left: Tue–Wed within one week takes it first.
+    expect(withRange(o, "2026-09-08", "2026-09-09", ["2026-09-12"]).dayTypes).toEqual({
+      "2026-09-08": "rdo",
+      "2026-09-09": "vacation",
+    });
+  });
+
   it("US-25: keeps customized types for dates still in range, and gives added dates the rule's type over the new range", () => {
     const o: Occasion = {
       ...beach,

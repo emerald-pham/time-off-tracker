@@ -37,12 +37,22 @@ const SATURDAY = 6;
  * the far side of it:
  * - within one week, or continuing into the next week only: RDOs first;
  * - continuing from the previous week only: Vacation first, RDOs last;
- * - both (a full week in the middle): ceil((n − 2) / 2) Vacation, the 2 RDOs,
+ * - both (a full week in the middle): ceil((n − r) / 2) Vacation, the r RDOs,
  *   then Vacation.
+ *
+ * A week has two days off in total, shared by every Occasion in it: `held`
+ * lists the dates other Occasions already hold as RDO, and a segment gets
+ * only what's left, r = min(n, max(0, 2 − held dates in its week outside it)).
  */
-export function weeklyDayTypes(start: IsoDate, end: IsoDate): Record<IsoDate, DayType> {
+export function weeklyDayTypes(
+  start: IsoDate,
+  end: IsoDate,
+  held: Iterable<IsoDate> = [],
+): Record<IsoDate, DayType> {
   const types: Record<IsoDate, DayType> = {};
   const dates = datesInRange(start, end);
+  const heldByWeek = new Map<IsoDate, Set<IsoDate>>();
+  for (const d of held) heldByWeek.set(weekOf(d), (heldByWeek.get(weekOf(d)) ?? new Set<IsoDate>()).add(d));
   for (let i = 0; i < dates.length; ) {
     const segment = [dates[i]];
     while (i + segment.length < dates.length && weekdayOf(dates[i + segment.length]) !== SUNDAY) {
@@ -50,15 +60,24 @@ export function weeklyDayTypes(start: IsoDate, end: IsoDate): Record<IsoDate, Da
     }
     i += segment.length;
     const n = segment.length;
-    const rdos = Math.min(2, n);
+    const heldElsewhere = [...(heldByWeek.get(weekOf(segment[0])) ?? [])].filter((d) => !segment.includes(d)).length;
+    const rdos = Math.min(n, Math.max(0, 2 - heldElsewhere));
     const fromPrevious = weekdayOf(segment[0]) === SUNDAY && segment[0] > start;
     const intoNext = weekdayOf(segment[n - 1]) === SATURDAY && segment[n - 1] < end;
-    const leadingVacation = fromPrevious && intoNext ? Math.ceil((n - 2) / 2) : fromPrevious ? n - rdos : 0;
+    const leadingVacation = fromPrevious && intoNext ? Math.ceil((n - rdos) / 2) : fromPrevious ? n - rdos : 0;
     segment.forEach((date, k) => {
       types[date] = k >= leadingVacation && k < leadingVacation + rdos ? "rdo" : "vacation";
     });
   }
   return types;
+}
+
+/** The Sunday that starts `d`'s week. */
+export const weekOf = (d: IsoDate): IsoDate => addDays(d, -weekdayOf(d));
+
+/** The dates these Occasions have as RDO, for `weeklyDayTypes`' `held`. */
+export function rdoDates(occasions: { days: { date: IsoDate; dayType: DayType }[] }[]): IsoDate[] {
+  return occasions.flatMap((o) => o.days.filter((d) => d.dayType === "rdo").map((d) => d.date));
 }
 
 export function datesInRange(start: IsoDate, end: IsoDate): IsoDate[] {
@@ -91,32 +110,43 @@ export function findClashes(occasions: OccasionView[]): Clash[] {
  * Occasion views sorted by start date, with each date's Day Type resolved
  * (stored, or the weekly rule over the Occasion's range) and Deducted flagged
  * against the SAP Balance as-of date. Burning fills in the rest.
+ *
+ * A week's two days off are shared between Occasions: missing types are
+ * worked out in start-date order, counting the RDOs every other Occasion
+ * holds (stored, or already worked out).
  */
 export function occasionViews(occasions: Occasion[], asOf: IsoDate): OccasionView[] {
-  return [...occasions]
-    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
-    .map((o) => {
-      const defaults = weeklyDayTypes(o.start, o.end);
-      const days: DayOffView[] = datesInRange(o.start, o.end).map((date) => ({
-        date,
-        dayType: o.dayTypes[date] ?? defaults[date],
-        deducted: paidBy(date, asOf),
-        burns: null,
-        unmet: false,
-      }));
-      return {
-        id: o.id,
-        name: o.name,
-        start: o.start,
-        end: o.end,
-        days,
-        ptoDays: days.filter((d) => isPaid(d.dayType)).length,
-        unpaid: days.filter((d) => d.dayType === "unpaid").length,
-        short: 0,
-        season: seasonOf(o.start),
-        deducted: days.length > 0 && days.every((d) => d.deducted),
-        approved: o.approved === true,
-        floatingHolidaysCouldCover: [],
-      };
-    });
+  const sorted = [...occasions].sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+  const rdosHeld = new Map(
+    sorted.map((o) => [o.id, datesInRange(o.start, o.end).filter((d) => o.dayTypes[d] === "rdo")]),
+  );
+  const heldByOthers = (id: string) => sorted.filter((o) => o.id !== id).flatMap((o) => rdosHeld.get(o.id)!);
+  return sorted.map((o) => {
+    const dates = datesInRange(o.start, o.end);
+    const defaults: Record<IsoDate, DayType> = dates.every((d) => o.dayTypes[d])
+      ? {}
+      : weeklyDayTypes(o.start, o.end, heldByOthers(o.id));
+    const days: DayOffView[] = dates.map((date) => ({
+      date,
+      dayType: o.dayTypes[date] ?? defaults[date],
+      deducted: paidBy(date, asOf),
+      burns: null,
+      unmet: false,
+    }));
+    rdosHeld.set(o.id, rdoDates([{ days }]));
+    return {
+      id: o.id,
+      name: o.name,
+      start: o.start,
+      end: o.end,
+      days,
+      ptoDays: days.filter((d) => isPaid(d.dayType)).length,
+      unpaid: days.filter((d) => d.dayType === "unpaid").length,
+      short: 0,
+      season: seasonOf(o.start),
+      deducted: days.length > 0 && days.every((d) => d.deducted),
+      approved: o.approved === true,
+      floatingHolidaysCouldCover: [],
+    };
+  });
 }

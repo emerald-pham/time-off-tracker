@@ -8,10 +8,12 @@ import { clashMessage } from "./format";
  * rule gives its old range (the person never customized them), the whole new
  * range gets the rule's types. Otherwise dates still in range keep their
  * type, and added dates get the type the rule gives them over the new range.
+ * `held` is the RDO dates other Occasions hold: a week's two days off are
+ * shared between them.
  */
-export function withRange(o: Occasion, start: IsoDate, end: IsoDate): Occasion {
-  const oldRule = weeklyDayTypes(o.start, o.end);
-  const newRule = weeklyDayTypes(start, end);
+export function withRange(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDate[] = []): Occasion {
+  const oldRule = weeklyDayTypes(o.start, o.end, held);
+  const newRule = weeklyDayTypes(start, end, held);
   const customized = Object.entries(oldRule).some(([date, type]) => (o.dayTypes[date] ?? type) !== type);
   if (!customized) return { ...o, start, end, dayTypes: newRule };
   const dayTypes: Record<IsoDate, DayType> = {};

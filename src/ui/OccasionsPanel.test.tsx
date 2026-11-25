@@ -294,6 +294,30 @@ describe("filling in Day Types automatically", () => {
     expect(saved(onChange)[0].dayTypes).toEqual({ "2027-03-01": "rdo", "2027-03-02": "rdo" });
   });
 
+  it("US-25: 'Fill in automatically' leaves the week's days off another Occasion already holds", async () => {
+    // Thu Mar 4 – Fri Mar 5, 2027 are RDO in another Occasion: that week's two days off are taken.
+    const concert: Occasion = {
+      id: "concert",
+      name: "Made-up concert",
+      start: "2027-03-04",
+      end: "2027-03-05",
+      dayTypes: { "2027-03-04": "rdo", "2027-03-05": "rdo" },
+    };
+    const { el } = await show([trip, concert]);
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    await click(button(card(el, "Made-up trip"), "Fill in automatically"));
+    expect(chosenTypes(el)).toEqual(["vacation", "vacation"]);
+  });
+
+  it("US-25: a new Occasion gets only the days off left in its week", async () => {
+    const { el, onChange } = await show([{ ...trip, dayTypes: { "2027-03-01": "rdo", "2027-03-02": "rdo" } }]);
+    await addOccasion(el, "Made-up concert", "2027-03-04", "2027-03-05");
+    expect(saved(onChange).find((o) => o.name === "Made-up concert")!.dayTypes).toEqual({
+      "2027-03-04": "vacation",
+      "2027-03-05": "vacation",
+    });
+  });
+
   it("US-25: Cancel discards what 'Fill in automatically' did", async () => {
     const { el, onChange } = await show();
     await click(button(card(el, "Made-up trip"), "Choose days"));

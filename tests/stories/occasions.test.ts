@@ -179,6 +179,20 @@ describe("US-25: Fill in Day Types automatically, week by week", () => {
     expect(o.ptoDays).toBe(7);
   });
 
+  it("US-25: two Occasions in one week share its two days off: Mon–Tue takes both, so Thu–Fri is Vacation, Vacation", () => {
+    // Sun Sep 6 – Sat Sep 12, 2026: A is Mon Sep 7 – Tue Sep 8, B is Thu Sep 10 – Fri Sep 11.
+    const a = occasion("a", "Made-up dentist days", "2026-09-07", "2026-09-08");
+    const b = occasion("b", "Made-up wedding", "2026-09-10", "2026-09-11");
+    const both = view(samE2, today, { occasions: [b, a] }).occasions;
+    expect(both.map((o) => o.days.map((d) => d.dayType))).toEqual([
+      ["rdo", "rdo"],
+      ["vacation", "vacation"],
+    ]);
+    // Adding B once A is saved with its types does the same.
+    const savedA = withResolvedTypes(a, checkOccasion(data(), today, a).view);
+    expect(checkOccasion(data(savedA), today, b).view.days.map((d) => d.dayType)).toEqual(["vacation", "vacation"]);
+  });
+
   it("US-25: a lone day off is an RDO, and a long week alone keeps 2 RDOs at the start", () => {
     expect(newOccasion("2026-09-09", "2026-09-09").days.map((d) => d.dayType)).toEqual(["rdo"]);
     // Sun Sep 6 – Sat Sep 12, 2026: one whole week, crossing no break.

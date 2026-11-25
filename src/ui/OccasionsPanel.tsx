@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, weeklyDayTypes } from "../engine";
+import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, rdoDates, weeklyDayTypes } from "../engine";
 import { addMonthsClamped } from "../engine/dates";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
@@ -48,6 +48,8 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
   const currentYear = Number(today.slice(0, 4));
   const stored = (id: string) => data.occasions.find((o) => o.id === id)!;
   const isPast = (o: OccasionView) => o.deducted || o.end < today;
+  /** The RDO dates every other Occasion holds: a week's two days off are shared (US-25). */
+  const heldByOthers = (id: string) => rdoDates(occasions.filter((o) => o.id !== id));
 
   /** Saves `candidate` unless it Clashes. */
   const trySave = (candidate: Occasion): Saved => {
@@ -127,6 +129,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
             </p>
             <DayEditor
               editing={newDraft}
+              held={heldByOthers(newDraft.draft.id)}
               deducted={new Set()}
               onChange={setEditing}
               onSave={(draft) => {
@@ -174,6 +177,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                   open?.kind === "days" ? (
                     <DayEditor
                       editing={open}
+                      held={heldByOthers(o.id)}
                       deducted={new Set(o.days.filter((d) => d.deducted).map((d) => d.date))}
                       onChange={setEditing}
                       onSave={(draft) => {
@@ -185,6 +189,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                   ) : open?.kind === "details" ? (
                     <DetailsEditor
                       editing={open}
+                      held={heldByOthers(o.id)}
                       onChange={setEditing}
                       onSave={(draft) => {
                         const { refused } = trySave(draft);
@@ -476,12 +481,15 @@ function Messages({ messages }: { messages: string[] }) {
 
 function DayEditor({
   editing,
+  held,
   deducted,
   onChange,
   onSave,
   onCancel,
 }: {
   editing: Extract<Editing, { kind: "days" }>;
+  /** RDO dates other Occasions hold. */
+  held: IsoDate[];
   deducted: Set<IsoDate>;
   onChange: (e: Editing) => void;
   onSave: (draft: Occasion) => void;
@@ -492,7 +500,7 @@ function DayEditor({
   const setType = (date: IsoDate, type: DayType) =>
     onChange({ ...editing, draft: { ...draft, dayTypes: { ...draft.dayTypes, [date]: type } } });
   /** The weekly rule (US-25) over the whole draft; Save commits it, Cancel discards it. */
-  const fillIn = () => onChange({ ...editing, draft: { ...draft, dayTypes: weeklyDayTypes(draft.start, draft.end) } });
+  const fillIn = () => onChange({ ...editing, draft: { ...draft, dayTypes: weeklyDayTypes(draft.start, draft.end, held) } });
 
   return (
     <div className="day-editor">
@@ -546,11 +554,14 @@ function DayEditor({
 
 function DetailsEditor({
   editing,
+  held,
   onChange,
   onSave,
   onCancel,
 }: {
   editing: Extract<Editing, { kind: "details" }>;
+  /** RDO dates other Occasions hold. */
+  held: IsoDate[];
   onChange: (e: Editing) => void;
   onSave: (draft: Occasion) => void;
   onCancel: () => void;
@@ -569,7 +580,7 @@ function DetailsEditor({
           return;
         }
         const end = draft.end >= draft.start ? draft.end : draft.start;
-        onSave(withRange({ ...draft, name: draft.name.trim() }, draft.start, end));
+        onSave(withRange({ ...draft, name: draft.name.trim() }, draft.start, end, held));
       }}
     >
       <p className="editor-title">Edit the name and dates</p>

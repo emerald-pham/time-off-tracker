@@ -49,6 +49,7 @@ Instead of a small caret, each Occasion has large, clearly labelled buttons for 
 **US-25: Fill in Day Types automatically, week by week.**
 Every week (Sunday to Saturday) has two days off, so the app works out each day's type from where my time off crosses a week break. PTO hugs the Saturday/Sunday break, and the RDOs sit on the far side of it.
 - A *segment* is the Occasion's dates in one week. A segment of n days has min(2, n) RDOs, and the rest are Vacation.
+- A week has two days off in total, shared by every Occasion in it: an Occasion only gets the RDOs the week's other Occasions haven't already taken (max(0, 2 − taken)). Mon–Tue in one Occasion and Thu–Fri in another, same week: the second is Vacation, Vacation. This applies to new Occasions, changed dates and "Fill in automatically".
 - Within one week, or running on into the next week only: RDOs first, Vacation at the end. Wed–Sat gives RDO, RDO, Vacation, Vacation: 2 PTO Days.
 - Carrying on from the previous week only: Vacation first, then the RDOs.
 - A full Sunday–Saturday week in the middle: Vacation at both ends and the 2 RDOs in the middle, with ceil((n − 2) / 2) Vacation days before them: Vac, Vac, Vac, RDO, RDO, Vac, Vac.
