@@ -27,6 +27,7 @@ When I type my current SAP Vacation and Floating Holiday hours into Settings, th
 - After every keystroke ("4", "44", "44.5"), the "Counts as N days" note and the Ledger's free counts match what's in the field.
 - Clearing a field and leaving it counts as 0. A number too big, like a pasted 99999, becomes 2,000 hours when I leave the field.
 - A "," works as the decimal point too ("44,5" is 44.5), since the phone's decimal keypad shows "," in many regions.
+- On a keyboard, the Up and Down arrow keys step the hours by 1, never past the field's range.
 - A leading "0" is fine, and a "." left at the end keeps the number before it. A typo that isn't a number puts back what was saved, never 0.
 - Signed in, my account echoing earlier keystrokes back while I'm still typing never changes what's in the field or what's saved.
 

@@ -170,6 +170,19 @@ function NumberField({
           const n = parseHours(e.target.value);
           if (Number.isFinite(n) && n >= range.min && n <= range.max) onChange(n);
         }}
+        onKeyDown={(e) => {
+          // Up and Down step by 1 within range, as the number field did (US-28),
+          // from what's typed, or the saved value if that isn't a number.
+          const step = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+          if (step === 0) return;
+          e.preventDefault();
+          editing.typing();
+          const typed = parseHours(text);
+          const from = Number.isFinite(typed) ? typed : value;
+          // Rounded, so 2.3 − 1 is 1.3 rather than 1.2999999999999998.
+          const next = Math.round((from + step) * 1e6) / 1e6;
+          commit(Math.min(range.max, Math.max(range.min, next)));
+        }}
         onBlur={() => {
           if (!editing.leave()) {
             setText(String(value));

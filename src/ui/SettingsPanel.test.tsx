@@ -82,6 +82,43 @@ describe("number fields stay in range (finding 9)", () => {
     expect(last()?.sapVacationHours).toBe(2000);
   });
 
+  it("US-28: the Up and Down arrow keys step the hours by 1, staying in range", async () => {
+    const press = async (input: HTMLInputElement, key: string) => {
+      let event!: KeyboardEvent;
+      await act(async () => {
+        input.focus();
+        event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        input.dispatchEvent(event);
+      });
+      return event;
+    };
+    const { el, last } = await show({ ...configured, weeklyHours: 79, sapFloatingHolidayHours: 0.5 });
+    const hours = field(el, "Weekly hours");
+    expect((await press(hours, "ArrowUp")).defaultPrevented).toBe(true);
+    expect(hours.value).toBe("80");
+    expect(last()?.weeklyHours).toBe(80);
+    await press(hours, "ArrowUp");
+    expect(hours.value).toBe("80");
+    await press(hours, "ArrowDown");
+    await press(hours, "ArrowDown");
+    expect(hours.value).toBe("78");
+    expect(last()?.weeklyHours).toBe(78);
+
+    // From what's typed, even mid-way; and never below the minimum.
+    const balance = field(el, "SAP Vacation hours");
+    await typeInto(balance, "44,5");
+    await press(balance, "ArrowUp");
+    expect(balance.value).toBe("45.5");
+    expect(last()?.sapVacationHours).toBe(45.5);
+    const fh = field(el, "SAP Floating Holiday hours");
+    await press(fh, "ArrowDown");
+    expect(fh.value).toBe("0");
+    expect(last()?.sapFloatingHolidayHours).toBe(0);
+
+    // Other keys type as usual.
+    expect((await press(balance, "ArrowLeft")).defaultPrevented).toBe(false);
+  });
+
   it("saves a value in range as it's typed", async () => {
     const { el, last } = await show(configured);
     await typeInto(field(el, "Weekly hours"), "32");
