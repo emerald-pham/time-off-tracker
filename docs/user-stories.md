@@ -40,6 +40,12 @@ Two Occasions may share dates, especially Unpaid or RDO days. If the same date i
 **US-10: Don't let a wrong year go unnoticed.**
 If a new Occasion's dates are already in the past, the app says so and offers to move them to next year. The year shows in the dates whenever it isn't the current year. Past Occasions are labelled as already taken and counted in the SAP Balance.
 
+**US-23: Mark an Occasion approved or not.**
+Each Occasion has an approval status that I can switch between "Not approved yet" and "Approved", and it's shown clearly on the Occasion. Not-approved Occasions still plan their Benefit Days, so I can see what they'd use. Occasions saved before this existed load as not approved.
+
+**US-24: Occasions are easy to figure out.**
+Instead of a small caret, each Occasion has large, clearly labelled buttons for what I can do: edit the name and dates, choose each day's type, approve or unapprove, and delete. Every field has a visible label and is obviously something I can tap.
+
 ## The Ledger
 
 **US-11: Time off fills the Ledger oldest first.**
