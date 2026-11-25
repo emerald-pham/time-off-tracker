@@ -1,6 +1,6 @@
 # 02: Occasions Burn the Ledger
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 Spec: [spec.md](../spec.md), sections Occasions, Burning, Paydays and Deducted, plus the row states in Ledger.
 
@@ -30,3 +30,7 @@ Someone adds Occasions, sets each Day Off's type in the day editor, and watches 
 - Spec examples **E3–E7** and the Season examples pass as engine tests.
 - In the UI, E4's Occasion shows PTO Days 3, and its name appears on the three Burned Ledger rows.
 - Saving a Clash is refused with a message naming the other Occasion.
+
+## Comments
+
+Resolved on branch `time-off-tracker`. E3–E7 and the Season examples are engine tests. The Clash check is in the day editor and on date-range changes. Ticket 01's rollover test expects 20 free Vacation, not 25, because the Vacation Cap applies in 2027.

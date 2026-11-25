@@ -1,6 +1,6 @@
 # 01: Ledger from your settings
 
-Status: ready-for-agent
+Status: resolved
 Spec: [spec.md](../spec.md), sections Layout, Settings, Ledger, Projecting the schedule, Paydays and Deducted, Starting from the SAP Balance, Engine shape.
 
 ## Outcome
@@ -30,3 +30,7 @@ Someone enters a hire date, weekly hours, regular days off and their SAP Balance
 - Spec examples **E1** and **E2** pass as engine tests and show correctly in the UI.
 - At iPhone width the tabs work. At iPad-landscape width, three columns show.
 - No real personal data anywhere in the repo.
+
+## Comments
+
+Resolved on branch `time-off-tracker`. Built test-first: E1 and E2 are engine tests. Later hardened by the code-review fix pass: input bounds, storage fallback, and two-digit years.

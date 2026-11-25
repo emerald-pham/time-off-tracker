@@ -1,6 +1,6 @@
 # 04: Sync and publish
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01 (easiest after 02)
 Spec: [spec.md](../spec.md), section Accounts and sync. [ADR 0001](../../../docs/adr/0001-firebase-with-per-person-accounts.md).
 
@@ -37,3 +37,12 @@ The tracker is live on a Firebase URL. It works with no account. Signing in with
 - Signing in on two devices shows the same Ledger.
 - A second Google account can't read the first account's document. Check this with the Firestore rules emulator test.
 - The deployed URL loads on iPhone Safari, and sign-in completes there.
+
+## Comments
+
+Resolved on branch `time-off-tracker`.
+- **Sync:** the account document is now version 2 (ADR 0003). The app follows the document live and writes only the fields it changed.
+- **Sign-out:** refused while changes are unsynced, unless the user chooses to discard them.
+- **Delete my data:** requires a connection to the server.
+- **Testing:** emulator suites for the rules (41 tests) and hosting (6 tests).
+- **Go-live:** deployed by the coordinator from the CLI to https://time-off-tracker-20261124.web.app. Tested on the live site: signed-out read, list and write are all refused with PERMISSION_DENIED. The browser key is restricted to the app's own domains.
