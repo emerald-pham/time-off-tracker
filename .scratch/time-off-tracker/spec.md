@@ -68,7 +68,7 @@ One row per Benefit Day, with three columns:
 - **Occasion:** the name of the Occasion that Burns this Benefit Day. Blank if it's free.
 
 **Groups and order:**
-- Rows are grouped by calendar year: the current year, next year, and any later year an Occasion reaches.
+- Rows are grouped by calendar year: the current year, next year, and any later year an Occasion or an edited Earn Date reaches. Every row with an Earn Date edit is shown somewhere, so "Reset to projected" is always reachable, and the Free count only counts rows that are shown.
 - One separator row, showing the year, sits between groups.
 - Within a group, rows are sorted by Earn Date. Carryover sits at the top of the current year.
 
@@ -76,11 +76,11 @@ One row per Benefit Day, with three columns:
 
 **Row states, each with its own look:**
 - **Lost to cap:** greyed and struck through. Can't be Burned.
-- **Expired:** an unburned Floating Holiday from a past year. Hidden once that year ends.
+- **Expired:** an unburned Floating Holiday from a past year. Hidden once that year ends, unless its Earn Date was edited, so the edit can still be reset.
 - **Floating Holiday warning:** a current-year Floating Holiday that's still free shows "expires Dec 31".
 - **Estimated:** the Earn Date was assigned by walking back (see below) or is beyond what the schedule explains.
 - **Edited:** the user changed the Earn Date. Shown with a dot.
-- **Used (not listed):** full-year history mode only.
+- **Used (not listed):** SAP shows the day used and no listed Day Off explains it. Full-year history mode marks these (see below). An edited row moved among the days SAP already shows used is marked too.
 
 **Rollover:** on Jan 1, last year's free Vacation becomes Carryover, and last year's free Floating Holidays become Expired.
 
@@ -124,7 +124,7 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 
 **Vacation:**
 - n = floor(SAP Vacation hours ÷ 8).
-- The candidates are every schedule entry from the hire year on that is in SAP by the as-of date, sorted newest Earn Date first.
+- The candidates are every schedule entry from the hire year on that is in SAP by the as-of date, sorted newest Earn Date first, except that entries with an Earn Date edit come before the rest.
 - The first n candidates become the starting Benefit Days, marked Estimated.
 - If n is more than the number of candidates, the extra rows get Earn Date = H, marked Estimated.
 - Every schedule entry not yet in SAP by the as-of date becomes a projected Benefit Day.
@@ -138,6 +138,9 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 ### Earn Date edits
 
 - Tapping an Earn Date opens a date picker. The edit is stored against the row's schedule key and survives any regeneration, including a hire date or weekly hours change.
+- Edits move schedule entries before anything else looks at their dates, so the walk-back and the in-SAP split use the edited Earn Date. An entry moved before the as-of date (by Payday) counts as one of SAP's days, not an extra one. An entry moved past it is projected.
+- In the walk-back, edited entries come before estimated ones, so moving a day that's in SAP to an older date keeps it in SAP. An edited entry that's still left out (more edited days in SAP than SAP has, or a Floating Holiday moved into an earlier year) is listed as Used (not listed).
+- The picker allows dates from the hire date to 2100. A Floating Holiday's picker stays within its calendar year.
 - "Reset to projected" deletes the edit.
 - An edit whose key no longer exists is ignored.
 

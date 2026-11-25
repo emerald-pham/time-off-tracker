@@ -1,4 +1,4 @@
-import { isSupportedDate, isoDate, yearOf } from "./dates";
+import { LAST_SUPPORTED_YEAR, isSupportedDate, isoDate, yearOf } from "./dates";
 import { burn } from "./burning";
 import { findClashes, occasionViews } from "./occasions";
 import { paidBy } from "./payday";
@@ -49,38 +49,78 @@ export function computeView(input: EngineInput): ViewModel {
   const { settings, today } = input;
   const edits = supportedEdits(input.earnDateEdits);
   const currentYear = yearOf(today);
-  const lastYear = Math.max(currentYear + 1, ...input.occasions.map((o) => yearOf(o.end)));
   const asOf = settings.sapAsOf ?? today;
-
-  // Edits come first, so the walk-back and the in-SAP split see the edited Earn Dates.
-  const schedule = withEarnDateEdits(projectSchedule(settings, lastYear), edits);
   const occasions = occasionViews(input.occasions, settings, asOf);
-  const history = settings.fullYearHistory
-    ? fullYearRows(schedule, settings, asOf, currentYear, occasions)
-    : null;
-  const ledgerRows = history ? history.rows : startingRows(schedule, settings, asOf);
-  const burned = applyEarnDateEdits(ledgerRows, edits);
+
+  // Show the current year, next year and any later year an Occasion reaches.
+  // An Earn Date edit can move a row later still: then show that year too
+  // (projecting its schedule), so no row is left off the Ledger.
+  let lastYear = Math.max(currentYear + 1, ...input.occasions.map((o) => yearOf(o.end)));
+  let built = ledgerRows(settings, edits, asOf, currentYear, lastYear, occasions);
+  for (
+    let furthest = latestYear(built.rows);
+    furthest > lastYear && furthest <= LAST_SUPPORTED_YEAR;
+    furthest = latestYear(built.rows)
+  ) {
+    lastYear = furthest;
+    built = ledgerRows(settings, edits, asOf, currentYear, lastYear, occasions);
+  }
+
+  const burned = applyEarnDateEdits(built.rows, edits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
     leftoverVacationHours: splitHours(settings.sapVacationHours).leftover,
-    history: history && { year: currentYear, usedNotListed: history.usedNotListed },
+    history: built.usedNotListed && { year: currentYear, usedNotListed: built.usedNotListed },
   });
-  const rows = rollover(burned, currentYear);
+  const groups = groupByYear(rollover(burned, currentYear), currentYear, lastYear);
+  const shown = groups.flatMap((g) => g.rows);
 
   return {
     configured: settings.hireDate !== null,
     occasions,
     clashes: findClashes(occasions),
     ledger: {
-      groups: groupByYear(rows, currentYear, lastYear),
-      free: countFree(rows),
-      usedNotListed: countUsedNotListed(rows),
+      groups,
+      free: countFree(shown),
+      usedNotListed: countUsedNotListed(shown),
       leftoverHours: {
         vacation: splitHours(settings.sapVacationHours).leftover,
         floatingHoliday: splitHours(settings.sapFloatingHolidayHours).leftover,
       },
     },
   };
+}
+
+/**
+ * Ledger rows before Burning, for the schedule projected through `lastYear`
+ * with Earn Date edits applied. In full-year history mode, also how many rows
+ * of each type Burning should mark Used (not listed).
+ */
+function ledgerRows(
+  settings: Settings,
+  edits: EarnDateEdits,
+  asOf: IsoDate,
+  currentYear: number,
+  lastYear: number,
+  occasions: OccasionView[],
+): { rows: LedgerRow[]; usedNotListed: BenefitCounts | null } {
+  // Edits come first, so the walk-back and the in-SAP split see the edited Earn Dates.
+  const schedule = withEarnDateEdits(projectSchedule(settings, lastYear), edits);
+  const { rows, usedNotListed } = settings.fullYearHistory
+    ? fullYearRows(schedule, settings, asOf, currentYear, occasions)
+    : { rows: startingRows(schedule, settings, asOf), usedNotListed: null };
+  // An edited entry that SAP already shows used (left out by the walk-back, or
+  // a Floating Holiday moved into an earlier year) stays listed, so its edit
+  // can be reset.
+  const listed = new Set(rows.map((r) => r.key));
+  const leftOut = schedule
+    .filter((e) => e.edited && !listed.has(e.key))
+    .map((e) => ({ ...row(e.key, e.benefitType, e.earnDate, "starting"), usedNotListed: true }));
+  return { rows: [...rows, ...leftOut], usedNotListed };
+}
+
+function latestYear(rows: LedgerRow[]): number {
+  return Math.max(-Infinity, ...rows.map((r) => yearOf(r.earnDate)));
 }
 
 /**
@@ -131,7 +171,7 @@ function supportedEdits(edits: EarnDateEdits): EarnDateEdits {
  * projected.
  */
 function withEarnDateEdits(schedule: ScheduleEntry[], edits: EarnDateEdits): ScheduleEntry[] {
-  return schedule.map((e) => (Object.hasOwn(edits, e.key) ? { ...e, earnDate: edits[e.key] } : e));
+  return schedule.map((e) => (Object.hasOwn(edits, e.key) ? { ...e, earnDate: edits[e.key], edited: true } : e));
 }
 
 /**
@@ -241,7 +281,11 @@ function walkBack(args: {
   extraDate: IsoDate;
   extraKeyPrefix: string;
 }): LedgerRow[] {
-  const newestFirst = [...args.candidates].sort((a, b) => compareEntries(b, a));
+  // Newest first, except that days the person dated themselves come before
+  // estimated ones: moving a day in SAP to an older date keeps it in SAP.
+  const newestFirst = [...args.candidates].sort(
+    (a, b) => Number(Boolean(b.edited)) - Number(Boolean(a.edited)) || compareEntries(b, a),
+  );
   const picked = newestFirst.slice(0, args.days);
   const extras = Math.max(0, args.days - picked.length);
   return [
@@ -297,16 +341,18 @@ function isFree(r: LedgerRow): boolean {
 }
 
 /**
- * Groups rows by calendar year from the current year to the last year shown.
- * Carryover sits at the top of the current year. Expired Floating Holidays
- * from years that have ended are hidden.
+ * Groups rows by calendar year from the current year to the last year shown;
+ * earlier rows sit in the current year, with Carryover at the top. Expired
+ * Floating Holidays from years that have ended are hidden, unless edited, so
+ * the edit can be reset.
  */
 function groupByYear(rows: LedgerRow[], currentYear: number, lastYear: number): LedgerGroup[] {
   const groups: LedgerGroup[] = [];
   for (let year = currentYear; year <= lastYear; year++) groups.push({ year, rows: [] });
   for (const r of rows) {
-    if (r.expired) continue;
+    if (r.expired && !r.edited) continue;
     const year = Math.max(yearOf(r.earnDate), currentYear);
+    // Only a date outside the supported years can fall past the last group.
     groups[year - currentYear]?.rows.push(r);
   }
   for (const g of groups) g.rows.sort(compareRows);
@@ -319,9 +365,10 @@ function countFree(rows: LedgerRow[]): BenefitCounts {
   return free;
 }
 
+/** Rows full-year history marked Used (not listed); edited rows SAP shows used are the person's own doing. */
 function countUsedNotListed(rows: LedgerRow[]): BenefitCounts {
   const used = { vacation: 0, floatingHoliday: 0 };
-  for (const r of rows) if (r.usedNotListed) used[r.benefitType]++;
+  for (const r of rows) if (r.usedNotListed && r.origin === "history") used[r.benefitType]++;
   return used;
 }
 

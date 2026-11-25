@@ -61,6 +61,8 @@ export interface ScheduleEntry {
   /** Calendar year whose schedule produced it (the hire year for "vacation:hire:k"). */
   scheduleYear: number;
   earnDate: IsoDate;
+  /** Moved to the person's Earn Date edit. */
+  edited?: boolean;
 }
 
 /** Where a Ledger row came from. */
@@ -102,8 +104,9 @@ export interface LedgerRow {
   /** The user changed the Earn Date: shown with a dot. */
   edited: boolean;
   /**
-   * Full-year history mode only: in SAP by the as-of date, but SAP shows it
-   * used and no listed Day Off explains it. Burns nothing.
+   * In SAP by the as-of date, but SAP shows it used and no listed Day Off
+   * explains it. Burns nothing. Set in full-year history mode, and on an
+   * edited row moved among the days SAP already shows used.
    */
   usedNotListed: boolean;
 }
@@ -124,7 +127,10 @@ export interface LedgerView {
   free: BenefitCounts;
   /** SAP hours that don't make a whole Benefit Day, for the "+4 hrs" note. */
   leftoverHours: BenefitCounts;
-  /** Full-year history mode: rows marked Used (not listed), so the UI can tell the user. */
+  /**
+   * Full-year history mode: rows marked Used (not listed) because SAP shows
+   * days used that no listed Day Off explains, so the UI can tell the user.
+   */
   usedNotListed: BenefitCounts;
 }
 

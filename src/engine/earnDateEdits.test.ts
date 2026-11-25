@@ -94,6 +94,72 @@ describe("Earn Date edits", () => {
     });
   });
 
+  describe("every edited row stays on the Ledger, so Reset to projected stays reachable", () => {
+    const shown = (view: ViewModel) => view.ledger.groups.flatMap((g) => g.rows);
+    const freeShown = (view: ViewModel, type: "vacation" | "floatingHoliday") =>
+      shown(view).filter((r) => r.benefitType === type && !r.burnedBy && !r.lostToCap && !r.expired && !r.usedNotListed)
+        .length;
+
+    it("a row moved past the last year shown adds that year's group", () => {
+      // Nov 12, 2026 moved to Jan 15, 2027; as of Nov 24, 2025 the Ledger shows 2025 and 2026.
+      const view = computeView({ ...input({ "vacation:2026:10": "2027-01-15" }), occasions: [] });
+      expect(view.ledger.groups.map((g) => g.year)).toEqual([2025, 2026, 2027]);
+      const year2027 = view.ledger.groups[2].rows.map((r) => r.key);
+      expect(year2027).toContain("vacation:2026:10");
+    });
+
+    it("counts only rows it shows as free", () => {
+      const view = computeView({ ...input({ "vacation:2026:10": "2027-01-15" }), occasions: [] });
+      expect(view.ledger.free).toEqual({
+        vacation: freeShown(view, "vacation"),
+        floatingHoliday: freeShown(view, "floatingHoliday"),
+      });
+    });
+
+    it("a Floating Holiday moved into a past year stays listed, as Used (not listed), not hidden", () => {
+      // Jun 1, 2024 is long before the as-of year, so it can't be one of SAP's Floating Holidays.
+      const view = computeView({ ...input({ "fh:2026:1": "2024-06-01" }), occasions: [] });
+      expect(shown(view).find((r) => r.key === "fh:2026:1")).toMatchObject({
+        earnDate: "2024-06-01",
+        edited: true,
+        usedNotListed: true,
+        burnedBy: null,
+      });
+      // Not free: 2025's Sep 1 and 2026's other two are.
+      expect(view.ledger.free.floatingHoliday).toBe(3);
+    });
+
+    it("a Floating Holiday moved past the as-of date into an earlier year stays listed as Expired", () => {
+      // Viewed Mar 1, 2026 with the Nov 24, 2025 balance: Jan 1, 2026 moved to Dec 1, 2025.
+      const view = computeView({ ...input({ "fh:2026:1": "2025-12-01" }), occasions: [], today: "2026-03-01" });
+      expect(shown(view).find((r) => r.key === "fh:2026:1")).toMatchObject({ edited: true, expired: true });
+    });
+
+    it("a starting day moved earlier stays one of SAP's days instead of dropping out", () => {
+      // Nov 12, 2025 moved to Mar 1, 2025, older than every other day in SAP.
+      const view = computeView({ ...input({ "vacation:2025:5": "2025-03-01" }), occasions: [] });
+      expect(row(view, "vacation:2025:5")).toMatchObject({ origin: "starting", earnDate: "2025-03-01", edited: true });
+      const starting = shown(view).filter((r) => r.benefitType === "vacation" && r.origin === "starting");
+      expect(starting.map((r) => r.key)).toEqual([
+        "vacation:2025:5",
+        "vacation:hire:1",
+        "vacation:hire:2",
+        "vacation:2025:3",
+        "vacation:2025:4",
+      ]);
+    });
+
+    it("an edited day that SAP already shows used is listed Used (not listed), so it can be reset", () => {
+      // SAP 0 h: Feb 1, 2026 moved to Nov 1, 2025 is in SAP's dates, but SAP has no days left.
+      const view = computeView({
+        ...input({ "vacation:2026:1": "2025-11-01" }, { sapVacationHours: 0 }),
+        occasions: [],
+      });
+      expect(row(view, "vacation:2026:1")).toMatchObject({ edited: true, usedNotListed: true, burnedBy: null });
+      expect(view.ledger.free.vacation).toBe(9);
+    });
+  });
+
   it("marks the row Edited, not Estimated; with no edit it is back to its walked-back date", () => {
     const edited = computeView(input({ "vacation:2025:5": "2025-11-01" }));
     expect(row(edited, "vacation:2025:5")).toMatchObject({ earnDate: "2025-11-01", edited: true, estimated: false });
