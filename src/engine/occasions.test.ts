@@ -192,6 +192,37 @@ describe("unpaid Days Off", () => {
   });
 });
 
+describe("Clash", () => {
+  it("a date that two Occasions both mark as Vacation or Floating Holiday is a Clash", () => {
+    const view = computeView(
+      input([
+        occasion("Beach", "2026-09-09", "2026-09-12"),
+        occasion("Wedding", "2026-09-10", "2026-09-10", { "2026-09-10": "floatingHoliday" }),
+      ]),
+    );
+    expect(view.clashes).toEqual([
+      {
+        date: "2026-09-10",
+        entries: [
+          { occasionId: "Beach", occasionName: "Beach", dayType: "vacation" },
+          { occasionId: "Wedding", occasionName: "Wedding", dayType: "floatingHoliday" },
+        ],
+      },
+    ]);
+  });
+
+  it("overlaps are otherwise allowed: RDO or Unpaid on a shared date is no Clash", () => {
+    const view = computeView(
+      input([
+        occasion("Beach", "2026-09-09", "2026-09-12"),
+        // Sep 12 is a Saturday (RDO in both); Sep 11 is Unpaid here.
+        occasion("Visit", "2026-09-11", "2026-09-12", { "2026-09-11": "unpaid" }),
+      ]),
+    );
+    expect(view.clashes).toEqual([]);
+  });
+});
+
 describe("Season: worked out from the start date", () => {
   it.each([
     ["2026-09-09", "Autumn", 2026],

@@ -1,6 +1,6 @@
 import { isoDate, yearOf } from "./dates";
 import { burn } from "./burning";
-import { occasionViews } from "./occasions";
+import { findClashes, occasionViews } from "./occasions";
 import { paidBy } from "./payday";
 import { projectSchedule } from "./schedule";
 import type {
@@ -49,7 +49,7 @@ export function computeView(input: EngineInput): ViewModel {
   return {
     configured: settings.hireDate !== null,
     occasions,
-    clashes: [],
+    clashes: findClashes(occasions),
     ledger: {
       groups: groupByYear(rows, currentYear, lastYear),
       free: countFree(rows),

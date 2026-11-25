@@ -1,6 +1,17 @@
 import { addDays, weekdayOf } from "./dates";
 import { paidBy } from "./payday";
-import type { DayOffView, DayType, IsoDate, Occasion, OccasionView, Season, SeasonName, Settings } from "./types";
+import type {
+  Clash,
+  ClashEntry,
+  DayOffView,
+  DayType,
+  IsoDate,
+  Occasion,
+  OccasionView,
+  Season,
+  SeasonName,
+  Settings,
+} from "./types";
 
 /**
  * Season from a start date: Nov–Jan Winter, Feb–Apr Spring, May–Jul Summer,
@@ -30,6 +41,23 @@ export function datesInRange(start: IsoDate, end: IsoDate): IsoDate[] {
 
 export const isPaid = (t: DayType): t is "vacation" | "floatingHoliday" =>
   t === "vacation" || t === "floatingHoliday";
+
+/** Dates that two or more Occasions mark as Vacation or Floating Holiday, by date. */
+export function findClashes(occasions: OccasionView[]): Clash[] {
+  const byDate = new Map<IsoDate, ClashEntry[]>();
+  for (const o of occasions) {
+    for (const d of o.days) {
+      if (!isPaid(d.dayType)) continue;
+      const entries = byDate.get(d.date) ?? [];
+      entries.push({ occasionId: o.id, occasionName: o.name, dayType: d.dayType });
+      byDate.set(d.date, entries);
+    }
+  }
+  return [...byDate]
+    .filter(([, entries]) => entries.length > 1)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, entries]) => ({ date, entries }));
+}
 
 /**
  * Occasion views sorted by start date, with each date's Day Type resolved and
