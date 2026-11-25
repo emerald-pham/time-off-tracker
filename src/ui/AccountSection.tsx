@@ -46,8 +46,10 @@ export function AccountSection({
         </p>
       ) : (
         <p className="account-status">
-          Your data is saved on this device only.
-          {canSignIn && " Sign in with Google to sync it to your other devices."}
+          Your data is saved in this browser only, and Safari can delete it after 7 days without a visit.{" "}
+          {canSignIn
+            ? "Sign in with Google to keep it in your account and sync it to your other devices, or add the app to your Home Screen."
+            : "To keep it, add the app to your Home Screen."}
         </p>
       )}
 

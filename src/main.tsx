@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { firebaseConfigFromEnv, useEmulatorsFromEnv } from "./auth/config";
 import type { AuthGateway } from "./auth/firebase";
 import { LocalDataStore, storedFlag } from "./storage";
+import { askToKeepStorage } from "./storage/keepStorage";
 import { AccountRoot } from "./ui/AccountRoot";
 import { ErrorBoundary, PageError } from "./ui/ErrorBoundary";
 import "./ui/styles.css";
@@ -41,3 +42,7 @@ createRoot(document.getElementById("root")!).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// Safari deletes a site's storage after 7 days without a visit unless it's
+// kept; ask once the page is up.
+setTimeout(() => void askToKeepStorage(), 0);
