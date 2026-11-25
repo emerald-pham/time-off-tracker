@@ -28,7 +28,7 @@ export interface Settings {
   fullYearHistory: boolean;
 }
 
-/** An Occasion as stored. Burning arrives in ticket 02. */
+/** An Occasion as stored. */
 export interface Occasion {
   id: string;
   name: string;
@@ -121,8 +121,62 @@ export interface LedgerView {
   leftoverHours: BenefitCounts;
 }
 
+export type SeasonName = "Winter" | "Spring" | "Summer" | "Autumn";
+
+/** The part of the year an Occasion starts in, labelled with the year of its first month. */
+export interface Season {
+  name: SeasonName;
+  year: number;
+}
+
+/** One Day Off of an Occasion, with its Day Type resolved (stored or default). */
+export interface DayOffView {
+  date: IsoDate;
+  dayType: DayType;
+  /** Its Payroll Week's paycheck has come out: history, Burns nothing. */
+  deducted: boolean;
+  /** Key of the Ledger row this Day Off Burns, if any. */
+  burns: ScheduleKey | null;
+  /** A paid Day Off that found no eligible Benefit Day (counts toward Short). */
+  unmet: boolean;
+}
+
+export interface OccasionView {
+  id: string;
+  name: string;
+  start: IsoDate;
+  end: IsoDate;
+  /** One per date from start to end. */
+  days: DayOffView[];
+  /** Floating Holiday and Vacation Days Off. */
+  ptoDays: number;
+  unpaid: number;
+  /** Paid Days Off left unmet: "short by N". */
+  short: number;
+  season: Season;
+  /** Every Day Off is Deducted: the Occasion is greyed as a whole. */
+  deducted: boolean;
+}
+
+/** One Occasion's side of a Clash. */
+export interface ClashEntry {
+  occasionId: string;
+  occasionName: string;
+  dayType: BenefitType;
+}
+
+/** A date two or more Occasions mark as Vacation or Floating Holiday. */
+export interface Clash {
+  date: IsoDate;
+  entries: ClashEntry[];
+}
+
 export interface ViewModel {
   ledger: LedgerView;
+  /** Sorted by start date. */
+  occasions: OccasionView[];
+  /** Clashes among the given Occasions, by date. */
+  clashes: Clash[];
   /** False until a hire date is entered; the UI opens on Settings. */
   configured: boolean;
 }

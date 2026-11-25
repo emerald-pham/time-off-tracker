@@ -1,4 +1,5 @@
 import { isoDate, yearOf } from "./dates";
+import { seasonOf } from "./occasions";
 import { paidBy } from "./payday";
 import { projectSchedule } from "./schedule";
 import type {
@@ -37,8 +38,25 @@ export function computeView(input: EngineInput): ViewModel {
   const schedule = projectSchedule(settings, lastYear);
   const rows = rollover(startingRows(schedule, settings, asOf), currentYear);
 
+  const occasions = [...input.occasions]
+    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
+    .map((o) => ({
+      id: o.id,
+      name: o.name,
+      start: o.start,
+      end: o.end,
+      days: [],
+      ptoDays: 0,
+      unpaid: 0,
+      short: 0,
+      season: seasonOf(o.start),
+      deducted: false,
+    }));
+
   return {
     configured: settings.hireDate !== null,
+    occasions,
+    clashes: [],
     ledger: {
       groups: groupByYear(rows, currentYear, lastYear),
       free: countFree(rows),
