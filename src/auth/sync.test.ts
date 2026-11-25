@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { deleteMyData, handOffOnSignIn, signOut, UnsyncedChangesError } from "./sync";
+import type { HandoffChoice } from "./sync";
 import { emptyAppData, LocalDataStore, memoryStorage } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { sam } from "../engine/fixtures";
@@ -89,6 +90,23 @@ describe("handOffOnSignIn", () => {
     expect(data).toEqual(deviceData);
     expect(await account.load()).toEqual(deviceData);
     expect(await device.load()).toBeNull();
+  });
+
+  it("a second tab's late answer doesn't replace the account again after the first tab finished", async () => {
+    // Both tabs saw the sign-in and asked; the device copy is shared between them.
+    const device = memoryStore(deviceData);
+    const account = memoryStore(accountData);
+    let answerInTab2!: (choice: HandoffChoice) => void;
+    const tab2 = handOffOnSignIn({ device, account, ask: () => new Promise((resolve) => (answerInTab2 = resolve)) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await handOffOnSignIn({ device, account, ask: async () => "replace-with-device" });
+    const editedInTab1 = { ...deviceData, settings: { ...deviceData.settings, weeklyHours: 20 } };
+    await account.update(deviceData, editedInTab1);
+    answerInTab2("replace-with-device");
+
+    expect(await tab2).toEqual(editedInTab1);
+    expect(await account.load()).toEqual(editedInTab1);
   });
 
   it("asks only once: the next sign-in on this device just uses the account", async () => {

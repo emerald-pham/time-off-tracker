@@ -49,6 +49,10 @@ export interface Handoff {
  * moves up when the account is empty; otherwise the person picks one side.
  * Either way the device copy is then emptied, so the question comes up once.
  * Returns the data the account now holds, which the app shows while signed in.
+ *
+ * Every open tab sees the sign-in and may ask. The device copy is shared, so
+ * once one tab has finished it's gone, and a later answer in another tab
+ * leaves the account alone rather than replacing it a second time.
  */
 export async function handOffOnSignIn({ device, account, ask }: Handoff): Promise<AppData | null> {
   const saved = await device.load();
@@ -59,11 +63,19 @@ export async function handOffOnSignIn({ device, account, ask }: Handoff): Promis
 
   let result = remote;
   if (local !== null) {
-    const keepAccount =
-      remoteHasData && (sameAppData(local, remote) || (await ask()) === "keep-account");
-    if (!keepAccount) {
-      await account.save(local);
-      result = local;
+    let replaceWith: AppData | null = local;
+    if (remoteHasData && !sameAppData(local, remote)) {
+      const keepAccount = (await ask()) === "keep-account";
+      // Another tab may have finished the handoff while the question was up.
+      const current = keepAccount ? null : await device.load();
+      replaceWith = current && !isEmptyAppData(current) ? current : null;
+      if (!keepAccount && replaceWith === null) return account.load();
+    } else if (remoteHasData) {
+      replaceWith = null;
+    }
+    if (replaceWith !== null) {
+      await account.save(replaceWith);
+      result = replaceWith;
     }
   }
   if (saved !== null) await device.clear();
