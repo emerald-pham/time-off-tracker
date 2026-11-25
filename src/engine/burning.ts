@@ -25,7 +25,9 @@ export function burn(rows: LedgerRow[], occasions: OccasionView[]): void {
   const ordered = [...rows].sort(burnOrder);
   const daysOff = occasions
     .flatMap((occasion) => occasion.days.map((day) => ({ occasion, day })))
-    .filter(({ day }) => isPaid(day.dayType))
+    // Deducted Days Off are history: SAP already reflects them.
+    // [ticket 03: in full-year history mode, this year's Deducted ones take part too.]
+    .filter(({ day }) => isPaid(day.dayType) && !day.deducted)
     .sort((a, b) => a.day.date.localeCompare(b.day.date));
 
   for (const { occasion, day } of daysOff) {

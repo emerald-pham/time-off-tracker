@@ -25,6 +25,34 @@ const burnedBy = (view: ReturnType<typeof computeView>, name: string) =>
     .filter((r) => r.burnedBy?.occasionName === name)
     .map((r) => [r.key, r.earnDate]);
 
+describe("E3: paydays decide what is Deducted", () => {
+  it("a Day Off on Tue Nov 18, 2025 is paid Nov 27, after E2's as-of date, so it Burns", () => {
+    const view = computeView(input([occasion("Long weekend", "2025-11-18")]));
+    expect(view.occasions[0].days).toMatchObject([{ date: "2025-11-18", deducted: false }]);
+    expect(burnedBy(view, "Long weekend")).toEqual([["vacation:hire:1", "2025-05-14"]]);
+    expect(view.occasions[0].deducted).toBe(false);
+  });
+
+  it("a Day Off paid on or before the as-of date is history: greyed, Burns nothing", () => {
+    // Mon Nov 10, 2025 is paid Thu Nov 20, before Nov 24.
+    const view = computeView(input([occasion("Errands", "2025-11-10")]));
+    expect(view.occasions[0].days).toMatchObject([
+      { date: "2025-11-10", dayType: "vacation", deducted: true, burns: null, unmet: false },
+    ]);
+    expect(view.occasions[0].deducted).toBe(true);
+    expect(view.occasions[0].short).toBe(0);
+    expect(burnedBy(view, "Errands")).toEqual([]);
+  });
+
+  it("an Occasion only partly Deducted is not greyed as a whole", () => {
+    // Fri Nov 14 and Sat Nov 15 are paid Nov 20 (Deducted); Sun Nov 16 starts a new Payroll Week.
+    const view = computeView(input([occasion("Visit", "2025-11-14", "2025-11-17")]));
+    expect(view.occasions[0].days.map((d) => d.deducted)).toEqual([true, true, false, false]);
+    expect(view.occasions[0].deducted).toBe(false);
+    expect(burnedBy(view, "Visit")).toEqual([["vacation:hire:1", "2025-05-14"]]);
+  });
+});
+
 describe("E4: oldest first", () => {
   const view = computeView(input([occasion("Ski week", "2026-02-24", "2026-02-26")]));
   const [ski] = view.occasions;

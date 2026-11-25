@@ -1,4 +1,5 @@
 import { addDays, weekdayOf } from "./dates";
+import { paidBy } from "./payday";
 import type { DayOffView, DayType, IsoDate, Occasion, OccasionView, Season, SeasonName, Settings } from "./types";
 
 /**
@@ -30,15 +31,18 @@ export function datesInRange(start: IsoDate, end: IsoDate): IsoDate[] {
 export const isPaid = (t: DayType): t is "vacation" | "floatingHoliday" =>
   t === "vacation" || t === "floatingHoliday";
 
-/** Occasion views sorted by start date, with each date's Day Type resolved. Burning fills in the rest. */
-export function occasionViews(occasions: Occasion[], settings: Settings): OccasionView[] {
+/**
+ * Occasion views sorted by start date, with each date's Day Type resolved and
+ * Deducted flagged against the SAP Balance as-of date. Burning fills in the rest.
+ */
+export function occasionViews(occasions: Occasion[], settings: Settings, asOf: IsoDate): OccasionView[] {
   return [...occasions]
     .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
     .map((o) => {
       const days: DayOffView[] = datesInRange(o.start, o.end).map((date) => ({
         date,
         dayType: o.dayTypes[date] ?? defaultDayType(date, settings),
-        deducted: false,
+        deducted: paidBy(date, asOf),
         burns: null,
         unmet: false,
       }));
@@ -52,7 +56,7 @@ export function occasionViews(occasions: Occasion[], settings: Settings): Occasi
         unpaid: days.filter((d) => d.dayType === "unpaid").length,
         short: 0,
         season: seasonOf(o.start),
-        deducted: false,
+        deducted: days.length > 0 && days.every((d) => d.deducted),
       };
     });
 }

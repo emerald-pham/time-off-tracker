@@ -38,7 +38,7 @@ export function computeView(input: EngineInput): ViewModel {
   const asOf = settings.sapAsOf ?? today;
 
   const schedule = projectSchedule(settings, lastYear);
-  const occasions = occasionViews(input.occasions, settings);
+  const occasions = occasionViews(input.occasions, settings, asOf);
   const burned = startingRows(schedule, settings, asOf);
   burn(burned, occasions);
   const rows = rollover(burned, currentYear);
