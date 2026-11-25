@@ -140,8 +140,6 @@ export interface LedgerView {
   groups: LedgerGroup[];
   /** Free Benefit Days by type, for "Free: 6 Vacation, 2 Floating Holidays". */
   free: BenefitCounts;
-  /** SAP hours that don't make a whole Benefit Day, for the "+4 hrs" note. */
-  leftoverHours: BenefitCounts;
   /**
    * Full-year history mode: rows marked Used (not listed) because SAP shows
    * days used that no listed Day Off explains, so the UI can tell the user.

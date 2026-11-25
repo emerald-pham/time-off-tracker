@@ -77,6 +77,24 @@ describe("number fields stay in range (finding 9)", () => {
   });
 });
 
+describe("SAP hours fields say what the app counts", () => {
+  const hint = (input: HTMLInputElement) =>
+    document.getElementById(input.getAttribute("aria-describedby") ?? "")?.textContent;
+
+  it("shows whole days under each balance, and any hours left over", async () => {
+    const { el } = await show({ ...configured, sapVacationHours: 43, sapFloatingHolidayHours: 8 });
+    expect(hint(field(el, "SAP Vacation hours"))).toBe("Counts as 5 days (3 hrs left over, less than a day)");
+    expect(hint(field(el, "SAP Floating Holiday hours"))).toBe("Counts as 1 day");
+  });
+
+  it("follows the balance as it's typed", async () => {
+    const { el } = await show(configured);
+    const balance = field(el, "SAP Vacation hours");
+    await typeInto(balance, "20");
+    expect(hint(balance)).toBe("Counts as 2 days (4 hrs left over, less than a day)");
+  });
+});
+
 describe("clearing a number field (finding 18)", () => {
   it("saves 0 for a balance left blank", async () => {
     const { el, last } = await show(configured);

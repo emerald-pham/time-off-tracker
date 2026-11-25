@@ -162,11 +162,6 @@ body {
   font-weight: 600;
 }
 
-.leftover {
-  font-weight: 400;
-  color: var(--muted);
-}
-
 .ledger {
   width: 100%;
   border-collapse: collapse;
@@ -257,6 +252,11 @@ body {
   color: var(--muted);
   padding: 0;
   margin-bottom: 4px;
+}
+
+.field-hint {
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .field input[type="date"],

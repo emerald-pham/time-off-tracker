@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeView } from "./index";
+import { computeView, sapBalanceDays } from "./index";
 import type { EngineInput, LedgerRow, Occasion, Settings } from "./index";
 import { sam } from "./fixtures";
 
@@ -74,9 +74,6 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
     expect(view.ledger.free).toEqual({ vacation: 15, floatingHoliday: 4 });
   });
 
-  it("has no leftover hours when the balances are whole days", () => {
-    expect(view.ledger.leftoverHours).toEqual({ vacation: 0, floatingHoliday: 0 });
-  });
 });
 
 describe("SAP Balance beyond what the schedule explains", () => {
@@ -108,17 +105,25 @@ describe("SAP Balance beyond what the schedule explains", () => {
     ]);
   });
 
-  it("keeps hours that don't make a whole day as a note", () => {
-    expect(view.ledger.leftoverHours).toEqual({ vacation: 4, floatingHoliday: 4 });
-  });
-
-  it("rounds the leftover hours to 2 decimals, so 37.6 h is 4 days + 5.6 h", () => {
-    // 37.6 % 8 is 5.600000000000001 in floating point.
+  it("rounds balances down to whole days and ignores the hours left over", () => {
     const decimals = computeView(
       input({ sapVacationHours: 37.6, sapFloatingHolidayHours: 12.3, sapAsOf: "2025-11-24" }, "2025-11-24"),
     );
-    expect(decimals.ledger.leftoverHours).toEqual({ vacation: 5.6, floatingHoliday: 4.3 });
-    expect(decimals.ledger.free.vacation).toBe(4 + 10);
+    expect(decimals.ledger.free).toEqual({ vacation: 4 + 10, floatingHoliday: 1 + 3 });
+    expect(decimals.ledger).not.toHaveProperty("leftoverHours");
+  });
+});
+
+describe("sapBalanceDays: what the app counts from an SAP balance", () => {
+  it("counts whole 8-hour days and reports what's left over", () => {
+    expect(sapBalanceDays(40)).toEqual({ days: 5, leftoverHours: 0 });
+    expect(sapBalanceDays(43)).toEqual({ days: 5, leftoverHours: 3 });
+    expect(sapBalanceDays(7.5)).toEqual({ days: 0, leftoverHours: 7.5 });
+  });
+
+  it("works in hundredths, so 37.6 h is 4 days and 5.6 h", () => {
+    // 37.6 % 8 is 5.600000000000001 in floating point.
+    expect(sapBalanceDays(37.6)).toEqual({ days: 4, leftoverHours: 5.6 });
   });
 });
 

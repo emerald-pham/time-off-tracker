@@ -21,13 +21,15 @@ import type {
 const HOURS_PER_DAY = 8;
 
 /**
- * A balance in hours as whole Benefit Days plus the hours left over, worked
- * in hundredths of an hour so 37.6 h is 4 days + 5.6 h, not 5.600000000000001.
+ * What the app counts from an SAP balance: whole 8-hour Benefit Days. The
+ * hours left over (less than a day) are ignored everywhere in the engine and
+ * only reported for Settings to explain. Worked in hundredths of an hour so
+ * 37.6 h is 4 days + 5.6 h, not 5.600000000000001.
  */
-function splitHours(hours: number): { days: number; leftover: number } {
+export function sapBalanceDays(hours: number): { days: number; leftoverHours: number } {
   const hundredths = Math.round(hours * 100);
   const perDay = HOURS_PER_DAY * 100;
-  return { days: Math.floor(hundredths / perDay), leftover: (hundredths % perDay) / 100 };
+  return { days: Math.floor(hundredths / perDay), leftoverHours: (hundredths % perDay) / 100 };
 }
 
 /**
@@ -69,7 +71,6 @@ export function computeView(input: EngineInput): ViewModel {
   const burned = applyEarnDateEdits(built.rows, edits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
-    leftoverVacationHours: splitHours(settings.sapVacationHours).leftover,
     history: built.usedNotListed && { year: currentYear, usedNotListed: built.usedNotListed },
   });
   const groups = groupByYear(rollover(burned, currentYear), currentYear, lastYear);
@@ -83,10 +84,6 @@ export function computeView(input: EngineInput): ViewModel {
       groups,
       free: countFree(shown),
       usedNotListed: countUsedNotListed(shown),
-      leftoverHours: {
-        vacation: splitHours(settings.sapVacationHours).leftover,
-        floatingHoliday: splitHours(settings.sapFloatingHolidayHours).leftover,
-      },
     },
   };
 }
@@ -143,7 +140,7 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
   return [
     ...walkBack({
       benefitType: "vacation",
-      days: splitHours(settings.sapVacationHours).days,
+      days: sapBalanceDays(settings.sapVacationHours).days,
       // A projected Vacation day is in SAP once the Payday after it's credited is on or before as-of.
       candidates: vacation.filter((e) => paidBy(e.creditedDate, asOf)),
       projected: vacation.filter((e) => !paidBy(e.creditedDate, asOf)),
@@ -152,7 +149,7 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
     }),
     ...walkBack({
       benefitType: "floatingHoliday",
-      days: splitHours(settings.sapFloatingHolidayHours).days,
+      days: sapBalanceDays(settings.sapFloatingHolidayHours).days,
       // A Floating Holiday is in SAP from its posting date.
       candidates: fh.filter((e) => yearOf(e.creditedDate) === asOfYear && e.creditedDate <= asOf),
       projected: fh.filter((e) => e.creditedDate > asOf),
@@ -226,7 +223,7 @@ function fullYearRows(
     year,
     entries: vacation,
     inSap: vacationInSap,
-    sapDays: splitHours(settings.sapVacationHours).days,
+    sapDays: sapBalanceDays(settings.sapVacationHours).days,
     deductedDaysOff: deductedDaysOff("vacation"),
     carryoverCandidates: vacation.filter((e) => yearOf(e.earnDate) < year && vacationInSap(e)),
     extraDate: eligibilityDate(hire),
@@ -238,7 +235,7 @@ function fullYearRows(
     entries: fh,
     inSap: fhInSap,
     // A balance read in an earlier year is that year's Floating Holidays, which have expired.
-    sapDays: yearOf(asOf) < year ? 0 : splitHours(settings.sapFloatingHolidayHours).days,
+    sapDays: yearOf(asOf) < year ? 0 : sapBalanceDays(settings.sapFloatingHolidayHours).days,
     deductedDaysOff: deductedDaysOff("floatingHoliday"),
     // Floating Holidays don't carry over: extra rows are dated Jan 1.
     carryoverCandidates: [],

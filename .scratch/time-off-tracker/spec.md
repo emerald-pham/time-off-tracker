@@ -40,7 +40,7 @@ The tracker does that bookkeeping.
 | Full-year history | Off by default. See "Full-year history mode". |
 | Account | "Sign in with Google to sync", or "Signed in as …" with Sign out and "Delete my data". |
 
-Every Day Off and Benefit Day is 8 hours. A balance that isn't a multiple of 8 becomes whole Benefit Days, plus a note on the Ledger such as "+4 hrs", rounded to 2 decimals ("+5.6 hrs").
+Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday balance that isn't a multiple of 8 rounds down to whole Benefit Days everywhere: the Ledger rows, the Vacation Cap check and full-year history. The hours left over are ignored. Under each SAP hours field, a short muted helper says what the app counts, such as "Counts as 5 days" or "Counts as 5 days (3 hrs left over, less than a day)", with the hours rounded to 2 decimals ("5.6 hrs").
 
 **Input limits:** a number left out of range is clamped when the field is left. A balance left blank becomes 0; weekly hours left blank go back to the saved value. Every date the app saves (hire date, as-of date, Occasion dates, Earn Date edits) must be a real date from 1950 to 2100, so a year still being typed (0002, 0020, 0202) is never saved. Saved data is checked the same way when it loads, so a damaged or hand-edited save can't break the Ledger.
 
@@ -170,7 +170,7 @@ Hours count toward one year up to 1,800 (Art. 21 §1).
 Every change recalculates everything from scratch. Walk dates in order. On any date, process earning before Days Off.
 
 **When a projected Vacation day is earned:**
-- Compute the SAP-terms Vacation balance just before it, in hours: leftover hours + 8 × (Vacation rows already earned and not lost − Burned Vacation Days Off with Payday ≤ this date).
+- Compute the SAP-terms Vacation balance just before it, in hours: 8 × (Vacation rows already earned and not lost − Burned Vacation Days Off with Payday ≤ this date).
 - If that balance is ≥ the cap, the row is **Lost to cap**. The cap is 2 × the yearly hours of the tier in effect that year: 80, 160, 240 or 320 hours (Art. 21 §5).
 
 **When a paid Day Off comes up:** this covers Vacation or Floating Holiday Days Off that aren't Deducted (in full-year history mode, every one this year).

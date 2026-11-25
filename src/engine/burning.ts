@@ -26,8 +26,8 @@ type Event =
  *
  * - When a projected Vacation day is earned, it is Lost to cap if the
  *   SAP-terms Vacation balance just before it is at the cap (Art. 21 §5):
- *   leftover hours + 8 × (Vacation rows earned and not lost − Burned
- *   Vacation Days Off paid by that date).
+ *   8 × (Vacation rows earned and not lost − Burned Vacation Days Off paid
+ *   by that date). SAP hours that don't make a whole day are ignored.
  * - Each paid Day Off Burns the oldest free Benefit Day of the same Benefit
  *   Type earned on or before its date. A Floating Holiday only Burns within
  *   its own calendar year. With nothing eligible, the Day Off goes unmet and
@@ -44,7 +44,6 @@ export function burn(
   occasions: OccasionView[],
   opts: {
     hireDate: IsoDate | null;
-    leftoverVacationHours: number;
     /**
      * Full-year history mode: the year whose Deducted Days Off Burn too, and
      * how many of its rows in SAP to mark Used (not listed) once they have.
@@ -99,7 +98,7 @@ export function burn(
       if (row.benefitType === "vacation") {
         if (row.origin === "projected" && opts.hireDate) {
           const paidOut = vacationBurnPaydays.filter((p) => p <= row.earnDate).length;
-          const balance = opts.leftoverVacationHours + HOURS_PER_DAY * (vacationEarned - paidOut);
+          const balance = HOURS_PER_DAY * (vacationEarned - paidOut);
           if (balance >= accrualTier(opts.hireDate, yearOf(row.earnDate)).capHours) {
             row.lostToCap = true;
             continue;

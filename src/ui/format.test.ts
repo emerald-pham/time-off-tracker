@@ -5,7 +5,7 @@ import {
   formatRange,
   formatEarnDate,
   freeSummary,
-  leftoverNote,
+  sapBalanceNote,
   seasonLabel,
   typeLabel,
   usedNotListedMessage,
@@ -82,8 +82,11 @@ describe("Ledger formatting", () => {
     expect(freeSummary({ vacation: 15, floatingHoliday: 1 })).toBe("Free: 15 Vacation, 1 Floating Holiday");
   });
 
-  it("notes leftover hours like '+4 hrs', and nothing when whole", () => {
-    expect(leftoverNote(4)).toBe("+4 hrs");
-    expect(leftoverNote(0)).toBeNull();
+  it("says what an SAP balance counts as, with any hours left over", () => {
+    expect(sapBalanceNote(40)).toBe("Counts as 5 days");
+    expect(sapBalanceNote(43)).toBe("Counts as 5 days (3 hrs left over, less than a day)");
+    expect(sapBalanceNote(8)).toBe("Counts as 1 day");
+    expect(sapBalanceNote(37.6)).toBe("Counts as 4 days (5.6 hrs left over, less than a day)");
+    expect(sapBalanceNote(1)).toBe("Counts as 0 days (1 hr left over, less than a day)");
   });
 });

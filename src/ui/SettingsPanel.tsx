@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { IsoDate, Settings, Weekday } from "../engine";
 import { BALANCE_HOURS, WEEKLY_HOURS } from "../storage";
 import { FullYearHistoryToggle } from "./FullYearHistoryToggle";
+import { sapBalanceNote } from "./format";
 
 const WEEKDAYS: { day: Weekday; label: string }[] = [
   { day: 0, label: "Sun" },
@@ -76,6 +77,7 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
         value={settings.sapVacationHours}
         range={BALANCE_HOURS}
         whenBlank={0}
+        hint={sapBalanceNote}
         onChange={(sapVacationHours) => setBalance({ sapVacationHours })}
       />
       <NumberField
@@ -83,6 +85,7 @@ export function SettingsPanel({ settings, today, onChange }: Props) {
         value={settings.sapFloatingHolidayHours}
         range={BALANCE_HOURS}
         whenBlank={0}
+        hint={sapBalanceNote}
         onChange={(sapFloatingHolidayHours) => setBalance({ sapFloatingHolidayHours })}
       />
       <DateField
@@ -135,23 +138,27 @@ function useEditing() {
  * A number input that lets the field be blank, or out of range, while
  * typing. Only a value within `range` is saved as it's typed. On leaving the
  * field, an out-of-range value is clamped and saved; a blank one saves
- * `whenBlank` if given, or else puts back the saved value.
+ * `whenBlank` if given, or else puts back the saved value. A `hint` about the
+ * saved value shows under the field.
  */
 function NumberField({
   label,
   value,
   range,
   whenBlank,
+  hint,
   onChange,
 }: {
   label: string;
   value: number;
   range: { min: number; max: number };
   whenBlank?: number;
+  hint?: (value: number) => string;
   onChange: (n: number) => void;
 }) {
   const [text, setText] = useState(String(value));
   const editing = useEditing();
+  const hintId = useId();
   useEffect(() => {
     if (!editing.inField && Number(text) !== value) setText(String(value));
     // Only resync when the stored value changes from outside.
@@ -171,6 +178,7 @@ function NumberField({
         min={range.min}
         max={range.max}
         step="any"
+        aria-describedby={hint ? hintId : undefined}
         value={text}
         onFocus={editing.enter}
         onChange={(e) => {
@@ -193,6 +201,11 @@ function NumberField({
           commit(Math.min(range.max, Math.max(range.min, n)));
         }}
       />
+      {hint && (
+        <small id={hintId} className="field-hint">
+          {hint(value)}
+        </small>
+      )}
     </label>
   );
 }

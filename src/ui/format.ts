@@ -1,4 +1,4 @@
-import { weekdayOf } from "../engine";
+import { sapBalanceDays, weekdayOf } from "../engine";
 import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -65,8 +65,12 @@ export function freeSummary(free: BenefitCounts): string {
   return `Free: ${free.vacation} Vacation, ${free.floatingHoliday} ${fh}`;
 }
 
-export function leftoverNote(hours: number): string | null {
-  return hours > 0 ? `+${hours} hrs` : null;
+/** Settings helper under an SAP hours field: "Counts as 5 days (3 hrs left over, less than a day)". */
+export function sapBalanceNote(hours: number): string {
+  const { days, leftoverHours } = sapBalanceDays(hours);
+  const counts = `Counts as ${days} ${days === 1 ? "day" : "days"}`;
+  if (leftoverHours === 0) return counts;
+  return `${counts} (${leftoverHours} ${leftoverHours === 1 ? "hr" : "hrs"} left over, less than a day)`;
 }
 
 /** Full-year history mode: tells the user about rows marked Used (not listed), or null if none. */

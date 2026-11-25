@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
-import { formatEarnDate, freeSummary, leftoverNote, typeLabel, usedNotListedMessage } from "./format";
+import { formatEarnDate, freeSummary, typeLabel, usedNotListedMessage } from "./format";
 import "./ledger.css";
 
 interface Props {
@@ -35,21 +35,12 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
   if (!configured) {
     return <p className="empty">Enter your hire date in Settings to see your Ledger.</p>;
   }
-  const notes = [
-    leftoverNote(ledger.leftoverHours.vacation) &&
-      `Vacation ${leftoverNote(ledger.leftoverHours.vacation)}`,
-    leftoverNote(ledger.leftoverHours.floatingHoliday) &&
-      `Floating Holiday ${leftoverNote(ledger.leftoverHours.floatingHoliday)}`,
-  ].filter(Boolean);
   const usedMessage = usedNotListedMessage(ledger.usedNotListed);
   const anyEdited = ledger.groups.some((g) => g.rows.some((r) => r.edited));
 
   return (
     <>
-      <p className="summary">
-        {freeSummary(ledger.free)}
-        {notes.length > 0 && <span className="leftover"> ({notes.join(", ")})</span>}
-      </p>
+      <p className="summary">{freeSummary(ledger.free)}</p>
       {usedMessage && (
         <p className="used-not-listed-message" role="status">
           {usedMessage}
