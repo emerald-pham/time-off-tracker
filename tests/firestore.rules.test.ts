@@ -191,6 +191,31 @@ describe("firestore.rules, version 2 documents (ADR 0003)", () => {
     await assertSucceeds(setDoc(aliceDoc(), { ...v2, data: { ...v2.data, occasionsById: { o1: occasion } } }));
   });
 
+  it("US-23: round-trips each day's approval through a per-Occasion write, both ways", async () => {
+    const store = storeFor(env.authenticatedContext("alice"), "alice");
+    const before = (await store.load())!;
+    const partly = { ...samData.occasions[0], approvedDays: ["2026-06-02", "2026-06-04"] };
+    const after = { ...before, occasions: [partly] };
+    await store.update(before, after);
+    await store.synced();
+    expect((await storeFor(env.authenticatedContext("alice"), "alice").load())!.occasions).toEqual([partly]);
+
+    const all = {
+      ...samData.occasions[0],
+      approvedDays: ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05"],
+      approved: true,
+    };
+    await store.update(after, { ...after, occasions: [all] });
+    await store.synced();
+    expect((await storeFor(env.authenticatedContext("alice"), "alice").load())!.occasions).toEqual([all]);
+
+    await store.update({ ...after, occasions: [all] }, before);
+    await store.synced();
+    expect((await storeFor(env.authenticatedContext("alice"), "alice").load())!.occasions).toEqual(
+      samData.occasions,
+    );
+  });
+
   it("needs a whole-number version", async () => {
     await assertFails(setDoc(aliceDoc(), { ...v2, version: "2" }));
     await assertFails(setDoc(aliceDoc(), { data: v2.data }));

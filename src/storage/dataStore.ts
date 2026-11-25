@@ -161,8 +161,21 @@ function occasionsFrom(value: unknown): Occasion[] {
     }
     seen.add(o.id);
     const name = typeof o.name === "string" ? o.name : "";
-    // Approval is stored only when true, so older saves keep their shape.
-    occasions.push({ id: o.id, name, start, end, dayTypes, ...(o.approved === true && { approved: true }) });
+    // Approval is stored only when there is some, so older saves keep their shape (US-23).
+    const approvedDays = Array.isArray(o.approvedDays)
+      ? [...new Set(o.approvedDays)]
+          .filter((d): d is IsoDate => isSupportedDate(d) && d >= start && d <= end)
+          .sort()
+      : [];
+    occasions.push({
+      id: o.id,
+      name,
+      start,
+      end,
+      dayTypes,
+      ...(o.approved === true && { approved: true }),
+      ...(approvedDays.length > 0 && { approvedDays }),
+    });
   }
   return occasions;
 }

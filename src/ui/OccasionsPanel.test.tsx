@@ -124,21 +124,87 @@ describe("Occasion dates must be real and between 1950 and 2100 (finding 16)", (
 
 describe("approval status", () => {
   const badge = (el: HTMLElement) => text(card(el, "Made-up trip").querySelector(".badge")!).trim();
+  const switches = (el: HTMLElement) => [...card(el, "Made-up trip").querySelectorAll<HTMLElement>('.day [role="switch"]')];
 
   it("US-23: an Occasion saved before approval existed shows 'Not approved yet'", async () => {
     const { el } = await show();
     expect(badge(el)).toBe("Not approved yet");
   });
 
-  it("US-23: Approve switches it to 'Approved', and Unapprove switches it back", async () => {
+  it("US-23: 'Approve all' approves every day, and 'Unapprove all' switches them all back", async () => {
     const { el, onChange } = await show();
-    await click(button(card(el, "Made-up trip"), "Approve"));
-    expect(saved(onChange)).toEqual([{ ...trip, approved: true }]);
+    await click(button(card(el, "Made-up trip"), "Approve all"));
+    expect(saved(onChange)).toEqual([{ ...trip, approvedDays: ["2027-03-01", "2027-03-02"], approved: true }]);
     expect(badge(el)).toBe("Approved");
+    expect(maybeButton(card(el, "Made-up trip"), "Approve all")).toBeUndefined();
 
-    await click(button(card(el, "Made-up trip"), "Unapprove"));
+    await click(button(card(el, "Made-up trip"), "Unapprove all"));
     expect(saved(onChange)).toEqual([trip]);
     expect(badge(el)).toBe("Not approved yet");
+    expect(maybeButton(card(el, "Made-up trip"), "Unapprove all")).toBeUndefined();
+  });
+
+  it("US-23: an Occasion saved approved before per-day approval shows every day approved", async () => {
+    const { el } = await show([{ ...trip, approved: true }]);
+    expect(badge(el)).toBe("Approved");
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    expect(switches(el).map((s) => s.getAttribute("aria-checked"))).toEqual(["true", "true"]);
+  });
+
+  it("US-23: a partly approved Occasion says how many days are approved, and offers both buttons", async () => {
+    // Mon Mar 1 – Fri Mar 5, 2027, with Tue and Thu approved.
+    const week: Occasion = { ...trip, end: "2027-03-05", approvedDays: ["2027-03-02", "2027-03-04"] };
+    const { el, onChange } = await show([week]);
+    expect(badge(el)).toBe("Partly approved · 2 of 5 days");
+    await click(button(card(el, "Made-up trip"), "Approve all"));
+    expect(saved(onChange)[0]).toMatchObject({ approved: true });
+    expect(saved(onChange)[0].approvedDays).toHaveLength(5);
+  });
+
+  it("US-23: each day in 'Choose days' has a large Approved / Not approved switch; Save keeps it, Cancel drops it", async () => {
+    const { el, onChange } = await show();
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    expect(switches(el).map((s) => [s.textContent?.trim(), s.getAttribute("aria-checked")])).toEqual([
+      ["Not approved", "false"],
+      ["Not approved", "false"],
+    ]);
+    // It's a button of its own, next to the day's Day Type, so the whole thing is a big target.
+    expect(switches(el)[0].tagName).toBe("BUTTON");
+    expect(switches(el)[0].closest(".day")!.querySelector("select")).not.toBeNull();
+
+    await click(switches(el)[1]);
+    expect(switches(el)[1].textContent?.trim()).toBe("Approved");
+    expect(onChange).not.toHaveBeenCalled();
+    await click(button(card(el, "Made-up trip"), "Save"));
+    expect(saved(onChange)).toEqual([{ ...trip, approvedDays: ["2027-03-02"] }]);
+    expect(badge(el)).toBe("Partly approved · 1 of 2 days");
+
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    await click(switches(el)[0]);
+    await click(button(card(el, "Made-up trip"), "Cancel"));
+    expect(saved(onChange)).toEqual([{ ...trip, approvedDays: ["2027-03-02"] }]);
+  });
+
+  it("US-23: Deducted days in 'Choose days' have no switch, and an already-taken Occasion has none at all", async () => {
+    // Fri Oct 23 – Tue Nov 24, 2026, SAP read Nov 1: Fri–Sat were paid Oct 29, so they're Deducted.
+    const straddling: Occasion = { id: "s", name: "Straddling leave", start: "2026-10-23", end: "2026-11-24", dayTypes: {} };
+    const taken: Occasion = { id: "jan", name: "January days", start: "2026-01-05", end: "2026-01-06", dayTypes: {} };
+    const { el } = await show([straddling, taken]);
+    await click(button(card(el, "Straddling leave"), "Choose days"));
+    const rows = [...card(el, "Straddling leave").querySelectorAll(".day")];
+    expect(rows.slice(0, 4).map((r) => r.querySelector('[role="switch"]') !== null)).toEqual([false, false, true, true]);
+    await click(button(card(el, "January days"), "Choose days"));
+    expect(card(el, "January days").querySelectorAll('[role="switch"]')).toHaveLength(0);
+  });
+
+  it("US-23: changing the dates keeps the approval of days still in range; added days start unapproved", async () => {
+    const { el, onChange } = await show([{ ...trip, approved: true }]);
+    await click(button(card(el, "Made-up trip"), "Edit"));
+    await typeInto(field(card(el, "Made-up trip"), "End"), "2027-03-03");
+    await click(button(card(el, "Made-up trip"), "Save"));
+    expect(saved(onChange)[0]).toMatchObject({ end: "2027-03-03", approvedDays: ["2027-03-01", "2027-03-02"] });
+    expect(saved(onChange)[0].approved).toBeUndefined();
+    expect(badge(el)).toBe("Partly approved · 2 of 3 days");
   });
 
   it("US-23: a Deducted Occasion shows no approval badge or Approve button: 'Already taken' says it all", async () => {
@@ -149,8 +215,8 @@ describe("approval status", () => {
     expect(text(c)).toContain("Already taken");
     expect(c.querySelector(".badge")).toBeNull();
     expect(text(c)).not.toMatch(/approved/i);
-    expect(maybeButton(c, "Approve")).toBeUndefined();
-    expect(maybeButton(c, "Unapprove")).toBeUndefined();
+    expect(maybeButton(c, "Approve all")).toBeUndefined();
+    expect(maybeButton(c, "Unapprove all")).toBeUndefined();
     expect([...c.querySelectorAll(".occasion-actions button")].map((b) => b.textContent?.trim())).toEqual([
       "Edit",
       "Choose days",
@@ -200,7 +266,7 @@ describe("discoverable Occasions", () => {
     const labels = [...card(el, "Made-up trip").querySelectorAll(".occasion-actions button")].map((b) =>
       b.textContent?.trim(),
     );
-    expect(labels).toEqual(["Edit", "Choose days", "Approve", "Delete"]);
+    expect(labels).toEqual(["Edit", "Choose days", "Approve all", "Delete"]);
     expect(text(el)).not.toMatch(/[▸▾]/);
   });
 

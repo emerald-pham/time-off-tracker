@@ -3,5 +3,5 @@ export { projectSchedule, accrualTier } from "./schedule";
 export type { AccrualTier } from "./schedule";
 export { payday, paidBy } from "./payday";
 export { computeView, sapBalanceDays } from "./ledger";
-export { datesInRange, rdoDates, weekOf, weeklyDayTypes } from "./occasions";
+export { approvedDates, datesInRange, rdoDates, weekOf, weeklyDayTypes, withApprovedDays } from "./occasions";
 export { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, weekdayOf } from "./dates";

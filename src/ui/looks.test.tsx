@@ -497,6 +497,18 @@ describe("touch targets", () => {
       expect(px(body, "min-height"), selector).toBeGreaterThanOrEqual(44);
     }
   });
+
+  it("US-23: each day's approval switch is a large target that wears the existing Approve / Unapprove looks", () => {
+    const body = rules(occasionsCss, ".day button.day-approval").join(";");
+    expect(px(body, "min-height")).toBeGreaterThanOrEqual(44);
+    // Reused, not restyled: the switch shares the card buttons' rules.
+    for (const look of [".occasion-actions .act-approve", ".occasion-actions .act-unapprove"]) {
+      const shared = rules(occasionsCss, look);
+      const switchLook = rules(occasionsCss, look.replace(".occasion-actions", ".day"));
+      expect(shared.length, look).toBeGreaterThan(0);
+      expect(switchLook, look).toEqual(shared);
+    }
+  });
 });
 
 describe("layout", () => {

@@ -1,5 +1,14 @@
-import { useState } from "react";
-import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, rdoDates, weeklyDayTypes } from "../engine";
+import { useId, useState } from "react";
+import {
+  FIRST_SUPPORTED_YEAR,
+  LAST_SUPPORTED_YEAR,
+  approvedDates,
+  datesInRange,
+  isSupportedDate,
+  rdoDates,
+  weeklyDayTypes,
+  withApprovedDays,
+} from "../engine";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonClass, seasonLabel, typeClass } from "./format";
@@ -29,12 +38,6 @@ type Saved = { refused: { messages: string[]; highlight: IsoDate[] }; view?: und
 
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-/** An Occasion as stored, approved or not; not approved is stored as no field at all. */
-function withApproval(o: Occasion, approved: boolean): Occasion {
-  const { approved: _was, ...rest } = o;
-  return approved ? { ...rest, approved: true } : rest;
 }
 
 export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
@@ -103,8 +106,11 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
     else if (editing?.draft.id === o.id) setEditing(null);
   };
 
-  const setApproved = (id: string, approved: boolean) =>
-    onChange(data.occasions.map((o) => (o.id === id ? withApproval(o, approved) : o)));
+  /** US-23: "Approve all" or "Unapprove all". */
+  const setAllApproved = (id: string, approved: boolean) =>
+    onChange(
+      data.occasions.map((o) => (o.id === id ? withApprovedDays(o, approved ? datesInRange(o.start, o.end) : []) : o)),
+    );
 
   const remove = (id: string) => {
     onChange(data.occasions.filter((o) => o.id !== id));
@@ -166,7 +172,8 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                     messages: [],
                   })
                 }
-                onApprove={() => setApproved(o.id, !o.approved)}
+                onApproveAll={() => setAllApproved(o.id, true)}
+                onUnapproveAll={() => setAllApproved(o.id, false)}
                 onUseFloatingHolidays={() => switchToFloatingHolidays(o)}
                 onDelete={() => toggle({ kind: "delete", draft: stored(o.id) })}
                 onMoveToNextYear={() => moveToNextYear(o.id)}
@@ -177,6 +184,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                       editing={open}
                       held={heldByOthers(o.id)}
                       deducted={new Set(o.days.filter((d) => d.deducted).map((d) => d.date))}
+                      approvable={!isPast(o)}
                       onChange={setEditing}
                       onSave={(draft) => {
                         const { refused } = trySave(draft);
@@ -187,10 +195,12 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                   ) : open?.kind === "details" ? (
                     <DetailsEditor
                       editing={open}
-                      held={heldByOthers(o.id)}
                       onChange={setEditing}
                       onSave={(draft) => {
-                        const { refused } = trySave(draft);
+                        // The new range is worked out from the Occasion as saved, so its old
+                        // range decides what's kept (Day Types, US-25; approval, US-23).
+                        const { name, start, end } = draft;
+                        const { refused } = trySave(withRange({ ...stored(o.id), name }, start, end, heldByOthers(o.id)));
                         setEditing(refused ? { ...open, draft, messages: refused.messages } : null);
                       }}
                       onCancel={() => setEditing(null)}
@@ -217,7 +227,8 @@ function OccasionCard({
   yearCheck,
   onEdit,
   onChooseDays,
-  onApprove,
+  onApproveAll,
+  onUnapproveAll,
   onUseFloatingHolidays,
   onDelete,
   onMoveToNextYear,
@@ -233,7 +244,8 @@ function OccasionCard({
   yearCheck: number | null;
   onEdit: () => void;
   onChooseDays: () => void;
-  onApprove: () => void;
+  onApproveAll: () => void;
+  onUnapproveAll: () => void;
   onUseFloatingHolidays: () => void;
   onDelete: () => void;
   onMoveToNextYear: () => void;
@@ -241,6 +253,7 @@ function OccasionCard({
   editor: React.ReactNode;
 }) {
   const count = (type: DayType) => o.days.filter((d) => d.dayType === type).length;
+  const approvedCount = o.days.filter((d) => d.approved).length;
   const nameId = `occasion-${o.id}`;
   const classes = ["occasion-card", seasonClass(o.season), o.deducted && "deducted", o.approved && "approved"];
 
@@ -257,7 +270,7 @@ function OccasionCard({
         {/* US-23: a past Occasion is already taken, so approval no longer matters. */}
         {!past && (
           <span className={o.approved ? "badge approved" : "badge pending"}>
-            {o.approved ? "Approved" : "Not approved yet"}
+            {approvalSummary(approvedCount, o.days.length)}
           </span>
         )}
       </div>
@@ -338,9 +351,14 @@ function OccasionCard({
         >
           Choose days
         </button>
-        {!past && (
-          <button type="button" className={o.approved ? "act-unapprove" : "act-approve"} onClick={onApprove}>
-            {o.approved ? "Unapprove" : "Approve"}
+        {!past && approvedCount < o.days.length && (
+          <button type="button" className="act-approve" onClick={onApproveAll}>
+            Approve all
+          </button>
+        )}
+        {!past && approvedCount > 0 && (
+          <button type="button" className="act-unapprove" onClick={onUnapproveAll}>
+            Unapprove all
           </button>
         )}
         <button
@@ -356,6 +374,13 @@ function OccasionCard({
       <Reveal open={editor !== null}>{editor}</Reveal>
     </li>
   );
+}
+
+/** US-23: "Approved", "Not approved yet" or "Partly approved · 3 of 5 days". */
+function approvalSummary(approved: number, days: number): string {
+  if (days > 0 && approved === days) return "Approved";
+  if (approved === 0) return "Not approved yet";
+  return `Partly approved · ${approved} of ${days} days`;
 }
 
 /**
@@ -485,6 +510,7 @@ function DayEditor({
   editing,
   held,
   deducted,
+  approvable = true,
   onChange,
   onSave,
   onCancel,
@@ -493,14 +519,24 @@ function DayEditor({
   /** RDO dates other Occasions hold. */
   held: IsoDate[];
   deducted: Set<IsoDate>;
+  /** False for an Occasion already taken: approval no longer matters (US-23). */
+  approvable?: boolean;
   onChange: (e: Editing) => void;
   onSave: (draft: Occasion) => void;
   onCancel: () => void;
 }) {
   const { draft } = editing;
+  const idPrefix = useId();
   const dates = Object.keys(draft.dayTypes).sort();
   const setType = (date: IsoDate, type: DayType) =>
     onChange({ ...editing, draft: { ...draft, dayTypes: { ...draft.dayTypes, [date]: type } } });
+  const approved = new Set(approvedDates(draft));
+  /** US-23: switches one day between Approved and Not approved, in the draft. */
+  const toggleApproved = (date: IsoDate) => {
+    const next = new Set(approved);
+    if (!next.delete(date)) next.add(date);
+    onChange({ ...editing, draft: withApprovedDays(draft, next) });
+  };
   /**
    * The weekly rule (US-25) over the draft, leaving Deducted days as they are
    * (SAP already shows them); Save commits it, Cancel discards it.
@@ -526,15 +562,18 @@ function DayEditor({
             editing.highlight.includes(date) && "clashing",
           ].filter(Boolean);
           const type = draft.dayTypes[date];
+          const labelId = `${idPrefix}-${date}`;
+          const isApproved = approved.has(date);
           return (
             <li key={date} className={classes.join(" ")}>
               <label>
-                <span className="day-label">
+                <span className="day-label" id={labelId}>
                   {formatDayOff(date)}
                   {deducted.has(date) && <span className="note"> Deducted</span>}
                 </span>
                 <select
                   className={`type-select ${typeClass(type)}`}
+                  aria-labelledby={labelId}
                   value={type}
                   onChange={(e) => setType(date, e.target.value as DayType)}
                 >
@@ -544,6 +583,19 @@ function DayEditor({
                     </option>
                   ))}
                 </select>
+                {/* US-23: a Deducted day is history, so its approval no longer matters. */}
+                {approvable && !deducted.has(date) && (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isApproved}
+                    aria-describedby={labelId}
+                    className={`day-approval ${isApproved ? "act-approve" : "act-unapprove"}`}
+                    onClick={() => toggleApproved(date)}
+                  >
+                    {isApproved ? "Approved" : "Not approved"}
+                  </button>
+                )}
               </label>
             </li>
           );
@@ -563,15 +615,13 @@ function DayEditor({
 
 function DetailsEditor({
   editing,
-  held,
   onChange,
   onSave,
   onCancel,
 }: {
   editing: Extract<Editing, { kind: "details" }>;
-  /** RDO dates other Occasions hold. */
-  held: IsoDate[];
   onChange: (e: Editing) => void;
+  /** The draft with its name trimmed and a range that ends on or after its start. */
   onSave: (draft: Occasion) => void;
   onCancel: () => void;
 }) {
@@ -589,7 +639,7 @@ function DetailsEditor({
           return;
         }
         const end = draft.end >= draft.start ? draft.end : draft.start;
-        onSave(withRange({ ...draft, name: draft.name.trim() }, draft.start, end, held));
+        onSave({ ...draft, name: draft.name.trim(), end });
       }}
     >
       <p className="editor-title">Edit the name and dates</p>

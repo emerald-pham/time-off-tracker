@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { approvedDates, withApprovedDays } from "../engine";
 import type { Occasion } from "../engine";
 import { sam, vacationOnWeekdays } from "../engine/fixtures";
 import { emptyAppData } from "../storage";
@@ -31,6 +32,24 @@ describe("US-25: changing an Occasion's range", () => {
       "2026-09-14": "rdo",
       "2026-09-15": "rdo",
     });
+  });
+
+  it("US-23: days still in range keep their approval, and added days start unapproved", () => {
+    // Wed Sep 9 – Sat Sep 12 with Thu and Fri approved, moved to Fri Sep 11 – Mon Sep 14.
+    const partly = withRange(withApprovedDays(beach, ["2026-09-10", "2026-09-11"]), "2026-09-11", "2026-09-14");
+    expect(partly.approvedDays).toEqual(["2026-09-11"]);
+    expect(partly.approved).toBeUndefined();
+    // All approved, saved before per-day approval: the kept days stay approved, the added ones don't.
+    const legacy = withRange({ ...beach, approved: true }, "2026-09-11", "2026-09-14");
+    expect(legacy.approvedDays).toEqual(["2026-09-11", "2026-09-12"]);
+    expect(legacy.approved).toBeUndefined();
+    // Shrinking an all-approved range keeps it all approved.
+    expect(withRange({ ...beach, approved: true }, "2026-09-10", "2026-09-11")).toMatchObject({
+      approvedDays: ["2026-09-10", "2026-09-11"],
+      approved: true,
+    });
+    // Nothing approved stays nothing, with no fields added.
+    expect(withRange(beach, "2026-09-10", "2026-09-14")).not.toHaveProperty("approvedDays");
   });
 
   it("US-25: treats a range never customized (no stored types) as the rule's too", () => {
@@ -168,6 +187,22 @@ describe("US-10: moving an Occasion's dates to a later year", () => {
       "2027-01-12": "rdo",
       "2027-01-13": "unpaid",
     });
+  });
+
+  it("US-23: moving carries each day's approval to the same place in the range", () => {
+    // Fri Jan 9 and Mon Jan 12, 2026 approved: days 1 and 4.
+    const moved = movedForward(withApprovedDays(visit, ["2026-01-09", "2026-01-12"]), 1);
+    expect(moved.approvedDays).toEqual(["2027-01-09", "2027-01-12"]);
+    expect(moved.approved).toBeUndefined();
+    // Every day approved stays every day, including one saved before per-day approval.
+    expect(approvedDates(movedForward({ ...visit, approved: true }, 1))).toEqual([
+      "2027-01-09",
+      "2027-01-10",
+      "2027-01-11",
+      "2027-01-12",
+      "2027-01-13",
+    ]);
+    expect(movedForward({ ...visit, approved: true }, 1).approved).toBe(true);
   });
 
   it("US-10: the moved days share their weeks' days off with other Occasions (US-25)", () => {

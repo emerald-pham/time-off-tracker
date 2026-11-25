@@ -1,4 +1,4 @@
-import { computeView, datesInRange, weekOf, weeklyDayTypes } from "../engine";
+import { approvedDates, computeView, datesInRange, weekOf, weeklyDayTypes, withApprovedDays } from "../engine";
 import { addMonthsClamped } from "../engine/dates";
 import type { Clash, DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
@@ -11,8 +11,15 @@ import { clashMessage } from "./format";
  * type, and added dates get the type the rule gives them over the new range.
  * `held` is the RDO dates other Occasions hold: a week's two days off are
  * shared between them.
+ *
+ * Approval (US-23): dates still in range stay approved, and added dates
+ * start unapproved.
  */
 export function withRange(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDate[] = []): Occasion {
+  return withApprovedDays(withRangeTypes(o, start, end, held), approvedDates(o));
+}
+
+function withRangeTypes(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDate[]): Occasion {
   const oldRule = weeklyDayTypes(o.start, o.end, held);
   const newRule = weeklyDayTypes(start, end, held);
   const customized = Object.entries(oldRule).some(([date, type]) => (o.dayTypes[date] ?? type) !== type);
@@ -55,18 +62,23 @@ export function yearsToMove(o: Pick<Occasion, "start" | "end">, today: IsoDate):
  * are the person's choices, so they move to the same place in the range (by
  * day index from the start); the weekly rule (US-25) sets RDO and Vacation
  * for the rest, sharing each week's two days off with the `held` RDO dates
- * of other Occasions.
+ * of other Occasions. Each day's approval (US-23) moves by day index too.
  */
 export function movedForward(o: Occasion, years: number, held: IsoDate[] = []): Occasion {
   const start = yearsLater(o.start, years);
   const end = yearsLater(o.end, years);
   const dayTypes = weeklyDayTypes(start, end, held);
   const before = datesInRange(o.start, o.end);
-  datesInRange(start, end).forEach((date, i) => {
+  const after = datesInRange(start, end);
+  after.forEach((date, i) => {
     const chosen = o.dayTypes[before[i]];
     if (chosen === "floatingHoliday" || chosen === "unpaid") dayTypes[date] = chosen;
   });
-  return { ...o, start, end, dayTypes };
+  const approved = new Set(approvedDates(o));
+  return withApprovedDays(
+    { ...o, start, end, dayTypes },
+    after.filter((_, i) => approved.has(before[i])),
+  );
 }
 
 export interface OccasionCheck {

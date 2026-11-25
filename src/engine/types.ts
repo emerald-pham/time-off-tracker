@@ -46,11 +46,20 @@ export interface Occasion {
   /** Day Type per Day Off. Dates in the range that are missing get defaults. */
   dayTypes: Record<IsoDate, DayType>;
   /**
-   * Approved by the company. Stored only when true: missing (every Occasion
-   * saved before approval existed) means not approved yet. Approval changes
+   * Every Day Off is approved by the company (US-23). Stored only when true:
+   * missing (every Occasion saved before approval existed) means not approved
+   * yet. Written alongside a full `approvedDays`, so an older app still shows
+   * the Occasion approved. Saved with no `approvedDays` (by an app from before
+   * per-day approval), it means every day is approved. Approval changes
    * nothing in Burning.
    */
   approved?: boolean;
+  /**
+   * The Days Off approved one by one (US-23), sorted. Stored only when
+   * non-empty. When present it decides each day's approval; see
+   * `approvedDates`.
+   */
+  approvedDays?: IsoDate[];
 }
 
 /**
@@ -204,6 +213,8 @@ export interface DayOffView {
   burns: ScheduleKey | null;
   /** A paid Day Off that found no eligible Benefit Day (counts toward Short). */
   unmet: boolean;
+  /** Approved by the company (US-23). Changes nothing in Burning. */
+  approved: boolean;
 }
 
 export interface OccasionView {
@@ -221,7 +232,7 @@ export interface OccasionView {
   season: Season;
   /** Every Day Off is Deducted: the Occasion is greyed as a whole. */
   deducted: boolean;
-  /** "Approved", or "Not approved yet" when false. */
+  /** Every Day Off is approved: "Approved". See each day's `approved` for the rest. */
   approved: boolean;
   /**
    * US-26: this Occasion's Vacation Days Off (not Deducted) that free

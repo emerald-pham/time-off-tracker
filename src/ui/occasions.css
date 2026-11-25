@@ -294,7 +294,9 @@
   margin-top: 12px;
 }
 
-.occasion-actions button {
+/* Each day's Approved / Not approved switch (US-23) reuses these buttons' looks. */
+.occasion-actions button,
+.day button.day-approval {
   flex: 1 1 7.4rem;
   display: inline-flex;
   align-items: center;
@@ -312,7 +314,8 @@
   cursor: pointer;
 }
 
-.occasion-actions button::before {
+.occasion-actions button::before,
+.day button.day-approval::before {
   font-size: 1.05em;
   line-height: 1;
 }
@@ -334,19 +337,23 @@
   content: "▦";
 }
 
-.occasion-actions .act-approve {
+.occasion-actions .act-approve,
+.day .act-approve {
   background: var(--ok-soft);
   color: var(--ok);
 }
-.occasion-actions .act-approve::before {
+.occasion-actions .act-approve::before,
+.day .act-approve::before {
   content: "✓";
 }
 
-.occasion-actions .act-unapprove {
+.occasion-actions .act-unapprove,
+.day .act-unapprove {
   background: var(--surface-2);
   color: var(--muted);
 }
-.occasion-actions .act-unapprove::before {
+.occasion-actions .act-unapprove::before,
+.day .act-unapprove::before {
   content: "↺";
 }
 
@@ -363,7 +370,8 @@
 }
 
 @media (hover: hover) {
-  .occasion-actions button:hover {
+  .occasion-actions button:hover,
+  .day button.day-approval:hover {
     border-color: currentColor;
   }
 }

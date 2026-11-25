@@ -26,7 +26,7 @@ A Day Off taken without pay, so it uses no benefit time.
 _Avoid_: LOA, unpaid leave
 
 **Approved**:
-Describes an Occasion the company has signed off on. An Occasion is "Not approved yet" until it's marked Approved; either way it Burns the same Benefit Days.
+Describes a Day Off the company has signed off on. An Occasion is Approved when every Day Off is, "Not approved yet" when none is, and "Partly approved" otherwise. Approved or not, a Day Off Burns the same Benefit Days.
 _Avoid_: Confirmed, booked
 
 **PTO Days**:

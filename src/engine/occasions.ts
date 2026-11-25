@@ -98,7 +98,36 @@ export function datesInRange(start: IsoDate, end: IsoDate): IsoDate[] {
   return dates;
 }
 
-export const isPaid = (t: DayType): t is "vacation" | "floatingHoliday" =>
+/**
+ * The Days Off of an Occasion that are approved (US-23), sorted: its
+ * `approvedDays` within its range, or, saved before per-day approval with
+ * `approved: true` and no `approvedDays`, every day.
+ */
+export function approvedDates(o: Pick<Occasion, "start" | "end" | "approved" | "approvedDays">): IsoDate[] {
+  const dates = datesInRange(o.start, o.end);
+  if (o.approvedDays && o.approvedDays.length > 0) {
+    const approved = new Set(o.approvedDays);
+    return dates.filter((d) => approved.has(d));
+  }
+  return o.approved === true ? dates : [];
+}
+
+/**
+ * The Occasion with exactly `dates` approved (US-23), as stored:
+ * `approvedDays` only when some are, and `approved: true` too when every Day
+ * Off is, so an older app still shows it approved. Dates outside its range
+ * are dropped.
+ */
+export function withApprovedDays(o: Occasion, dates: Iterable<IsoDate>): Occasion {
+  const { approved: _all, approvedDays: _days, ...rest } = o;
+  const wanted = new Set(dates);
+  const range = datesInRange(o.start, o.end);
+  const approvedDays = range.filter((d) => wanted.has(d));
+  if (approvedDays.length === 0) return rest;
+  return approvedDays.length === range.length ? { ...rest, approvedDays, approved: true } : { ...rest, approvedDays };
+}
+
+export const isPaid =(t: DayType): t is "vacation" | "floatingHoliday" =>
   t === "vacation" || t === "floatingHoliday";
 
 /** Dates that two or more Occasions mark as Vacation or Floating Holiday, by date. */
@@ -149,12 +178,14 @@ export function occasionViews(
       : regularDaysOff.length > 0
         ? legacyDayTypes(dates, regularDaysOff)
         : weeklyDayTypes(o.start, o.end, heldByOthers(o.id));
+    const approved = new Set(approvedDates(o));
     const days: DayOffView[] = dates.map((date) => ({
       date,
       dayType: o.dayTypes[date] ?? defaults[date],
       deducted: paidBy(date, asOf),
       burns: null,
       unmet: false,
+      approved: approved.has(date),
     }));
     rdosHeld.set(o.id, rdoDates([{ days }]));
     return {
@@ -168,7 +199,7 @@ export function occasionViews(
       short: 0,
       season: seasonOf(o.start),
       deducted: days.length > 0 && days.every((d) => d.deducted),
-      approved: o.approved === true,
+      approved: days.length > 0 && days.every((d) => d.approved),
       floatingHolidaysCouldCover: [],
     };
   });

@@ -41,9 +41,13 @@ Two Occasions may share dates, especially Unpaid or RDO days. If the same date i
 **US-10: Don't let a wrong year go unnoticed.**
 If a new Occasion's dates are already in the past, the app says so and offers to move them to the first year they'd be ahead, naming that year on the button. Moving keeps the Floating Holiday and Unpaid days I chose in the same place in the dates, and the weekly rule (US-25) sets the rest. The year shows in the dates whenever it isn't the current year. Past Occasions are labelled as already taken and counted in the SAP Balance.
 
-**US-23: Mark an Occasion approved or not.**
-Each Occasion has an approval status that I can switch between "Not approved yet" and "Approved", and it's shown clearly on the Occasion. Not-approved Occasions still plan their Benefit Days, so I can see what they'd use. Occasions saved before this existed load as not approved.
-- An Occasion that's already taken (labelled "Already taken", see US-10) shows no approval badge and no Approve or Unapprove button, since "Already taken" says it all.
+**US-23: Approve each day, or the whole Occasion at once.**
+Each Day Off is approved or not on its own, and I can still approve or unapprove the whole Occasion in one tap. Not-approved days still plan their Benefit Days, so I can see what they'd use: approval changes nothing in the Ledger.
+- In "Choose days", each day has a large Approved / Not approved switch next to its Day Type.
+- The card has "Approve all" and "Unapprove all" buttons, and a badge that sums it up: "Approved" (every day), "Not approved yet" (none) or "Partly approved · 3 of 5 days".
+- When I change the dates, days still in range keep their approval and added days start unapproved. "Move to <year>" (US-10) keeps each day's approval in the same place in the dates.
+- An Occasion that's already taken (labelled "Already taken", see US-10) shows no approval badge, buttons or switches, since "Already taken" says it all. Deducted days have no switch either.
+- Saved data keeps its meaning (US-18): Occasions saved before approval existed load as not approved, and ones saved as approved have every day approved.
 
 **US-24: Occasions are easy to figure out.**
 Instead of a small caret, each Occasion has large, clearly labelled buttons for what I can do: edit the name and dates, choose each day's type, approve or unapprove, and delete. Every field has a visible label and is obviously something I can tap.
