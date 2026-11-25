@@ -82,6 +82,13 @@ const KEYSTROKES: Record<string, { hours: number; note: string }[]> = {
     { hours: 44, note: "Counts as 5 days (4 hrs left over, less than a day)" },
     { hours: 44.5, note: "Counts as 5 days (4.5 hrs left over, less than a day)" },
   ],
+  // The decimal keypad shows "," instead of "." in many regions.
+  "44,5": [
+    { hours: 4, note: "Counts as 0 days (4 hrs left over, less than a day)" },
+    { hours: 44, note: "Counts as 5 days (4 hrs left over, less than a day)" },
+    { hours: 44, note: "Counts as 5 days (4 hrs left over, less than a day)" },
+    { hours: 44.5, note: "Counts as 5 days (4.5 hrs left over, less than a day)" },
+  ],
   "37.6": [
     { hours: 3, note: "Counts as 0 days (3 hrs left over, less than a day)" },
     { hours: 37, note: "Counts as 4 days (5 hrs left over, less than a day)" },

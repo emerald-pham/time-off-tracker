@@ -103,11 +103,15 @@ function useEditing() {
   };
 }
 
-/** Hours as a person types them: digits with at most one ".", like "44", "44.5", "44." or ".5". */
-const HOURS = /^\s*(\d+\.?\d*|\.\d+)\s*$/;
+/**
+ * Hours as a person types them: digits with at most one "." or ",", like
+ * "44", "44.5", "44,5", "44." or ".5". The decimal keypad shows "," in many
+ * regions (US-28).
+ */
+const HOURS = /^\s*(\d+[.,]?\d*|[.,]\d+)\s*$/;
 
 /** The number typed, or NaN for anything else (blank included). */
-const parseHours = (typed: string): number => (HOURS.test(typed) ? Number(typed) : NaN);
+const parseHours = (typed: string): number => (HOURS.test(typed) ? Number(typed.replace(",", ".")) : NaN);
 
 /**
  * A number input that lets the field be blank, or out of range, while
