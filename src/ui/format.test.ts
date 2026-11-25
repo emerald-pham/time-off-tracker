@@ -1,5 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { formatEarnDate, freeSummary, leftoverNote, typeLabel } from "./format";
+import {
+  clashMessage,
+  formatDayOff,
+  formatRange,
+  formatEarnDate,
+  freeSummary,
+  leftoverNote,
+  seasonLabel,
+  typeLabel,
+} from "./format";
+
+describe("Occasion formatting", () => {
+  it("shows Dates like 'Wed Sep 9 – Sat Sep 12', or one date alone", () => {
+    expect(formatRange("2026-09-09", "2026-09-12")).toBe("Wed Sep 9 – Sat Sep 12");
+    expect(formatRange("2026-09-09", "2026-09-09")).toBe("Wed Sep 9");
+  });
+
+  it("shows day editor dates like 'Tue, Nov 24th 2026'", () => {
+    expect(formatDayOff("2026-11-24")).toBe("Tue, Nov 24th 2026");
+    expect(formatDayOff("2026-11-01")).toBe("Sun, Nov 1st 2026");
+    expect(formatDayOff("2026-11-02")).toBe("Mon, Nov 2nd 2026");
+    expect(formatDayOff("2026-11-03")).toBe("Tue, Nov 3rd 2026");
+    expect(formatDayOff("2026-11-11")).toBe("Wed, Nov 11th 2026");
+    expect(formatDayOff("2026-11-12")).toBe("Thu, Nov 12th 2026");
+    expect(formatDayOff("2026-11-13")).toBe("Fri, Nov 13th 2026");
+    expect(formatDayOff("2026-11-21")).toBe("Sat, Nov 21st 2026");
+    expect(formatDayOff("2026-11-22")).toBe("Sun, Nov 22nd 2026");
+  });
+
+  it("labels the Season like 'Winter 2026'", () => {
+    expect(seasonLabel({ name: "Winter", year: 2026 })).toBe("Winter 2026");
+  });
+
+  it("explains a Clash from one Occasion's side, naming the other", () => {
+    const clash = {
+      date: "2026-09-10",
+      entries: [
+        { occasionId: "a", occasionName: "Beach", dayType: "vacation" as const },
+        { occasionId: "b", occasionName: "Wedding", dayType: "floatingHoliday" as const },
+      ],
+    };
+    expect(clashMessage(clash, "a")).toBe("Sep 10 is already Floating Holiday in 'Wedding'");
+    expect(clashMessage(clash, "b")).toBe("Sep 10 is already Vacation in 'Beach'");
+  });
+});
 
 describe("Ledger formatting", () => {
   it("shows Earn Dates like 'Mar 5', adding the year outside the year group", () => {
