@@ -275,3 +275,32 @@ describe("wrong-year safeguards", () => {
     expect(text(card(el, "Made-up trip"))).not.toContain("Already taken");
   });
 });
+
+describe("filling in Day Types automatically", () => {
+  const chosenTypes = (el: HTMLElement) =>
+    [...card(el, "Made-up trip").querySelectorAll<HTMLSelectElement>(".day select")].map((s) => s.value);
+
+  it("US-25: the day editor's large 'Fill in automatically' button applies the weekly rule to the draft, and Save commits it", async () => {
+    const { el, onChange } = await show();
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    expect(chosenTypes(el)).toEqual(["vacation", "vacation"]);
+
+    // Mon Mar 1 – Tue Mar 2, 2027 lie within one week: the week's 2 RDOs.
+    await click(button(card(el, "Made-up trip"), "Fill in automatically"));
+    expect(chosenTypes(el)).toEqual(["rdo", "rdo"]);
+    expect(onChange).not.toHaveBeenCalled();
+
+    await click(button(card(el, "Made-up trip"), "Save"));
+    expect(saved(onChange)[0].dayTypes).toEqual({ "2027-03-01": "rdo", "2027-03-02": "rdo" });
+  });
+
+  it("US-25: Cancel discards what 'Fill in automatically' did", async () => {
+    const { el, onChange } = await show();
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    await click(button(card(el, "Made-up trip"), "Fill in automatically"));
+    await click(button(card(el, "Made-up trip"), "Cancel"));
+    expect(onChange).not.toHaveBeenCalled();
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    expect(chosenTypes(el)).toEqual(["vacation", "vacation"]);
+  });
+});

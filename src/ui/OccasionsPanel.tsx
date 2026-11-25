@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
+import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, weeklyDayTypes } from "../engine";
 import { addMonthsClamped } from "../engine/dates";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
@@ -449,11 +449,16 @@ function DayEditor({
   const dates = Object.keys(draft.dayTypes).sort();
   const setType = (date: IsoDate, type: DayType) =>
     onChange({ ...editing, draft: { ...draft, dayTypes: { ...draft.dayTypes, [date]: type } } });
+  /** The weekly rule (US-25) over the whole draft; Save commits it, Cancel discards it. */
+  const fillIn = () => onChange({ ...editing, draft: { ...draft, dayTypes: weeklyDayTypes(draft.start, draft.end) } });
 
   return (
     <div className="day-editor">
       <p className="editor-title">Choose each day's type</p>
       <Messages messages={editing.messages} />
+      <button type="button" className="fill-auto" onClick={fillIn}>
+        Fill in automatically
+      </button>
       <ul className="day-list">
         {dates.map((date) => {
           const classes = [
