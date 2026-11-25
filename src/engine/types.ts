@@ -218,6 +218,15 @@ export interface OccasionView {
   deducted: boolean;
   /** "Approved", or "Not approved yet" when false. */
   approved: boolean;
+  /**
+   * US-26: this Occasion's Vacation Days Off (not Deducted) that free
+   * Floating Holidays could cover instead, earliest first; its length is
+   * the suggestion count. Free means not used by any Occasion after the full
+   * Burn pass and not Expired; each covers a day in its own calendar year
+   * that it's earned by. Every Occasion is counted against the same free
+   * Floating Holidays.
+   */
+  floatingHolidaysCouldCover: IsoDate[];
 }
 
 /** One Occasion's side of a Clash. */

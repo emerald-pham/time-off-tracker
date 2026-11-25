@@ -82,7 +82,7 @@ export function computeView(input: EngineInput): ViewModel {
 
   return {
     configured: settings.hireDate !== null,
-    occasions,
+    occasions: suggestFloatingHolidays(occasions, earned),
     clashes: findClashes(occasions),
     ledger: {
       groups,
@@ -91,6 +91,29 @@ export function computeView(input: EngineInput): ViewModel {
       usedNotListed: countUsedNotListed(shown),
     },
   };
+}
+
+/**
+ * US-26: for each Occasion, the Vacation Days Off (not Deducted) that free
+ * Floating Holidays could cover instead. A free one covers a day in its own
+ * calendar year that it is earned by. Days are taken earliest first, each
+ * using any Floating Holiday still unmatched: one earned by an earlier day is
+ * earned by every later one too, so this covers as many days as possible.
+ */
+function suggestFloatingHolidays(occasions: OccasionView[], rows: LedgerRow[]): OccasionView[] {
+  const free = rows.filter((r) => r.benefitType === "floatingHoliday" && isFree(r));
+  return occasions.map((o) => {
+    const unmatched = [...free];
+    const covered: IsoDate[] = [];
+    for (const day of o.days) {
+      if (day.dayType !== "vacation" || day.deducted) continue;
+      const i = unmatched.findIndex((r) => r.earnDate <= day.date && yearOf(r.earnDate) === yearOf(day.date));
+      if (i < 0) continue;
+      unmatched.splice(i, 1);
+      covered.push(day.date);
+    }
+    return { ...o, floatingHolidaysCouldCover: covered };
+  });
 }
 
 /**

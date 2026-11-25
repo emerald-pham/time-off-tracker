@@ -250,3 +250,65 @@ describe("approval status", () => {
     expect(burnedBy(view, "Approved")).toHaveLength(3);
   });
 });
+
+describe("US-26: Floating Holidays that could cover Vacation Days Off", () => {
+  const couldCover = (view: ReturnType<typeof computeView>, name: string) =>
+    view.occasions.find((o) => o.name === name)!.floatingHolidaysCouldCover;
+
+  it("US-26: E2's free Sep 1, 2025 Floating Holiday could cover one December Vacation day, the earliest", () => {
+    // Mon Dec 1 – Wed Dec 3, 2025, all Vacation, paid Dec 11: not Deducted.
+    const view = computeView(input([occasion("December", "2025-12-01", "2025-12-03")]));
+    expect(couldCover(view, "December")).toEqual(["2025-12-01"]);
+  });
+
+  it("US-26: counts only Floating Holidays from the day's own calendar year", () => {
+    // Mon Dec 29, 2025 – Fri Jan 2, 2026: 2025's one free Floating Holiday covers Dec 29, and
+    // 2026's three (Jan 1) cover Jan 1 and Jan 2. Dec 30 and 31 can't use 2026's.
+    const view = computeView(input([occasion("New year", "2025-12-29", "2026-01-02")]));
+    expect(couldCover(view, "New year")).toEqual(["2025-12-29", "2026-01-01", "2026-01-02"]);
+  });
+
+  it("US-26: stops at the number of free Floating Holidays, earliest days first", () => {
+    // Mon Mar 2 – Fri Mar 6, 2026: five Vacation days, three free 2026 Floating Holidays.
+    const view = computeView(input([occasion("Spring", "2026-03-02", "2026-03-06")]));
+    expect(couldCover(view, "Spring")).toEqual(["2026-03-02", "2026-03-03", "2026-03-04"]);
+  });
+
+  it("US-26: leaves out Floating Holidays used by any Occasion after the full Burn pass", () => {
+    const view = computeView(
+      input([
+        occasion("Spring", "2026-03-02", "2026-03-06"),
+        // Later in the year, so it Burns after Spring's dates: still not free.
+        occasion("Autumn day", "2026-10-05", "2026-10-05", { "2026-10-05": "floatingHoliday" }),
+      ]),
+    );
+    expect(couldCover(view, "Spring")).toEqual(["2026-03-02", "2026-03-03"]);
+    expect(couldCover(view, "Autumn day")).toEqual([]);
+  });
+
+  it("US-26: leaves out Floating Holidays not earned on or before the day", () => {
+    // Sam as of Sat Feb 1, 2025: 2025's Floating Holidays post Mar 1, Jun 1 and Sep 1.
+    const early: Partial<Settings> = { sapVacationHours: 0, sapFloatingHolidayHours: 0, sapAsOf: "2025-02-01" };
+    const view = computeView(input([occasion("June week", "2025-06-02", "2025-06-06")], early, "2025-02-01"));
+    // Mar 1 and Jun 1 are earned by Mon Jun 2; Sep 1 isn't.
+    expect(couldCover(view, "June week")).toEqual(["2025-06-02", "2025-06-03"]);
+  });
+
+  it("US-26: leaves out Expired Floating Holidays", () => {
+    // Viewed on Jan 2, 2026, the Sep 1, 2025 Floating Holiday has Expired.
+    const view = computeView(input([occasion("December", "2025-12-29", "2025-12-31")], e2, "2026-01-02"));
+    expect(couldCover(view, "December")).toEqual([]);
+  });
+
+  it("US-26: suggests nothing for Deducted, RDO, Unpaid or Floating Holiday days", () => {
+    const view = computeView(
+      input([
+        // Mon Nov 10, 2025 is Deducted (paid Nov 20, before E2's as-of date).
+        occasion("Past", "2025-11-10", "2025-11-10"),
+        occasion("Mixed", "2025-12-05", "2025-12-08", { "2025-12-05": "unpaid", "2025-12-08": "floatingHoliday" }),
+      ]),
+    );
+    expect(couldCover(view, "Past")).toEqual([]);
+    expect(couldCover(view, "Mixed")).toEqual([]);
+  });
+});
