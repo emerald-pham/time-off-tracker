@@ -56,7 +56,7 @@ Every week (Sunday to Saturday) has two days off, so the app works out each day'
 - Examples: Wed–Tue across one weekend gives RDO, RDO, Vac, Vac, Vac, RDO, RDO (3 PTO Days). Fri–Sun gives 0 PTO Days.
 - New Occasions, and dates moved to next year, get these types.
 - When I change an Occasion's dates: if I never changed its types, the whole new range is worked out again. Otherwise the dates still in range keep my types, and added dates get the type the rule gives them over the new range, never giving a week more than its two days off: my kept choices win, and an added date that would be an extra RDO is Vacation.
-- The day editor has a large "Fill in automatically" button that applies the rule to the list; Save keeps it and Cancel throws it away.
+- The day editor has a large "Fill in automatically" button that applies the rule to the list, leaving Deducted days as they are; Save keeps it and Cancel throws it away.
 - Clash rules don't change. Settings no longer asks for my regular days off; what was saved there is kept, so older data still loads.
 
 **US-26: Nudge me to use Floating Holidays before Vacation.**

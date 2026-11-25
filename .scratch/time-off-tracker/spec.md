@@ -56,7 +56,7 @@ Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday ba
   - An Occasion whose Days Off are all Deducted is labelled "Already taken · counted in your SAP balance".
 - **Day editor:**
   - **Choose days** opens one row per date, e.g. "Tue, Nov 24th 2026", each with a Day Type dropdown: RDO, Floating Holiday, Vacation or Unpaid, colored by its Day Type.
-  - A large **Fill in automatically** button above the list applies the weekly rule (below) to the whole list. It only changes the draft: **Save** keeps it, **Cancel** throws it away.
+  - A large **Fill in automatically** button above the list applies the weekly rule (below) to every day that isn't Deducted; Deducted days keep their type, since SAP already shows them. It only changes the draft: **Save** keeps it, **Cancel** throws it away.
   - **Save** stores the choices and closes the editor. **Cancel** discards them.
 - **Defaults: the weekly rule (US-25).** Weeks run Sunday to Saturday, and a *segment* is the Occasion's dates in one week. A segment of n days has r = min(2, n) RDOs and n − r Vacation days. PTO hugs the Saturday/Sunday break the time off crosses, and the RDOs sit on the far side of it:
   - The Occasion lies within one week, or the segment runs on into the next week only (its last day is a Saturday and the Occasion goes on): RDOs first, Vacation at the end. Wed–Sat: RDO, RDO, Vac, Vac.

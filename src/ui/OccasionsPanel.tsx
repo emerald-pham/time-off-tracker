@@ -497,8 +497,15 @@ function DayEditor({
   const dates = Object.keys(draft.dayTypes).sort();
   const setType = (date: IsoDate, type: DayType) =>
     onChange({ ...editing, draft: { ...draft, dayTypes: { ...draft.dayTypes, [date]: type } } });
-  /** The weekly rule (US-25) over the whole draft; Save commits it, Cancel discards it. */
-  const fillIn = () => onChange({ ...editing, draft: { ...draft, dayTypes: weeklyDayTypes(draft.start, draft.end, held) } });
+  /**
+   * The weekly rule (US-25) over the draft, leaving Deducted days as they are
+   * (SAP already shows them); Save commits it, Cancel discards it.
+   */
+  const fillIn = () => {
+    const rule = weeklyDayTypes(draft.start, draft.end, held);
+    const dayTypes = Object.fromEntries(dates.map((d) => [d, deducted.has(d) ? draft.dayTypes[d] : rule[d]]));
+    onChange({ ...editing, draft: { ...draft, dayTypes } });
+  };
 
   return (
     <div className="day-editor">

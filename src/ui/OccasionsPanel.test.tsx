@@ -359,6 +359,30 @@ describe("filling in Day Types automatically", () => {
     expect(saved(onChange)[0].dayTypes).toEqual({ "2027-03-08": "rdo", "2027-03-09": "rdo" });
   });
 
+  it("US-25: 'Fill in automatically' leaves Deducted days as they are", async () => {
+    // Thu Oct 22 – Mon Oct 26, 2026, SAP read Nov 1: Thu–Sat were paid Oct 29, so they're Deducted.
+    const straddling: Occasion = {
+      id: "straddling",
+      name: "Made-up trip",
+      start: "2026-10-22",
+      end: "2026-10-26",
+      dayTypes: {
+        "2026-10-22": "vacation",
+        "2026-10-23": "vacation",
+        "2026-10-24": "unpaid",
+        "2026-10-25": "vacation",
+        "2026-10-26": "vacation",
+      },
+    };
+    const { el, onChange } = await show([straddling]);
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    await click(button(card(el, "Made-up trip"), "Fill in automatically"));
+    // Sun–Mon carry on from the week before: the week's 2 RDOs.
+    expect(chosenTypes(el)).toEqual(["vacation", "vacation", "unpaid", "rdo", "rdo"]);
+    await click(button(card(el, "Made-up trip"), "Save"));
+    expect(saved(onChange)[0].dayTypes).toMatchObject({ "2026-10-22": "vacation", "2026-10-24": "unpaid" });
+  });
+
   it("US-25: Cancel discards what 'Fill in automatically' did", async () => {
     const { el, onChange } = await show();
     await click(button(card(el, "Made-up trip"), "Choose days"));
