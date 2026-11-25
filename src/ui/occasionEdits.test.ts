@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Occasion } from "../engine";
 import { sam, vacationOnWeekdays } from "../engine/fixtures";
 import { emptyAppData } from "../storage";
-import { checkOccasion, withRange } from "./occasionEdits";
+import { checkOccasion, movedForward, withRange, yearsToMove } from "./occasionEdits";
 
 /** Wed Sep 9 – Sat Sep 12, 2026, chosen as Vacation Wednesday to Friday. */
 const beach: Occasion = {
@@ -132,5 +132,50 @@ describe("checking an Occasion before saving", () => {
   it("checks an edited Occasion against the others, not its saved self", () => {
     const edited = withRange(beach, "2026-09-08", "2026-09-12");
     expect(checkOccasion(data, today, edited).clashes).toEqual([]);
+  });
+});
+
+describe("US-10: moving an Occasion's dates to a later year", () => {
+  // Fri Jan 9 – Tue Jan 13, 2026: Floating Holiday, RDO, RDO, Vacation, Unpaid.
+  const visit: Occasion = {
+    id: "v",
+    name: "Made-up family visit",
+    start: "2026-01-09",
+    end: "2026-01-13",
+    dayTypes: {
+      "2026-01-09": "floatingHoliday",
+      "2026-01-10": "rdo",
+      "2026-01-11": "rdo",
+      "2026-01-12": "vacation",
+      "2026-01-13": "unpaid",
+    },
+  };
+
+  it("US-10: moves to the first year the Occasion ends on or after today", () => {
+    expect(yearsToMove(visit, "2026-11-24")).toBe(1);
+    expect(yearsToMove(visit, "2027-01-13")).toBe(1);
+    expect(yearsToMove(visit, "2027-01-14")).toBe(2);
+    expect(yearsToMove({ start: "2024-03-01", end: "2024-03-01" }, "2026-11-24")).toBe(3);
+  });
+
+  it("US-10: carries Floating Holiday and Unpaid days to the same place in the range, and the weekly rule does the rest", () => {
+    // Sat Jan 9 – Wed Jan 13, 2027: the rule gives RDO, then Vac, Vac, RDO, RDO.
+    expect(movedForward(visit, 1)).toMatchObject({ start: "2027-01-09", end: "2027-01-13" });
+    expect(movedForward(visit, 1).dayTypes).toEqual({
+      "2027-01-09": "floatingHoliday",
+      "2027-01-10": "vacation",
+      "2027-01-11": "vacation",
+      "2027-01-12": "rdo",
+      "2027-01-13": "unpaid",
+    });
+  });
+
+  it("US-10: the moved days share their weeks' days off with other Occasions (US-25)", () => {
+    // Another Occasion holds Thu Jan 14 and Fri Jan 15, 2027 as RDO: that week's two days off are gone.
+    expect(movedForward(visit, 1, ["2027-01-14", "2027-01-15"]).dayTypes).toMatchObject({
+      "2027-01-10": "vacation",
+      "2027-01-11": "vacation",
+      "2027-01-12": "vacation",
+    });
   });
 });

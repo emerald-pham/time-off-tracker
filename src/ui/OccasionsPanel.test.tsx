@@ -255,6 +255,38 @@ describe("wrong-year safeguards", () => {
     expect(text(card(el, "Typo trip").querySelector(".dates")!).trim()).toBe("Tue Jan 5 – Wed Jan 6, 2027");
   });
 
+  it("US-10: dates more than a year back move to the first year they're ahead, named on the button", async () => {
+    const { el, onChange } = await show([]);
+    // Mar 1, 2024 is still past in 2025 and 2026, so it moves to Mar 1, 2027.
+    await addOccasion(el, "Long-ago typo", "2024-03-01");
+    expect(text(el)).toContain("These dates are in the past. Did you mean 2027?");
+    await click(button(el, "Move to 2027"));
+    expect(saved(onChange)[0]).toMatchObject({ start: "2027-03-01", end: "2027-03-01" });
+    expect(text(el)).not.toContain("in the past");
+  });
+
+  it("US-10: moving keeps the Floating Holiday and Unpaid days I chose, in the same place", async () => {
+    const { el, onChange } = await show([]);
+    // Mon Jan 5 – Wed Jan 7, 2026.
+    await addOccasion(el, "Typo trip", "2026-01-05", "2026-01-07");
+    await click(button(card(el, "Typo trip"), "Choose days"));
+    const selects = [...card(el, "Typo trip").querySelectorAll<HTMLSelectElement>(".day select")];
+    for (const [i, type] of [[0, "floatingHoliday"], [2, "unpaid"]] as const) {
+      await act(async () => {
+        selects[i].value = type;
+        selects[i].dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+    await click(button(card(el, "Typo trip"), "Save"));
+    await click(button(el, "Move to 2027"));
+    // Tue Jan 5 – Thu Jan 7, 2027: the weekly rule makes Wed an RDO; the choices keep their places.
+    expect(saved(onChange)[0].dayTypes).toEqual({
+      "2027-01-05": "floatingHoliday",
+      "2027-01-06": "rdo",
+      "2027-01-07": "unpaid",
+    });
+  });
+
   it("US-10: the question can be dismissed, keeping the dates", async () => {
     const { el, onChange } = await show([]);
     await addOccasion(el, "Old trip", "2026-01-05");

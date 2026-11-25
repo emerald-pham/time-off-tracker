@@ -1,4 +1,5 @@
-import { computeView, weekOf, weeklyDayTypes } from "../engine";
+import { computeView, datesInRange, weekOf, weeklyDayTypes } from "../engine";
+import { addMonthsClamped } from "../engine/dates";
 import type { Clash, DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { clashMessage } from "./format";
@@ -36,6 +37,35 @@ export function withRange(o: Occasion, start: IsoDate, end: IsoDate, held: IsoDa
       dayTypes[date] = "vacation";
     }
   }
+  return { ...o, start, end, dayTypes };
+}
+
+/** The same date `years` later (Feb 29 becomes Feb 28 in a year without one). */
+const yearsLater = (d: IsoDate, years: number) => addMonthsClamped(d, 12 * years);
+
+/** US-10: how many years forward the dates must move to end on or after today (at least one). */
+export function yearsToMove(o: Pick<Occasion, "start" | "end">, today: IsoDate): number {
+  let years = 1;
+  while (yearsLater(o.end, years) < today) years++;
+  return years;
+}
+
+/**
+ * US-10: the Occasion's dates `years` later. Floating Holiday and Unpaid days
+ * are the person's choices, so they move to the same place in the range (by
+ * day index from the start); the weekly rule (US-25) sets RDO and Vacation
+ * for the rest, sharing each week's two days off with the `held` RDO dates
+ * of other Occasions.
+ */
+export function movedForward(o: Occasion, years: number, held: IsoDate[] = []): Occasion {
+  const start = yearsLater(o.start, years);
+  const end = yearsLater(o.end, years);
+  const dayTypes = weeklyDayTypes(start, end, held);
+  const before = datesInRange(o.start, o.end);
+  datesInRange(start, end).forEach((date, i) => {
+    const chosen = o.dayTypes[before[i]];
+    if (chosen === "floatingHoliday" || chosen === "unpaid") dayTypes[date] = chosen;
+  });
   return { ...o, start, end, dayTypes };
 }
 

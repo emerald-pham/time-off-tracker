@@ -38,7 +38,7 @@ PTO Days counts Floating Holiday and Vacation days. RDO days don't count. Unpaid
 Two Occasions may share dates, especially Unpaid or RDO days. If the same date is Vacation or Floating Holiday in both, it's a Clash, and Save is refused with a message naming the other Occasion.
 
 **US-10: Don't let a wrong year go unnoticed.**
-If a new Occasion's dates are already in the past, the app says so and offers to move them to next year. The year shows in the dates whenever it isn't the current year. Past Occasions are labelled as already taken and counted in the SAP Balance.
+If a new Occasion's dates are already in the past, the app says so and offers to move them to the first year they'd be ahead, naming that year on the button. Moving keeps the Floating Holiday and Unpaid days I chose in the same place in the dates, and the weekly rule (US-25) sets the rest. The year shows in the dates whenever it isn't the current year. Past Occasions are labelled as already taken and counted in the SAP Balance.
 
 **US-23: Mark an Occasion approved or not.**
 Each Occasion has an approval status that I can switch between "Not approved yet" and "Approved", and it's shown clearly on the Occasion. Not-approved Occasions still plan their Benefit Days, so I can see what they'd use. Occasions saved before this existed load as not approved.

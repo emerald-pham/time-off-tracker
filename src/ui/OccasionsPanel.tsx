@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate, rdoDates, weeklyDayTypes } from "../engine";
-import { addMonthsClamped } from "../engine/dates";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonClass, seasonLabel, typeClass } from "./format";
 import { Reveal } from "./motion";
-import { checkOccasion, withRange, withResolvedTypes } from "./occasionEdits";
+import { checkOccasion, movedForward, withRange, withResolvedTypes, yearsToMove } from "./occasionEdits";
 import "./occasions.css";
 
 const DAY_TYPES: DayType[] = ["rdo", "floatingHoliday", "vacation", "unpaid"];
@@ -31,9 +30,6 @@ type Saved = { refused: { messages: string[]; highlight: IsoDate[] }; view?: und
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
-
-/** The same dates a year later (Feb 29 becomes Feb 28). */
-const aYearLater = (d: IsoDate) => addMonthsClamped(d, 12);
 
 /** An Occasion as stored, approved or not; not approved is stored as no field at all. */
 function withApproval(o: Occasion, approved: boolean): Occasion {
@@ -80,9 +76,10 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
     }
   };
 
+  /** US-10: moves the dates to the first year they end on or after today, keeping the person's choices. */
   const moveToNextYear = (id: string) => {
     const o = stored(id);
-    const moved = { ...o, start: aYearLater(o.start), end: aYearLater(o.end), dayTypes: {} };
+    const moved = movedForward(o, yearsToMove(o, today), heldByOthers(id));
     setYearCheck(null);
     const { refused } = trySave(moved);
     if (refused) {
@@ -158,7 +155,7 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                 currentYear={currentYear}
                 past={isPast(o)}
                 open={open}
-                yearCheck={yearCheck === o.id}
+                yearCheck={yearCheck === o.id ? Number(o.start.slice(0, 4)) + yearsToMove(o, today) : null}
                 onEdit={() => toggle({ kind: "details", draft: stored(o.id), messages: [] })}
                 onChooseDays={() =>
                   toggle({
@@ -232,7 +229,8 @@ function OccasionCard({
   currentYear: number;
   past: boolean;
   open: Editing | null;
-  yearCheck: boolean;
+  /** The year to offer moving the dates to, or null when not asking. */
+  yearCheck: number | null;
   onEdit: () => void;
   onChooseDays: () => void;
   onApprove: () => void;
@@ -244,7 +242,6 @@ function OccasionCard({
 }) {
   const count = (type: DayType) => o.days.filter((d) => d.dayType === type).length;
   const nameId = `occasion-${o.id}`;
-  const nextYear = Number(o.start.slice(0, 4)) + 1;
   const classes = ["occasion-card", seasonClass(o.season), o.deducted && "deducted", o.approved && "approved"];
 
   return (
@@ -262,14 +259,14 @@ function OccasionCard({
         </span>
       </div>
 
-      {yearCheck && (
+      {yearCheck !== null && (
         <div className="year-check" role="alert">
           <p>
-            These dates are in the past. Did you mean {nextYear}?
+            These dates are in the past. Did you mean {yearCheck}?
           </p>
           <div className="year-check-actions">
             <button type="button" className="primary" onClick={onMoveToNextYear}>
-              Move to {nextYear}
+              Move to {yearCheck}
             </button>
             <button type="button" onClick={onKeepDates}>
               Keep these dates
