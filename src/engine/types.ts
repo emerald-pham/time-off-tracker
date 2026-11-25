@@ -22,7 +22,11 @@ export interface Settings {
   regularDaysOff: Weekday[];
   sapVacationHours: number;
   sapFloatingHolidayHours: number;
-  /** SAP Balance as-of date. Null means "today". */
+  /**
+   * SAP Balance as-of date. Null only before setup: the app stamps it when
+   * the hire date is entered and never clears it. If it's still null, the
+   * engine uses today.
+   */
   sapAsOf: IsoDate | null;
   /** Full-year history mode: rebuild the current year from the hire date. Off by default. */
   fullYearHistory: boolean;

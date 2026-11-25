@@ -33,14 +33,18 @@ The tracker does that bookkeeping.
 |---|---|
 | Hire date | Drives the Accrual Tier, the first-year unlock and Floating Holiday posting. |
 | Regular days off | Weekday checkboxes. Used only to default new Days Off to RDO. |
-| Weekly hours | Default 40. Used to project Earn Dates. |
-| SAP Vacation hours | As shown in SAP. |
-| SAP Floating Holiday hours | As shown in SAP. |
-| SAP Balance as-of date | Set to today whenever either balance changes. Editable. |
+| Weekly hours | Default 40. Used to project Earn Dates. From 1 to 80. |
+| SAP Vacation hours | As shown in SAP. From 0 to 2,000. |
+| SAP Floating Holiday hours | As shown in SAP. From 0 to 2,000. |
+| SAP Balance as-of date | Set to today when the hire date is first entered, and whenever either balance changes. Editable, but it can't be cleared: the Ledger always works from a real date, never "today", so it doesn't drift as days pass. A save from before this rule with a hire date and no as-of date gets today's date once, when it loads. |
 | Full-year history | Off by default. See "Full-year history mode". |
 | Account | "Sign in with Google to sync", or "Signed in as …" with Sign out and "Delete my data". |
 
-Every Day Off and Benefit Day is 8 hours. A balance that isn't a multiple of 8 becomes whole Benefit Days, plus a note on the Ledger such as "+4 hrs".
+Every Day Off and Benefit Day is 8 hours. A balance that isn't a multiple of 8 becomes whole Benefit Days, plus a note on the Ledger such as "+4 hrs", rounded to 2 decimals ("+5.6 hrs").
+
+**Input limits:** a number left out of range is clamped when the field is left. A balance left blank becomes 0; weekly hours left blank go back to the saved value. Every date the app saves (hire date, as-of date, Occasion dates, Earn Date edits) must be a real date from 1950 to 2100, so a year still being typed (0002, 0020, 0202) is never saved. Saved data is checked the same way when it loads, so a damaged or hand-edited save can't break the Ledger.
+
+**Today** is the device's local date. It moves on at midnight while the app stays open, and catches up when the app comes back into view.
 
 ## Occasions (middle)
 

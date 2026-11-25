@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { computeView } from "../engine";
-import type { IsoDate } from "../engine";
 import { emptyAppData, sameAppData } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { resetEarnDate, setEarnDate } from "./earnDateEdits";
@@ -8,6 +7,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { LedgerPanel } from "./LedgerPanel";
 import { OccasionsPanel } from "./OccasionsPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { useToday } from "./useToday";
 
 type Section = "ledger" | "occasions" | "settings";
 
@@ -16,13 +16,6 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "occasions", label: "Occasions" },
   { id: "settings", label: "Settings" },
 ];
-
-/** Today in the device's time zone, as an ISO date. */
-function localToday(): IsoDate {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
 
 /**
  * `account` is the Settings "Account" section, rendered below the settings.
@@ -40,7 +33,8 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notKept, setNotKept] = useState(false);
-  const today = localToday();
+  // Kept current past midnight, so the Ledger and the as-of stamp use the real date.
+  const today = useToday();
 
   useEffect(() => {
     let first = true;
@@ -59,6 +53,16 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
       (e) => (first ? setLoadError(e) : setSaveError(e.message)),
     );
   }, [store]);
+
+  // A save from before the as-of date was always kept can have a hire date
+  // and no as-of date, which made the balance drift with the calendar. Give
+  // it today's date, once, so it stays put from now on.
+  useEffect(() => {
+    if (!data?.settings.hireDate || data.settings.sapAsOf) return;
+    const stamped = { ...data, settings: { ...data.settings, sapAsOf: today } };
+    setData(stamped);
+    store.update(data, stamped).catch((e: unknown) => setSaveError(`Couldn't save that change: ${message(e)}`));
+  }, [data, today, store]);
 
   const computed = useMemo(() => {
     if (!data) return null;
