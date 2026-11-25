@@ -1,4 +1,4 @@
-import { emptyAppData } from "./dataStore";
+import { withDefaults } from "./dataStore";
 import type { AppData, DataStore } from "./dataStore";
 
 /** The part of the Web Storage API we use; `window.localStorage` fits. */
@@ -21,12 +21,7 @@ export class LocalDataStore implements DataStore {
     if (raw === null) return null;
     try {
       const { data } = JSON.parse(raw) as Envelope;
-      const empty = emptyAppData();
-      return {
-        settings: { ...empty.settings, ...data.settings },
-        occasions: data.occasions ?? empty.occasions,
-        earnDateEdits: data.earnDateEdits ?? empty.earnDateEdits,
-      };
+      return withDefaults(data);
     } catch {
       return null;
     }

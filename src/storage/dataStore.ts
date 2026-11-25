@@ -36,6 +36,16 @@ export function emptyAppData(): AppData {
   };
 }
 
+/** Fills anything added since the data was saved with its default. */
+export function withDefaults(data: Partial<AppData>): AppData {
+  const empty = emptyAppData();
+  return {
+    settings: { ...empty.settings, ...data.settings },
+    occasions: data.occasions ?? empty.occasions,
+    earnDateEdits: data.earnDateEdits ?? empty.earnDateEdits,
+  };
+}
+
 /** True when two AppData values hold the same data, whatever their key order. */
 export function sameAppData(a: AppData, b: AppData): boolean {
   return canonical(a) === canonical(b);

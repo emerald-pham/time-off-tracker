@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// One document per person at users/{uid}, readable and writable only by that
+// signed-in person (ADR 0001). Everything else is denied, including listing
+// the users collection, which a `get`-style match on one id never allows.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow get, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['version', 'data', 'updatedAt']);
+    }
+  }
+
+  function isOwner(uid) {
+    return request.auth != null && request.auth.uid == uid;
+  }
+}
