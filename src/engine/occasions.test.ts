@@ -134,6 +134,39 @@ describe("E6: Short", () => {
   });
 });
 
+describe("E7: Vacation Cap", () => {
+  /** "Lee", made up: hired Mar 3, 2015, so 2026 is the 3-week tier and the cap is 240 h. */
+  const lee: Partial<Settings> = {
+    hireDate: "2015-03-03",
+    sapVacationHours: 240,
+    sapFloatingHolidayHours: 0,
+    sapAsOf: "2026-01-10",
+  };
+  const jan22 = (view: ReturnType<typeof computeView>) => rows(view).find((r) => r.key === "vacation:2026:1")!;
+
+  it("at the cap, the first 2026 projected day, Jan 22, is Lost to cap and not free", () => {
+    const view = computeView(input([], lee, "2026-01-10"));
+    expect([jan22(view).earnDate, jan22(view).lostToCap]).toEqual(["2026-01-22", true]);
+    // 30 starting rows; Jan 22 lost; the second day (Feb 12) is earned at 240 h too, so lost as well.
+    expect(rows(view).find((r) => r.key === "vacation:2026:2")!.lostToCap).toBe(true);
+  });
+
+  it("a Vacation Day Off on Mon Jan 5, 2026 (paid Jan 15) drops the balance to 232 h, so Jan 22 is earned", () => {
+    const view = computeView(input([occasion("Day", "2026-01-05")], lee, "2026-01-10"));
+    expect(view.occasions[0].days[0]).toMatchObject({ deducted: false, unmet: false });
+    expect(jan22(view).lostToCap).toBe(false);
+    // Jan 22 brings it back to 240 h, so Feb 12 is lost.
+    expect(rows(view).find((r) => r.key === "vacation:2026:2")!.lostToCap).toBe(true);
+  });
+
+  it("rows Lost to cap are not free", () => {
+    const view = computeView(input([], lee, "2026-01-10"));
+    const lost = rows(view).filter((r) => r.lostToCap).length;
+    const total = rows(view).filter((r) => r.benefitType === "vacation").length;
+    expect(view.ledger.free.vacation).toBe(total - lost);
+  });
+});
+
 describe("rollover with Burning", () => {
   it("last year's Vacation Burned by a Day Off this year was free on Jan 1, so it is Carryover", () => {
     const view = computeView(input([occasion("Jan day", "2026-01-05")], e2, "2026-01-02"));

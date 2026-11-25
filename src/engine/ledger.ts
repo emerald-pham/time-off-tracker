@@ -40,7 +40,10 @@ export function computeView(input: EngineInput): ViewModel {
   const schedule = projectSchedule(settings, lastYear);
   const occasions = occasionViews(input.occasions, settings, asOf);
   const burned = startingRows(schedule, settings, asOf);
-  burn(burned, occasions);
+  burn(burned, occasions, {
+    hireDate: settings.hireDate,
+    leftoverVacationHours: settings.sapVacationHours % HOURS_PER_DAY,
+  });
   const rows = rollover(burned, currentYear);
 
   return {
