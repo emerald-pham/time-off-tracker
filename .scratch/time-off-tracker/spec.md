@@ -205,10 +205,9 @@ RDO and Unpaid Days Off Burn nothing.
 
 **Sign out:** clears the device copy. It first waits a few seconds for every change to reach the account. If some haven't (offline), sign-out is refused with an explanation, and "Discard unsynced changes and sign out" signs out anyway.
 
-**Delete my data:** deletes the user's Firestore document and the local copy.
-- It's done on this device at once, and from then on no edit is saved, so nothing can bring the document back.
-- Signed in, sign-out waits until the server has the delete, because signing out wipes the offline queue the delete is waiting in. Offline, the app says it finishes when the device is back online. When it does, it deletes whatever the account holds then, including edits other devices made in the meantime.
-- Choosing "Discard unsynced changes and sign out" in another tab meanwhile cancels the delete too; the warning says so.
+**Delete my data:** deletes the user's Firestore document and the local copy, then signs out.
+- Signed in, it needs a connection. The app checks it can reach the account, then deletes the document on the server in one step that never waits in the offline queue, so a delete can't run later over data other devices have saved since. Offline, it refuses with "You need to be online to delete your data", and nothing is deleted.
+- While the delete runs, and after it, no edit on this device is saved, so nothing can bring the document back.
 
 **Startup:** the app shows at once, on this device's copy, and loads Firebase behind it. Unless the last visit is known to have ended signed out, it says "Loading your account…" until Firebase answers instead (if Firebase can't load, it carries on signed out, unless the person was signed in). Errors never leave a blank page: loading, saving and Ledger errors are shown with Settings and the Account section still reachable.
 

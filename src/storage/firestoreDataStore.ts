@@ -1,16 +1,17 @@
 import {
-  deleteDoc,
   deleteField,
   FieldPath,
   getDoc,
   getDocFromCache,
+  getDocFromServer,
   onSnapshot,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
 } from "firebase/firestore";
 import type { DocumentReference, DocumentSnapshot, FirestoreError } from "firebase/firestore";
-import { changesBetween, NewerDataError, withDefaults } from "./dataStore";
+import { changesBetween, NewerDataError, OfflineError, withDefaults } from "./dataStore";
 import type { AppData, DataChange, DataStore, StoreState } from "./dataStore";
 
 /**
@@ -62,8 +63,8 @@ interface Seen {
  * - A document from a newer version of the app is never overwritten.
  * - Writes resolve once they're on this device, not when the server has them,
  *   which offline may be never. `synced()` waits for the server.
- * - After `clear()` ("Delete my data") the store refuses every save, so an
- *   edit made while the delete is still on its way can't bring the data back.
+ * - `clear()` ("Delete my data") needs the server and never queues; after it
+ *   the store refuses every save.
  */
 export class FirestoreDataStore implements DataStore {
   private seen: Seen | null = null;
@@ -122,10 +123,27 @@ export class FirestoreDataStore implements DataStore {
     );
   }
 
+  /**
+   * "Delete my data": deletes the document on the server, or refuses with
+   * OfflineError and deletes nothing. A delete left waiting in the offline
+   * queue would run whenever this device next got online, wiping whatever
+   * other devices had saved by then. So this checks the server can be
+   * reached, then deletes in a transaction, which goes straight to the
+   * server and is never queued. Saves are refused from the start, and for
+   * good once the delete succeeds.
+   */
   async clear(): Promise<void> {
     this.deleted = true;
+    try {
+      await getDocFromServer(this.ref);
+      await runTransaction(this.ref.firestore, async (transaction) => {
+        transaction.delete(this.ref);
+      });
+    } catch (e) {
+      this.deleted = false;
+      throw (e as FirestoreError).code === "unavailable" ? new OfflineError() : e;
+    }
     this.seen = { exists: false, version: 0 };
-    await this.commit(deleteDoc(this.ref));
   }
 
   /** Resolves once the server has every write made through this store; rejects if it refused the last one. */

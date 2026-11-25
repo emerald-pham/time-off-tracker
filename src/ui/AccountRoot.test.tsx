@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import type { Account, AuthGateway } from "../auth/firebase";
-import { LocalDataStore, memoryStorage } from "../storage";
+import { LocalDataStore, memoryStorage, OfflineError } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { sam } from "../engine/fixtures";
 import { AccountRoot } from "./AccountRoot";
@@ -21,19 +21,18 @@ function accountStore(initial: AppData | null) {
   if (initial) void inner.save(initial);
   let release = () => {};
   let gate: Promise<void> | null = null;
-  let synced: Promise<void> = Promise.resolve();
+
   const store = {
     failLoads: null as Error | null,
     holdLoads() {
       gate = new Promise((resolve) => (release = resolve));
     },
     releaseLoads: () => release(),
-    /** Offline: writes land, but the server never answers until `online()`. */
+    /** Offline: deleting needs the server, so `clear()` refuses. */
     offline() {
-      let answer = () => {};
-      synced = new Promise((resolve) => (answer = resolve));
-      return { online: () => answer() };
+      store.isOffline = true;
     },
+    isOffline: false,
     async load() {
       if (store.failLoads) throw store.failLoads;
       if (gate) await gate;
@@ -41,8 +40,11 @@ function accountStore(initial: AppData | null) {
     },
     save: (d: AppData) => inner.save(d),
     update: (a: AppData, b: AppData) => inner.update(a, b),
-    clear: () => inner.clear(),
-    synced: () => synced,
+    clear: async () => {
+      if (store.isOffline) throw new OfflineError();
+      await inner.clear();
+    },
+    synced: () => inner.synced(),
     subscribe: inner.subscribe.bind(inner),
   };
   return store;
@@ -216,23 +218,30 @@ describe("signing out before changes reach the account (finding 2)", () => {
   });
 });
 
-describe("Delete my data while offline (finding 4)", () => {
-  it("says it finishes when back online instead of loading forever, and leaves nothing to edit", async () => {
+describe("Delete my data needs a connection (finding 4)", () => {
+  it("offline, says so instead of loading forever, and deletes nothing", async () => {
     const xs = accountStore(xData);
     const { gw, el } = await setup({ x: xs }, null);
     await gw.emit(X);
-    const network = xs.offline();
+    xs.offline();
 
     await click(button(el, "Delete my data"));
 
-    expect(text(el)).toContain("finishes when you're back online");
+    expect(text(el)).toContain("You need to be online to delete your data");
     expect(text(el)).not.toContain("Loading your account");
-    expect(el.querySelector("form.settings")).toBeNull();
+    expect(button(el, "Delete my data").disabled).toBe(false);
     expect(gw.signOut).not.toHaveBeenCalled();
-    expect(await xs.load()).toBeNull();
+    expect(await xs.load()).toEqual(xData);
+  });
 
-    network.online();
-    await flush();
+  it("online, deletes the account's copy and signs out", async () => {
+    const xs = accountStore(xData);
+    const { gw, el } = await setup({ x: xs }, null);
+    await gw.emit(X);
+
+    await click(button(el, "Delete my data"));
+
+    expect(await xs.load()).toBeNull();
     expect(gw.signOut).toHaveBeenCalledOnce();
   });
 });

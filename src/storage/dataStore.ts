@@ -67,6 +67,14 @@ export class NewerDataError extends Error {
   }
 }
 
+/** Deleting the account's copy needs the server, and it couldn't be reached. Nothing was deleted. */
+export class OfflineError extends Error {
+  constructor() {
+    super("You need to be online to delete your data. Nothing was deleted.");
+    this.name = "OfflineError";
+  }
+}
+
 export function emptyAppData(): AppData {
   return {
     settings: {

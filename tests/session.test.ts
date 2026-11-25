@@ -94,30 +94,40 @@ describe("signing out with a change still offline", () => {
   });
 });
 
-describe("Delete my data, offline", () => {
-  it("is done on the device at once, refuses later edits, and finishes when back online", async () => {
+describe("Delete my data needs the server", () => {
+  it("offline, refuses, deletes nothing, and leaves no delete waiting to run later", async () => {
     const phone = open();
-    await phone.store.save(deviceData);
+    await phone.store.save(accountData);
     await waitForPendingWrites(phone.db);
-    const copy = (await phone.store.load())!;
+    await phone.store.load();
+    const local = new LocalDataStore(memoryStorage());
+    await local.save(deviceData);
     await disableNetwork(phone.db);
     const session = sessionFor(phone);
 
-    const result = await within(
-      deleteMyData({ device: new LocalDataStore(memoryStorage()), account: phone.store, session }),
-      2000,
+    await expect(deleteMyData({ device: local, account: phone.store, session })).rejects.toThrow(
+      "You need to be online to delete your data",
     );
-    expect(result).not.toBe("pending");
-    const { accountDeleted } = result as { accountDeleted: Promise<void> };
-
-    await expect(phone.store.update(copy, { ...copy, occasions: [] })).rejects.toThrow();
-    expect(await within(accountDeleted, 500)).toBe("pending");
+    expect(await local.load()).toEqual(deviceData);
     expect(session.signOut).not.toHaveBeenCalled();
 
+    // Back online, nothing queued runs: the account keeps its data.
     await enableNetwork(phone.db);
-    await within(accountDeleted, 5000);
-    expect(session.signOut).toHaveBeenCalledOnce();
+    await waitForPendingWrites(phone.db);
+    expect(await serverHasDocument()).toBe(true);
+  });
+
+  it("online, deletes the account's copy on the server, then signs out", async () => {
+    const phone = open();
+    await phone.store.save(accountData);
+    await waitForPendingWrites(phone.db);
+    await phone.store.load();
+    const session = sessionFor(phone);
+
+    await deleteMyData({ device: new LocalDataStore(memoryStorage()), account: phone.store, session });
+
     expect(await serverHasDocument()).toBe(false);
+    expect(session.signOut).toHaveBeenCalledOnce();
   });
 });
 

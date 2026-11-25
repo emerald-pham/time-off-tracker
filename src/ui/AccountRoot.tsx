@@ -14,9 +14,7 @@ type State =
   /** `answer` is set while the first-sign-in question is up for this handoff. */
   | { kind: "handing-off"; account: Account; answer: ((choice: HandoffChoice) => void) | null }
   | { kind: "handoff-failed"; account: Account; error: string }
-  | { kind: "signed-in"; account: Account; store: DataStore }
-  /** "Delete my data" is done on this device; the account's copy goes when the server has the delete. */
-  | { kind: "deleting"; account: Account };
+  | { kind: "signed-in"; account: Account; store: DataStore };
 
 interface Props {
   /** This device's signed-out copy. */
@@ -211,25 +209,6 @@ export function AccountRoot({ local, connect, signedInHint }: Props) {
     );
   }
 
-  if (state.kind === "deleting") {
-    return (
-      <div className="app">
-        <AppHeader />
-        <section className="handoff" role="status" aria-labelledby="deleting-title">
-          <h2 id="deleting-title">Deleting your data</h2>
-          <p>
-            Your data is gone from this device. The copy in your account is deleted as soon as this device is online,
-            and then you're signed out. If you're offline, this finishes when you're back online.
-          </p>
-          <p>
-            If you close the app before then, the delete still goes through the next time you open it online, but
-            you'll need to sign out yourself.
-          </p>
-        </section>
-      </div>
-    );
-  }
-
   const signedIn = state.kind === "signed-in" ? state : null;
   // The app follows its store live, so edits on other devices show up as they sync.
   const active = signedIn ? signedIn.store : local;
@@ -245,22 +224,16 @@ export function AccountRoot({ local, connect, signedInHint }: Props) {
       }
     });
 
+  // Signed in, it needs the server: offline it refuses, says so, and deletes
+  // nothing. Once done, signing out reloads the page.
   const deleteNow = () =>
     run(async () => {
-      if (!signedIn || !gateway) {
-        await deleteMyData({ device: local, account: null, session: null });
-        setGeneration((g) => g + 1);
-        return;
-      }
-      const { account: who, store } = signedIn;
-      // Done on this device at once; the rest needs the server, which may
-      // mean waiting until the device is back online.
-      const { accountDeleted } = await deleteMyData({ device: local, account: store, session: gateway });
-      setState({ kind: "deleting", account: who });
-      accountDeleted.catch((e: unknown) => {
-        setError(`Couldn't delete your account's data: ${message(e)}`);
-        setState({ kind: "signed-in", account: who, store: gateway.accountStore(who.uid) });
+      await deleteMyData({
+        device: local,
+        account: signedIn?.store ?? null,
+        session: signedIn ? gateway : null,
       });
+      if (!signedIn) setGeneration((g) => g + 1);
     });
 
   const account = (

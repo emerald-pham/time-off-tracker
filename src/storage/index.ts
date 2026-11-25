@@ -2,6 +2,7 @@ export type { AppData, DataChange, DataStore, KeyedAppData, StoreState } from ".
 export {
   BALANCE_HOURS,
   NewerDataError,
+  OfflineError,
   WEEKLY_HOURS,
   applyChanges,
   changesBetween,

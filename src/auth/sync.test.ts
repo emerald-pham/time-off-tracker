@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { deleteMyData, handOffOnSignIn, signOut, UnsyncedChangesError } from "./sync";
 import type { HandoffChoice } from "./sync";
-import { emptyAppData, LocalDataStore, memoryStorage } from "../storage";
+import { emptyAppData, LocalDataStore, memoryStorage, OfflineError } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { sam } from "../engine/fixtures";
 
@@ -162,31 +162,16 @@ function sessionWith(changesSynced: boolean) {
   return { changesSynced: vi.fn(async () => changesSynced), signOut: vi.fn(async () => {}) };
 }
 
-/**
- * The account's store while offline: writes land on the device, but the
- * server never answers, so `synced()` never settles until `goOnline()`.
- */
+/** The account's store while offline: deleting it needs the server, so `clear()` refuses. */
 function offlineAccount(initial: AppData) {
   const store = memoryStore(initial);
-  let answer!: { resolve: () => void; reject: (e: Error) => void };
-  const synced = new Promise<void>((resolve, reject) => (answer = { resolve, reject }));
   return {
     ...store,
-    synced: () => synced,
-    goOnline: () => answer.resolve(),
-    serverRefuses: (e: Error) => answer.reject(e),
+    clear: async () => {
+      throw new OfflineError();
+    },
   };
 }
-
-const settled = async (p: Promise<unknown>) => {
-  let done = false;
-  void p.then(
-    () => (done = true),
-    () => (done = true),
-  );
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  return done;
-};
 
 describe("signOut", () => {
   it("signs out and clears the device copy once every change has reached the account", async () => {
@@ -227,8 +212,7 @@ describe("deleteMyData", () => {
     const account = memoryStore(accountData);
     const session = sessionWith(true);
 
-    const { accountDeleted } = await deleteMyData({ device, account, session });
-    await accountDeleted;
+    await deleteMyData({ device, account, session });
 
     expect(await account.load()).toBeNull();
     expect(await device.load()).toBeNull();
@@ -237,36 +221,36 @@ describe("deleteMyData", () => {
 
   it("clears the device copy when signed out", async () => {
     const device = memoryStore(deviceData);
-    const { accountDeleted } = await deleteMyData({ device, account: null, session: null });
-    await accountDeleted;
+    await deleteMyData({ device, account: null, session: null });
     expect(await device.load()).toBeNull();
   });
 
-  it("offline, is done on this device at once, and signs out only when the server has the delete", async () => {
+  it("offline, refuses and touches nothing: no delete is left waiting to run later", async () => {
     const device = memoryStore(deviceData);
     const account = offlineAccount(accountData);
     const session = sessionWith(true);
 
-    const { accountDeleted } = await deleteMyData({ device, account, session });
+    await expect(deleteMyData({ device, account, session })).rejects.toThrow(
+      "You need to be online to delete your data",
+    );
 
-    expect(await device.load()).toBeNull();
-    expect(await account.load()).toBeNull();
-    expect(await settled(accountDeleted)).toBe(false);
+    expect(await account.load()).toEqual(accountData);
+    expect(await device.load()).toEqual(deviceData);
     expect(session.signOut).not.toHaveBeenCalled();
-
-    account.goOnline();
-    await accountDeleted;
-    expect(session.signOut).toHaveBeenCalledOnce();
   });
 
-  it("doesn't sign out if the server refuses the delete", async () => {
-    const account = offlineAccount(accountData);
+  it("doesn't clear this device or sign out if the server refuses the delete", async () => {
+    const device = memoryStore(deviceData);
+    const account = {
+      ...memoryStore(accountData),
+      clear: async () => {
+        throw new Error("Missing or insufficient permissions.");
+      },
+    };
     const session = sessionWith(true);
 
-    const { accountDeleted } = await deleteMyData({ device: memoryStore(deviceData), account, session });
-    account.serverRefuses(new Error("Missing or insufficient permissions."));
-
-    await expect(accountDeleted).rejects.toThrow("permissions");
+    await expect(deleteMyData({ device, account, session })).rejects.toThrow("permissions");
+    expect(await device.load()).toEqual(deviceData);
     expect(session.signOut).not.toHaveBeenCalled();
   });
 });

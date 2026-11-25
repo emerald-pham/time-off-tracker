@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { disableNetwork, doc, enableNetwork, getDoc, setDoc, waitForPendingWrites } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { emptyAppData, NewerDataError } from "../src/storage";
+import { emptyAppData, NewerDataError, OfflineError } from "../src/storage";
 import { FirestoreDataStore } from "../src/storage/firestoreDataStore";
 import type { AppData, StoreState } from "../src/storage";
 import { sam } from "../src/engine/fixtures";
@@ -303,19 +303,29 @@ describe("offline", () => {
     expect((await open().store.load())!.settings).toEqual(base.settings);
   });
 
-  it("Delete lands on the device at once, and an edit made while it's pending can't bring the data back", async () => {
+  it("Delete refuses offline, queues nothing, and leaves the store working", async () => {
     const phone = open();
-    await phone.store.save({ ...base, occasions: [trip] });
-    await waitForPendingWrites(phone.db);
+    await seed(phone, { ...base, occasions: [trip] });
     const copy = (await phone.store.load())!;
     await disableNetwork(phone.db);
 
-    expect(await within(phone.store.clear(), 2000)).toBeUndefined();
-    await expect(phone.store.update(copy, withHours(copy, 36))).rejects.toThrow();
-    await expect(phone.store.save(copy)).rejects.toThrow();
+    await expect(phone.store.clear()).rejects.toBeInstanceOf(OfflineError);
+    await phone.store.update(copy, withHours(copy, 36));
 
     await enableNetwork(phone.db);
-    await within(phone.store.synced(), 5000);
+    await waitForPendingWrites(phone.db);
+    expect(((await serverCopy())?.data as { settings: { weeklyHours: number } }).settings.weeklyHours).toBe(36);
+  });
+
+  it("online, Delete is on the server when it returns, and later saves can't bring the data back", async () => {
+    const phone = open();
+    await seed(phone, { ...base, occasions: [trip] });
+    const copy = (await phone.store.load())!;
+
+    await phone.store.clear();
+    expect(await serverCopy()).toBeUndefined();
+    await expect(phone.store.update(copy, withHours(copy, 36))).rejects.toThrow();
+    await expect(phone.store.save(copy)).rejects.toThrow();
     expect(await serverCopy()).toBeUndefined();
   });
 
