@@ -8,9 +8,8 @@ export interface AppData {
 }
 
 /**
- * Where AppData lives. Local storage is the only implementation for now;
- * ticket 04 adds a Firestore one (`users/{uid}`) behind the same interface.
- * Async so a network-backed store fits without changing callers.
+ * Where AppData lives: LocalDataStore while signed out, FirestoreDataStore
+ * (`users/{uid}`) while signed in. See src/auth/sync.ts for moving between them.
  */
 export interface DataStore {
   /** Null on first run (nothing saved yet). */

@@ -22,7 +22,36 @@ npm run build   # type-check and production build
 ```
 
 The rules live in a pure module, `src/engine/`, with no UI or storage code.
-Persistence sits behind the `Storage` interface in `src/storage/`.
+Persistence sits behind the `DataStore` interface in `src/storage/`.
+
+## Accounts and sync
+
+Signing in is optional ([ADR 0001](docs/adr/0001-firebase-with-per-person-accounts.md)).
+Signed out, data stays in this browser's local storage. Signed in with Google,
+it lives in one Firestore document per person, `users/{uid}`, which
+[`firestore.rules`](firestore.rules) opens only to that person.
+
+The Firebase web config comes from `VITE_FIREBASE_*` env vars (see
+[`.env.example`](.env.example)). Without them the app runs signed-out only and
+hides the sign-in button.
+
+`VITE_FIREBASE_AUTH_DOMAIN` must be the domain that serves the app (for
+example `<project-id>.web.app`), and `https://<that domain>/__/auth/handler`
+must be an authorized redirect URI on the Google OAuth client. Safari
+partitions third-party storage, so redirect sign-in (which iPhone and iPad
+Safari and home-screen icons need) only works when the auth handler is on the
+app's own domain. Elsewhere, such as `npm run dev`, sign-in uses a popup.
+
+```sh
+npm run test:rules   # security rules and the Firestore store, on the emulator
+npm run emulators    # auth + Firestore emulators for local sign-in (demo project)
+npm run deploy       # build, then deploy hosting and rules (needs .env.local
+                     # and the real project id in .firebaserc)
+```
+
+The emulator scripts use the `demo-time-off-tracker` project id, so they never
+touch a real Firebase project. `scripts/make-icons.mjs` redraws the home-screen
+icons.
 
 All example data in this repo (for example the "Sam" fixture) is made up.
 
