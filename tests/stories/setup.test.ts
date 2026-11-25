@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { accrualTier, payday, projectSchedule } from "../../src/engine";
 import { emptyAppData } from "../../src/storage";
-import { floatingHolidayRows, lee, occasion, rowsOf, sam, samE2, vacationRows, view } from "./helpers";
+import { floatingHolidayRows, lee, occasion, rowsOf, sam, samE2, vacationOccasion, vacationRows, view } from "./helpers";
 
 describe("US-01: Start from my hire date and SAP balance", () => {
   // Sam enters a hire date and, on Mon Jun 1, 2026, reads 48 h Vacation and 16 h Floating Holiday in SAP.
@@ -117,7 +117,7 @@ describe("US-05: SAP lags until payday", () => {
 
   it("US-05: a Day Off whose paycheck hasn't come out still uses up a Benefit Day", () => {
     // SAP read Mon Nov 24, 2025; Tue Nov 18's paycheck comes out Thu Nov 27.
-    const v = view(samE2, "2025-11-24", { occasions: [occasion("o1", "Made-up long weekend", "2025-11-18", "2025-11-18")] });
+    const v = view(samE2, "2025-11-24", { occasions: [vacationOccasion("o1", "Made-up long weekend", "2025-11-18", "2025-11-18")] });
     const [day] = v.occasions[0].days;
     expect(day).toMatchObject({ deducted: false, unmet: false });
     expect(day.burns).not.toBeNull();

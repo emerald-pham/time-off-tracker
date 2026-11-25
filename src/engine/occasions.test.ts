@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { computeView } from "./index";
 import type { DayType, EngineInput, IsoDate, Occasion, Settings } from "./index";
-import { sam } from "./fixtures";
+import { sam, vacationOnWeekdays } from "./fixtures";
 
 /** E2's starting point: Sam as of Mon Nov 24, 2025, SAP Vacation 40 h, Floating Holiday 8 h. */
 const e2: Partial<Settings> = { sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" };
 
+/** An Occasion with Vacation chosen Monday to Friday and RDO at the weekend, plus `dayTypes`. */
 function occasion(
   name: string,
   start: IsoDate,
   end: IsoDate = start,
   dayTypes: Record<IsoDate, DayType> = {},
 ): Occasion {
-  return { id: name, name, start, end, dayTypes };
+  return { id: name, name, start, end, dayTypes: vacationOnWeekdays(start, end, dayTypes) };
 }
 
 function input(occasions: Occasion[], settings: Partial<Settings> = e2, today = "2025-11-24"): EngineInput {
@@ -57,7 +58,7 @@ describe("E4: oldest first", () => {
   const view = computeView(input([occasion("Ski week", "2026-02-24", "2026-02-26")]));
   const [ski] = view.occasions;
 
-  it("defaults all three weekdays to Vacation, so PTO Days is 3", () => {
+  it("with all three weekdays chosen as Vacation, PTO Days is 3", () => {
     expect(ski.days.map((d) => [d.date, d.dayType])).toEqual([
       ["2026-02-24", "vacation"],
       ["2026-02-25", "vacation"],

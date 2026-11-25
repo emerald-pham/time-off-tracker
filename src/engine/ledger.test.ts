@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeView, sapBalanceDays } from "./index";
 import type { EngineInput, LedgerRow, Occasion, Settings } from "./index";
-import { sam } from "./fixtures";
+import { sam, vacationOnWeekdays } from "./fixtures";
 
 function input(settings: Partial<Settings>, today: string): EngineInput {
   return { settings: { ...sam, ...settings }, occasions: [], earnDateEdits: {}, today };
@@ -241,7 +241,7 @@ describe("a new hire's SAP Balance read before the eligibility date", () => {
   });
 
   it("US-03: can't Burn Vacation before the eligibility date", () => {
-    const april: Occasion = { id: "apr", name: "April", start: "2026-04-20", end: "2026-04-20", dayTypes: {} };
+    const april: Occasion = { id: "apr", name: "April", start: "2026-04-20", end: "2026-04-20", dayTypes: vacationOnWeekdays("2026-04-20", "2026-04-20") };
     const view = newHire(16, [april]);
     expect(view.occasions[0].short).toBe(1);
   });

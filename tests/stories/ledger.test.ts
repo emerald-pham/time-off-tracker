@@ -7,14 +7,14 @@ import { describe, expect, it } from "vitest";
 import { memoryStorage, LocalDataStore } from "../../src/storage";
 import { setEarnDate, resetEarnDate } from "../../src/ui/earnDateEdits";
 import { typeLabel } from "../../src/ui/format";
-import { floatingHolidayRows, occasion, rowByKey, rowsOf, samE2, vacationRows, view } from "./helpers";
+import { floatingHolidayRows, occasion, rowByKey, rowsOf, samE2, vacationOccasion, vacationRows, view } from "./helpers";
 
 const today = "2025-11-24";
 
 describe("US-11: Time off fills the Ledger oldest first", () => {
-  // Tue Feb 24 – Thu Feb 26, 2026 and Mon Mar 9, 2026: all Vacation by default.
-  const ski = occasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26");
-  const spring = occasion("spring", "Made-up spring day", "2026-03-09", "2026-03-09");
+  // Tue Feb 24 – Thu Feb 26, 2026 and Mon Mar 9, 2026: chosen as Vacation.
+  const ski = vacationOccasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26");
+  const spring = vacationOccasion("spring", "Made-up spring day", "2026-03-09", "2026-03-09");
 
   it("US-11: Burns the oldest earned Vacation rows first (spec E4)", () => {
     const v = view(samE2, today, { occasions: [ski] });

@@ -10,7 +10,13 @@ import { button, click, field, flush, maybeButton, render, text, typeInto } from
 import type { Rendered } from "./testDom";
 
 const TODAY = "2026-11-24";
-const trip: Occasion = { id: "trip", name: "Made-up trip", start: "2027-03-01", end: "2027-03-02", dayTypes: {} };
+const trip: Occasion = {
+  id: "trip",
+  name: "Made-up trip",
+  start: "2027-03-01",
+  end: "2027-03-02",
+  dayTypes: { "2027-03-01": "vacation", "2027-03-02": "vacation" },
+};
 const data: AppData = {
   settings: { ...sam, sapVacationHours: 40, sapAsOf: "2026-11-01" },
   occasions: [trip],
@@ -241,7 +247,8 @@ describe("wrong-year safeguards", () => {
         name: "Typo trip",
         start: "2027-01-05",
         end: "2027-01-06",
-        dayTypes: { "2027-01-05": "vacation", "2027-01-06": "vacation" },
+        // The moved dates get their defaults: Tue–Wed within one week are the week's 2 RDOs (US-25).
+        dayTypes: { "2027-01-05": "rdo", "2027-01-06": "rdo" },
       },
     ]);
     expect(text(el)).not.toContain("Did you mean");

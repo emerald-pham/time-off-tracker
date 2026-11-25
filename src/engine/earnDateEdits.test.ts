@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { computeView } from "./index";
 import type { EarnDateEdits, EngineInput, Occasion, Settings, ViewModel } from "./index";
-import { sam } from "./fixtures";
+import { sam, vacationOnWeekdays } from "./fixtures";
 
 /** E2's starting point: Sam as of Mon Nov 24, 2025, SAP Vacation 40 h, Floating Holiday 8 h. */
 const e2: Partial<Settings> = { sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" };
 
 /** E4's Occasion: Tue Feb 24 – Thu Feb 26, 2026, all Vacation by default. */
-const ski: Occasion = { id: "ski", name: "Ski week", start: "2026-02-24", end: "2026-02-26", dayTypes: {} };
+const ski: Occasion = { id: "ski", name: "Ski week", start: "2026-02-24", end: "2026-02-26", dayTypes: vacationOnWeekdays("2026-02-24", "2026-02-26") };
 
 function input(earnDateEdits: EarnDateEdits, settings: Partial<Settings> = {}): EngineInput {
   return { settings: { ...sam, ...e2, ...settings }, occasions: [ski], earnDateEdits, today: "2025-11-24" };
@@ -68,7 +68,7 @@ describe("Earn Date edits", () => {
 
   describe("edits apply to the schedule before the walk-back", () => {
     // Mon Dec 1 – Mon Dec 8, 2025: six Vacation Days Off (Dec 6–7 are RDO), none Deducted.
-    const dec: Occasion = { id: "dec", name: "December", start: "2025-12-01", end: "2025-12-08", dayTypes: {} };
+    const dec: Occasion = { id: "dec", name: "December", start: "2025-12-01", end: "2025-12-08", dayTypes: vacationOnWeekdays("2025-12-01", "2025-12-08") };
     const decInput = (earnDateEdits: EarnDateEdits): EngineInput => ({ ...input(earnDateEdits), occasions: [dec] });
     const burnedByDec = (view: ViewModel) =>
       rows(view)

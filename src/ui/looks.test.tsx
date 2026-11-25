@@ -93,7 +93,7 @@ const data: AppData = {
       name: "Made-up spring trip",
       start: "2027-03-01",
       end: "2027-03-04",
-      dayTypes: { "2027-03-02": "floatingHoliday", "2027-03-03": "unpaid", "2027-03-04": "rdo" },
+      dayTypes: { "2027-03-01": "vacation", "2027-03-02": "floatingHoliday", "2027-03-03": "unpaid", "2027-03-04": "rdo" },
     } satisfies Occasion,
   ],
   earnDateEdits: {},

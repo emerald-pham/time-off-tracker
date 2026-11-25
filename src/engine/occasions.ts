@@ -10,7 +10,6 @@ import type {
   OccasionView,
   Season,
   SeasonName,
-  Settings,
 } from "./types";
 
 /**
@@ -26,11 +25,40 @@ export function seasonOf(d: IsoDate): Season {
   return { name: names[Math.floor((month - 2) / 3)], year };
 }
 
-/** A new date is RDO on a regular day off, and Vacation otherwise. */
-export function defaultDayType(d: IsoDate, settings: Settings): DayType {
-  return settings.regularDaysOff.includes(weekdayOf(d) as Settings["regularDaysOff"][number])
-    ? "rdo"
-    : "vacation";
+const SUNDAY = 0;
+const SATURDAY = 6;
+
+/**
+ * The weekly rule for Day Types (US-25), the default for every date of an
+ * Occasion from `start` to `end`. Weeks run Sunday to Saturday; a segment is
+ * the Occasion's dates in one week. Each segment of n days gets
+ * r = min(2, n) RDOs (the week's two days off) and n − r Vacation days. The
+ * PTO hugs the Saturday/Sunday break the time off crosses, with the RDOs on
+ * the far side of it:
+ * - within one week, or continuing into the next week only: RDOs first;
+ * - continuing from the previous week only: Vacation first, RDOs last;
+ * - both (a full week in the middle): ceil((n − 2) / 2) Vacation, the 2 RDOs,
+ *   then Vacation.
+ */
+export function weeklyDayTypes(start: IsoDate, end: IsoDate): Record<IsoDate, DayType> {
+  const types: Record<IsoDate, DayType> = {};
+  const dates = datesInRange(start, end);
+  for (let i = 0; i < dates.length; ) {
+    const segment = [dates[i]];
+    while (i + segment.length < dates.length && weekdayOf(dates[i + segment.length]) !== SUNDAY) {
+      segment.push(dates[i + segment.length]);
+    }
+    i += segment.length;
+    const n = segment.length;
+    const rdos = Math.min(2, n);
+    const fromPrevious = weekdayOf(segment[0]) === SUNDAY && segment[0] > start;
+    const intoNext = weekdayOf(segment[n - 1]) === SATURDAY && segment[n - 1] < end;
+    const leadingVacation = fromPrevious && intoNext ? Math.ceil((n - 2) / 2) : fromPrevious ? n - rdos : 0;
+    segment.forEach((date, k) => {
+      types[date] = k >= leadingVacation && k < leadingVacation + rdos ? "rdo" : "vacation";
+    });
+  }
+  return types;
 }
 
 export function datesInRange(start: IsoDate, end: IsoDate): IsoDate[] {
@@ -60,16 +88,18 @@ export function findClashes(occasions: OccasionView[]): Clash[] {
 }
 
 /**
- * Occasion views sorted by start date, with each date's Day Type resolved and
- * Deducted flagged against the SAP Balance as-of date. Burning fills in the rest.
+ * Occasion views sorted by start date, with each date's Day Type resolved
+ * (stored, or the weekly rule over the Occasion's range) and Deducted flagged
+ * against the SAP Balance as-of date. Burning fills in the rest.
  */
-export function occasionViews(occasions: Occasion[], settings: Settings, asOf: IsoDate): OccasionView[] {
+export function occasionViews(occasions: Occasion[], asOf: IsoDate): OccasionView[] {
   return [...occasions]
     .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
     .map((o) => {
+      const defaults = weeklyDayTypes(o.start, o.end);
       const days: DayOffView[] = datesInRange(o.start, o.end).map((date) => ({
         date,
-        dayType: o.dayTypes[date] ?? defaultDayType(date, settings),
+        dayType: o.dayTypes[date] ?? defaults[date],
         deducted: paidBy(date, asOf),
         burns: null,
         unmet: false,

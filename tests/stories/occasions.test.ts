@@ -8,13 +8,14 @@ import type { Occasion } from "../../src/engine";
 import type { AppData } from "../../src/storage";
 import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonLabel } from "../../src/ui/format";
 import { checkOccasion, withResolvedTypes } from "../../src/ui/occasionEdits";
-import { occasion, samE2, view } from "./helpers";
+import { occasion, samE2, vacationOccasion, view } from "./helpers";
 
 const today = "2025-11-24";
 const data = (...occasions: Occasion[]): AppData => ({ settings: samE2, occasions, earnDateEdits: {} });
 
 describe("US-06: Add an Occasion with a name and dates", () => {
-  const ski = occasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26");
+  // Tue Feb 24 – Thu Feb 26, 2026, all three chosen as Vacation.
+  const ski = vacationOccasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26");
   const v = view(samE2, today, { occasions: [ski] });
 
   it("US-06: keeps the Occasion's name, start date and end date", () => {
@@ -46,7 +47,7 @@ describe("US-06: Add an Occasion with a name and dates", () => {
 });
 
 describe("US-07: Choose each day's type", () => {
-  // Fri Jan 9 – Mon Jan 12, 2026; Sam's regular days off are Saturday and Sunday.
+  // Fri Jan 9 – Mon Jan 12, 2026: it crosses one week break.
   const weekend = occasion("wknd", "Made-up long weekend", "2026-01-09", "2026-01-12");
 
   it("US-07: writes each day like 'Tue, Nov 24th 2026'", () => {
@@ -70,13 +71,14 @@ describe("US-07: Choose each day's type", () => {
     expect(Object.values(DAY_TYPE_LABELS)).toEqual(["RDO", "Floating Holiday", "Vacation", "Unpaid"]);
   });
 
-  it("US-07: defaults new days to RDO on my regular days off and to Vacation otherwise", () => {
+  it("US-07: gives new days their defaults from the weekly rule (US-25)", () => {
+    // Fri–Sat continue into the next week and Sun–Mon continue from it: 2 RDOs each.
     const { view: o } = checkOccasion(data(), today, weekend);
-    expect(o.days.map((d) => d.dayType)).toEqual(["vacation", "rdo", "rdo", "vacation"]);
+    expect(o.days.map((d) => d.dayType)).toEqual(["rdo", "rdo", "rdo", "rdo"]);
   });
 
   it("US-07: Save stores the choices", () => {
-    const chosen = { ...weekend, dayTypes: { "2026-01-09": "floatingHoliday" as const } };
+    const chosen = { ...weekend, dayTypes: { "2026-01-09": "floatingHoliday" as const, "2026-01-12": "vacation" as const } };
     const saved = withResolvedTypes(chosen, checkOccasion(data(), today, chosen).view);
     expect(saved.dayTypes).toEqual({
       "2026-01-09": "floatingHoliday",
@@ -84,15 +86,15 @@ describe("US-07: Choose each day's type", () => {
       "2026-01-11": "rdo",
       "2026-01-12": "vacation",
     });
-    // Stored, so changing the regular days off later doesn't move them.
-    const v = view({ ...samE2, regularDaysOff: [1] }, today, { occasions: [saved] });
+    // Stored, so the defaults don't move them.
+    const v = view(samE2, today, { occasions: [saved] });
     expect(v.occasions[0].days.map((d) => d.dayType)).toEqual(["floatingHoliday", "rdo", "rdo", "vacation"]);
   });
 });
 
 describe("US-08: PTO Days counts only paid time off", () => {
   // Fri Jan 9 – Tue Jan 13, 2026: Floating Holiday, two RDOs, Vacation, Unpaid.
-  const mixed = occasion("mixed", "Made-up family visit", "2026-01-09", "2026-01-13", {
+  const mixed = vacationOccasion("mixed", "Made-up family visit", "2026-01-09", "2026-01-13", {
     "2026-01-09": "floatingHoliday",
     "2026-01-13": "unpaid",
   });
@@ -109,8 +111,8 @@ describe("US-08: PTO Days counts only paid time off", () => {
 });
 
 describe("US-09: Overlapping Occasions are fine unless paid time clashes", () => {
-  // Mon Jan 12, 2026 is Vacation by default in the ski week.
-  const ski = occasion("ski", "Made-up ski week", "2026-01-12", "2026-01-16");
+  // Mon Jan 12 – Fri Jan 16, 2026, all chosen as Vacation.
+  const ski = vacationOccasion("ski", "Made-up ski week", "2026-01-12", "2026-01-16");
 
   it("US-09: lets two Occasions share a date that's Unpaid in one of them", () => {
     const visit = occasion("visit", "Made-up family visit", "2026-01-12", "2026-01-12", { "2026-01-12": "unpaid" });
@@ -126,7 +128,7 @@ describe("US-09: Overlapping Occasions are fine unless paid time clashes", () =>
   });
 
   it("US-09: refuses a date that's Vacation in both, naming the other Occasion", () => {
-    const visit = occasion("visit", "Made-up family visit", "2026-01-12", "2026-01-13");
+    const visit = vacationOccasion("visit", "Made-up family visit", "2026-01-12", "2026-01-13");
     const check = checkOccasion(data(ski), today, visit);
     expect(check.clashes.map((c) => c.date)).toEqual(["2026-01-12", "2026-01-13"]);
     expect(check.messages).toEqual([
@@ -140,6 +142,49 @@ describe("US-09: Overlapping Occasions are fine unless paid time clashes", () =>
     expect(checkOccasion(data(ski), today, fh).messages).toEqual(["Jan 12 is already Vacation in 'Made-up ski week'"]);
     expect(checkOccasion(data(fh), today, ski).messages).toEqual([
       "Jan 12 is already Floating Holiday in 'Made-up day out'",
+    ]);
+  });
+});
+
+describe("US-25: Fill in Day Types automatically, week by week", () => {
+  const newOccasion = (start: string, end: string) =>
+    view(samE2, today, { occasions: [occasion("o", "Made-up trip", start, end)] }).occasions[0];
+
+  it("US-25: Wed Feb 24 – Tue Mar 2, 2027 is RDO, RDO, Vac, Vac, Vac, RDO, RDO: 3 PTO Days", () => {
+    const o = newOccasion("2027-02-24", "2027-03-02");
+    expect(o.days.map((d) => d.dayType)).toEqual(["rdo", "rdo", "vacation", "vacation", "vacation", "rdo", "rdo"]);
+    expect(o.ptoDays).toBe(3);
+  });
+
+  it("US-25: Wed–Sat within one week puts the RDOs first: 2 PTO Days", () => {
+    const o = newOccasion("2026-09-09", "2026-09-12");
+    expect(o.days.map((d) => d.dayType)).toEqual(["rdo", "rdo", "vacation", "vacation"]);
+    expect(o.ptoDays).toBe(2);
+  });
+
+  it("US-25: Fri Nov 6 – Sun Nov 8, 2026 is all RDO: 0 PTO Days", () => {
+    const o = newOccasion("2026-11-06", "2026-11-08");
+    expect(o.days.map((d) => d.dayType)).toEqual(["rdo", "rdo", "rdo"]);
+    expect(o.ptoDays).toBe(0);
+  });
+
+  it("US-25: a full Sun–Sat week in the middle has Vacation at both ends and the 2 RDOs in the middle", () => {
+    // Thu Jan 7 – Tue Jan 19, 2027: Thu–Sat, the full week Sun Jan 10 – Sat Jan 16, then Sun–Tue.
+    const o = newOccasion("2027-01-07", "2027-01-19");
+    expect(o.days.map((d) => d.dayType)).toEqual([
+      ...["rdo", "rdo", "vacation"],
+      ...["vacation", "vacation", "vacation", "rdo", "rdo", "vacation", "vacation"],
+      ...["vacation", "rdo", "rdo"],
+    ]);
+    expect(o.ptoDays).toBe(7);
+  });
+
+  it("US-25: a lone day off is an RDO, and a long week alone keeps 2 RDOs at the start", () => {
+    expect(newOccasion("2026-09-09", "2026-09-09").days.map((d) => d.dayType)).toEqual(["rdo"]);
+    // Sun Sep 6 – Sat Sep 12, 2026: one whole week, crossing no break.
+    expect(newOccasion("2026-09-06", "2026-09-12").days.map((d) => d.dayType)).toEqual([
+      ...["rdo", "rdo"],
+      ...["vacation", "vacation", "vacation", "vacation", "vacation"],
     ]);
   });
 });

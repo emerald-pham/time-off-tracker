@@ -7,14 +7,14 @@
 import { describe, expect, it } from "vitest";
 import { computeView } from "../../src/engine";
 import { LocalDataStore, memoryStorage } from "../../src/storage";
-import { occasion, samE2 } from "./helpers";
+import { samE2, vacationOccasion } from "./helpers";
 
 describe("US-16: Sign-in is optional and syncs", () => {
   it("US-16: keeps my data in this browser without signing in", async () => {
     const storage = memoryStorage();
     const data = {
       settings: samE2,
-      occasions: [occasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26")],
+      occasions: [vacationOccasion("ski", "Made-up ski week", "2026-02-24", "2026-02-26")],
       earnDateEdits: {},
     };
     await new LocalDataStore(storage).save(data);

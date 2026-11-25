@@ -4,7 +4,7 @@
  */
 import { computeView } from "../../src/engine";
 import type { EngineInput, LedgerRow, Occasion, Settings, ViewModel } from "../../src/engine";
-import { sam } from "../../src/engine/fixtures";
+import { sam, vacationOnWeekdays } from "../../src/engine/fixtures";
 
 export { sam };
 
@@ -24,6 +24,21 @@ export function view(
 
 export function occasion(id: string, name: string, start: string, end: string, dayTypes: Occasion["dayTypes"] = {}): Occasion {
   return { id, name, start, end, dayTypes };
+}
+
+/**
+ * An Occasion whose Day Types were chosen in the day editor: Vacation Monday
+ * to Friday and RDO at the weekend, with `dayTypes` on top. For tests about
+ * Burning rather than defaults (US-25).
+ */
+export function vacationOccasion(
+  id: string,
+  name: string,
+  start: string,
+  end: string,
+  dayTypes: Occasion["dayTypes"] = {},
+): Occasion {
+  return occasion(id, name, start, end, vacationOnWeekdays(start, end, dayTypes));
 }
 
 export const rowsOf = (v: ViewModel): LedgerRow[] => v.ledger.groups.flatMap((g) => g.rows);

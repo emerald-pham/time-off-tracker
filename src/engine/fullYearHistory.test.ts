@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { computeView } from "./index";
 import type { EngineInput, Occasion, Settings, ViewModel } from "./index";
-import { sam } from "./fixtures";
+import { sam, vacationOnWeekdays } from "./fixtures";
 
 /** E8's Occasion: Tue Jun 10 – Wed Jun 11, 2025, both Vacation and Deducted by Nov 24, 2025. */
-const june: Occasion = { id: "june", name: "June trip", start: "2025-06-10", end: "2025-06-11", dayTypes: {} };
+const june: Occasion = { id: "june", name: "June trip", start: "2025-06-10", end: "2025-06-11", dayTypes: vacationOnWeekdays("2025-06-10", "2025-06-11") };
 
 function input(settings: Partial<Settings>, occasions: Occasion[] = [june]): EngineInput {
   return {
@@ -74,7 +74,7 @@ describe("E8: full-year history mode", () => {
   describe("an early Deducted Day Off isn't left unmet by Used (not listed)", () => {
     // Mon Jun 2, 2025, Deducted. SAP 8 h: c = 1 + 1 − 7 = −5. Only the four May 14 rows are
     // earned by Jun 2, so marking five Used (not listed) first would leave it unmet.
-    const june2: Occasion = { id: "june2", name: "June day", start: "2025-06-02", end: "2025-06-02", dayTypes: {} };
+    const june2: Occasion = { id: "june2", name: "June day", start: "2025-06-02", end: "2025-06-02", dayTypes: vacationOnWeekdays("2025-06-02", "2025-06-02") };
     const view = computeView(input({ sapVacationHours: 8 }, [june2]));
 
     it("Burns a May 14 row, then marks the next five oldest Used (not listed)", () => {

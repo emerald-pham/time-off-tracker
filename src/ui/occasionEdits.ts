@@ -1,14 +1,21 @@
-import { computeView } from "../engine";
+import { computeView, weeklyDayTypes } from "../engine";
 import type { Clash, DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
 import { clashMessage } from "./format";
 
-/** Moves an Occasion's range: dates still in range keep their type; added dates get defaults. */
+/**
+ * Moves an Occasion's range (US-25). If its Day Types are what the weekly
+ * rule gives its old range (the person never customized them), the whole new
+ * range gets the rule's types. Otherwise dates still in range keep their
+ * type, and added dates get the type the rule gives them over the new range.
+ */
 export function withRange(o: Occasion, start: IsoDate, end: IsoDate): Occasion {
+  const oldRule = weeklyDayTypes(o.start, o.end);
+  const newRule = weeklyDayTypes(start, end);
+  const customized = Object.entries(oldRule).some(([date, type]) => (o.dayTypes[date] ?? type) !== type);
+  if (!customized) return { ...o, start, end, dayTypes: newRule };
   const dayTypes: Record<IsoDate, DayType> = {};
-  for (const [date, type] of Object.entries(o.dayTypes)) {
-    if (date >= start && date <= end) dayTypes[date] = type;
-  }
+  for (const [date, type] of Object.entries(newRule)) dayTypes[date] = o.dayTypes[date] ?? type;
   return { ...o, start, end, dayTypes };
 }
 
