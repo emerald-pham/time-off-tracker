@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { firebaseConfigFromEnv } from "./auth/config";
+import { firebaseConfigFromEnv, useEmulatorsFromEnv } from "./auth/config";
 import type { AuthGateway } from "./auth/firebase";
 import { LocalDataStore, storedFlag } from "./storage";
 import { AccountRoot } from "./ui/AccountRoot";
@@ -10,7 +10,8 @@ import "./ui/styles.css";
 // Without VITE_FIREBASE_* config the app runs signed-out only, and the
 // Firebase SDK is never loaded.
 const config = firebaseConfigFromEnv(import.meta.env);
-const useEmulators = import.meta.env.VITE_FIREBASE_USE_EMULATORS === "true";
+// Only `npm run dev` on a demo- project; never a production build.
+const useEmulators = useEmulatorsFromEnv(import.meta.env);
 
 let gateway: Promise<AuthGateway> | null = null;
 /** Loads the Firebase SDK on first use, and only once. */

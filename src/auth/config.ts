@@ -19,6 +19,23 @@ const KEYS: Record<keyof FirebaseWebConfig, string> = {
 };
 
 /**
+ * Whether to point auth and Firestore at the local emulators. Only a dev
+ * server (`npm run dev`) on a `demo-` project ever does, so a stray
+ * `VITE_FIREBASE_USE_EMULATORS` can't make a deployed app talk to localhost.
+ */
+export function useEmulatorsFromEnv(env: {
+  DEV?: boolean;
+  VITE_FIREBASE_USE_EMULATORS?: string;
+  VITE_FIREBASE_PROJECT_ID?: string;
+}): boolean {
+  return (
+    env.DEV === true &&
+    env.VITE_FIREBASE_USE_EMULATORS === "true" &&
+    (env.VITE_FIREBASE_PROJECT_ID?.trim().startsWith("demo-") ?? false)
+  );
+}
+
+/**
  * Reads the config from `VITE_FIREBASE_*` env vars. Null when any is missing,
  * in which case the app runs signed-out only and hides the sign-in button.
  */

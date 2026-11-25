@@ -58,7 +58,8 @@ const SYNC_WAIT_MS = 4000;
 
 /**
  * `useEmulators` points auth and Firestore at the local emulators
- * (`npm run emulators`), for trying sign-in with a `demo-` project.
+ * (`npm run emulators`), for trying sign-in with a `demo-` project. It's
+ * ignored for any other project.
  */
 export function connectFirebase(config: FirebaseWebConfig, useEmulators = false): AuthGateway {
   const app = initializeApp(config);
@@ -70,7 +71,7 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
   const db = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   });
-  if (useEmulators) {
+  if (useEmulators && config.projectId.startsWith("demo-")) {
     connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
     connectFirestoreEmulator(db, "127.0.0.1", 8080);
   }
