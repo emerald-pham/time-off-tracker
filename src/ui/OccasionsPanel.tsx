@@ -335,7 +335,7 @@ function ConfirmDelete({ name, onDelete, onKeep }: { name: string; onDelete: () 
   return (
     <div className="confirm-delete" role="group" aria-label={`Delete '${name}'?`}>
       <p>
-        <strong>Delete '{name}'?</strong> Its days go back on the Ledger. This can't be undone.
+        <strong>Delete '{name}'?</strong> This can't be undone.
       </p>
       <div className="actions">
         <button type="button" onClick={onKeep}>

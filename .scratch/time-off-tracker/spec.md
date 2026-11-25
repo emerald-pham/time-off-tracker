@@ -26,6 +26,7 @@ The tracker does that bookkeeping.
 - **Wide screens (about 1024px and up: iPad landscape, Mac):** three columns. Ledger on the left, Occasions in the middle, Settings on the right.
 - **Narrower screens (iPhone, iPad portrait):** the same three sections as tabs: Ledger, Occasions, Settings.
 - On first run, with no hire date entered yet, open on Settings.
+- **Look (US-19, US-20):** color tokens on `:root` for light and dark, with one color per Day Type and per Season, used the same way everywhere. System fonts only, nothing loaded from other sites. Panels, rows and cards animate in, editors slide open and closed, buttons press and counts roll; under Reduce Motion (`prefers-reduced-motion: reduce`) every animation and transition is off. Nothing overflows its card at 375 px, and fields use 16 px text so iOS Safari doesn't zoom.
 
 ## Settings (right)
 
@@ -48,10 +49,14 @@ Every Day Off and Benefit Day is 8 hours. An SAP Vacation or Floating Holiday ba
 
 ## Occasions (middle)
 
-- **Columns:** Occasion, Dates, PTO Days, Season. Occasions are sorted by start date.
-- **Dates:** shown like "Wed Sep 9 – Sat Sep 12". Once an Occasion has dates, a caret (▸) appears next to them.
+- **Cards (US-24):** one card per Occasion, sorted by start date. Each shows its name, its approval badge, and labelled Dates, PTO Days and Season, plus a strip with one colored bar per Day Off. Below them are four large labelled buttons (at least 44 px tall): **Edit** (name and dates), **Choose days** (the day editor), **Approve** or **Unapprove**, and **Delete**. Delete asks on the card ("Delete '<name>'? This can't be undone." with "Keep it" and "Yes, delete"), never in a browser dialog. Every field has a visible label.
+- **Dates:** shown like "Wed Sep 9 – Sat Sep 12". A date outside the current year shows its year: "Mon Mar 1 – Tue Mar 2, 2027", once when both dates share it.
+- **Approval (US-23):** each Occasion is "Not approved yet" or "Approved", shown as a badge and switched with Approve / Unapprove. It's stored as `approved: true` on the Occasion, and left out when not approved, so every Occasion saved before this loads as not approved and older saves keep their shape. Approval changes nothing else: a not-approved Occasion still Burns, so the Ledger shows what it would use.
+- **Wrong-year safeguards (US-10):**
+  - When a new Occasion is saved with dates already in the past (all Deducted, or ending before today), its card asks "These dates are in the past. Did you mean <start year + 1>?" with **Move to <year>**, which moves both dates forward one year (Feb 29 becomes Feb 28) and gives the new dates their defaults, and **Keep these dates**. If the moved dates Clash, the day editor opens with them highlighted.
+  - An Occasion whose Days Off are all Deducted is labelled "Already taken · counted in your SAP balance".
 - **Day editor:**
-  - The caret opens one row per date, e.g. "Tue, Nov 24th 2026", each with a Day Type dropdown: RDO, Floating Holiday, Vacation or Unpaid.
+  - **Choose days** opens one row per date, e.g. "Tue, Nov 24th 2026", each with a Day Type dropdown: RDO, Floating Holiday, Vacation or Unpaid, colored by its Day Type.
   - **Save** stores the choices and closes the editor. **Cancel** discards them.
 - **Defaults:** a new date is RDO if it falls on one of the regular days off, and Vacation otherwise. If an Occasion's range changes, dates still in the range keep their type and added dates get defaults.
 - **PTO Days:** the count of Floating Holiday and Vacation Days Off. If any Days Off are Unpaid, a small "+N unpaid" note shows next to it. If the Occasion is Short, it shows "short by N" in red.
@@ -73,13 +78,12 @@ One row per Benefit Day, with three columns:
 
 **Groups and order:**
 - Rows are grouped by calendar year: the current year, next year, and any later year an Occasion or an edited Earn Date reaches. Every row with an Earn Date edit is shown somewhere, so "Reset to projected" is always reachable, and the summary only counts rows that are shown.
-- One separator row, showing the year, sits between groups.
+- One separator row, showing the year and that year's "By end of" totals, sits between groups.
 - Within a group, rows are sorted by Earn Date. Carryover sits at the top of the current year.
 
-**Summary (US-22):** at the top, three lines counting free Benefit Days (not used by any Occasion, not Lost to cap, Expired or Used (not listed)) by type:
-- "Earned now: 5 Vacation, 2 Floating Holidays": Earn Date on or before today.
-- "By end of 2026: …" (this year): Earn Date on or before Dec 31 of this year. This year's Floating Holidays count, since they're still usable that day.
-- "By end of 2027: …" (next year): Earn Date on or before Dec 31 of next year. This year's Floating Holidays don't count, because they expire on Dec 31; next year's do.
+**Free time off (US-22):** free Benefit Days (not used by any Occasion, not Lost to cap, Expired or Used (not listed)) counted by type:
+- "Earned now: 5 Vacation, 2 Floating Holidays": Earn Date on or before today. The card at the top of the Ledger.
+- "By end of 2026: …": on each year's separator row, next to the year, the Benefit Days usable on Dec 31 of that year: Earn Date on or before that day, and for Floating Holidays only that year's, since earlier ones have expired. So the current year's row counts this year's Floating Holidays, next year's row counts only next year's, and any later year shown gets its own totals the same way. The engine works these out per year group (`freeByEnd`).
 
 **Row states, each with its own look:**
 - **Lost to cap:** greyed and struck through. Can't be Burned.

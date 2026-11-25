@@ -308,18 +308,20 @@
 }
 
 .occasion-actions button {
-  flex: 1 1 8.4rem;
+  flex: 1 1 7.4rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   min-height: 46px;
-  padding: 0 12px;
+  padding: 0 8px;
   border: 1.5px solid transparent;
   border-radius: 12px;
   background: var(--surface-2);
   color: var(--text);
+  font-size: 15px;
   font-weight: 650;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -329,8 +331,9 @@
 }
 
 .occasion-actions .act-edit {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--accent-2);
 }
 .occasion-actions .act-edit::before {
   content: "✎";

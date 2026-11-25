@@ -25,6 +25,10 @@ _Avoid_: Weekend
 A Day Off taken without pay, so it uses no benefit time.
 _Avoid_: LOA, unpaid leave
 
+**Approved**:
+Describes an Occasion the company has signed off on. An Occasion is "Not approved yet" until it's marked Approved; either way it Burns the same Benefit Days.
+_Avoid_: Confirmed, booked
+
 **PTO Days**:
 The number of Days Off in an Occasion whose Day Type is Floating Holiday or Vacation.
 _Avoid_: Days of PTO required

@@ -28,7 +28,7 @@ SAP only takes a Day Off out of my balance the week its paycheck comes out: the 
 Each Occasion has a name, a start date and an end date, and shows its PTO Days and Season.
 
 **US-07: Choose each day's type.**
-Once the dates are in, a caret opens one row per day, written like "Tue, Nov 24th 2026", each with a dropdown: RDO, Floating Holiday, Vacation or Unpaid. Save stores the choices and closes the list.
+Once the dates are in, "Choose days" (see US-24) opens one row per day, written like "Tue, Nov 24th 2026", each with a dropdown: RDO, Floating Holiday, Vacation or Unpaid. Save stores the choices and closes the list.
 - New days default to RDO on my regular days off and to Vacation otherwise.
 
 **US-08: PTO Days counts only paid time off.**
@@ -58,10 +58,11 @@ A Floating Holiday can only cover a day in the same calendar year. An unused one
 The Ledger groups rows by calendar year, with one separator row between years.
 
 **US-22: See free time off now, by the end of this year and by the end of next year.**
-The Ledger summary has three lines instead of one "Free" total, each counting Vacation and Floating Holidays not used by any Occasion:
-- **Earned now:** Earn Date on or before today.
-- **By end of this year:** Earn Date on or before Dec 31 of this year. This year's Floating Holidays count, since they're still usable that day.
-- **By end of next year:** Earn Date on or before Dec 31 of next year. This year's Floating Holidays don't count, because they've expired by then.
+Instead of one "Free" total, the Ledger counts Vacation and Floating Holidays not used by any Occasion three ways, and each year's estimate sits with that year's label:
+- **Earned now:** Earn Date on or before today. This is the card at the top of the Ledger.
+- **By end of this year:** Earn Date on or before Dec 31 of this year, shown on this year's separator row. This year's Floating Holidays count, since they're still usable that day.
+- **By end of next year:** Earn Date on or before Dec 31 of next year, shown on next year's separator row. This year's Floating Holidays don't count, because they've expired by then.
+- Any later year the Ledger shows (because an Occasion reaches it) gets its own "By end of" totals on its row the same way.
 
 **US-14: Change an Earn Date by tapping it.**
 Tapping a date on the Ledger lets me change the day that Benefit Day was earned. The change stays put, and I can reset it.
@@ -95,3 +96,7 @@ Nothing overflows its card in iPhone Safari, date fields included.
 
 **US-20: It's pretty.**
 Clear colors for each type of day, Season colors, and animations. Motion is turned off when Reduce Motion is on.
+- A vivid palette in light and dark, with one color per Day Type (Vacation, Floating Holiday, RDO, Unpaid) used the same way on the Ledger, the day editor and the PTO counts, and one per Season.
+- A friendly header and a colorful "Earned now" card; the year rows, Estimated italics and the "*" stay easy to spot.
+- Editors open and close smoothly, rows and cards fade in, tabs slide, buttons press and counts roll to their new value.
+- System fonts only, and nothing loaded from other sites.
