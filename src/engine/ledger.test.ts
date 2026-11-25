@@ -107,6 +107,15 @@ describe("SAP Balance beyond what the schedule explains", () => {
   it("keeps hours that don't make a whole day as a note", () => {
     expect(view.ledger.leftoverHours).toEqual({ vacation: 4, floatingHoliday: 4 });
   });
+
+  it("rounds the leftover hours to 2 decimals, so 37.6 h is 4 days + 5.6 h", () => {
+    // 37.6 % 8 is 5.600000000000001 in floating point.
+    const decimals = computeView(
+      input({ sapVacationHours: 37.6, sapFloatingHolidayHours: 12.3, sapAsOf: "2025-11-24" }, "2025-11-24"),
+    );
+    expect(decimals.ledger.leftoverHours).toEqual({ vacation: 5.6, floatingHoliday: 4.3 });
+    expect(decimals.ledger.free.vacation).toBe(4 + 10);
+  });
 });
 
 describe("rollover on Jan 1", () => {

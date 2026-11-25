@@ -21,6 +21,16 @@ import type {
 const HOURS_PER_DAY = 8;
 
 /**
+ * A balance in hours as whole Benefit Days plus the hours left over, worked
+ * in hundredths of an hour so 37.6 h is 4 days + 5.6 h, not 5.600000000000001.
+ */
+function splitHours(hours: number): { days: number; leftover: number } {
+  const hundredths = Math.round(hours * 100);
+  const perDay = HOURS_PER_DAY * 100;
+  return { days: Math.floor(hundredths / perDay), leftover: (hundredths % perDay) / 100 };
+}
+
+/**
  * The engine's single entry point: recalculates the whole view model from
  * scratch on every change.
  *
@@ -48,7 +58,7 @@ export function computeView(input: EngineInput): ViewModel {
   const burned = applyEarnDateEdits(ledgerRows, input.earnDateEdits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
-    leftoverVacationHours: settings.sapVacationHours % HOURS_PER_DAY,
+    leftoverVacationHours: splitHours(settings.sapVacationHours).leftover,
     historyYear: settings.fullYearHistory ? currentYear : null,
   });
   const rows = rollover(burned, currentYear);
@@ -62,8 +72,8 @@ export function computeView(input: EngineInput): ViewModel {
       free: countFree(rows),
       usedNotListed: countUsedNotListed(rows),
       leftoverHours: {
-        vacation: settings.sapVacationHours % HOURS_PER_DAY,
-        floatingHoliday: settings.sapFloatingHolidayHours % HOURS_PER_DAY,
+        vacation: splitHours(settings.sapVacationHours).leftover,
+        floatingHoliday: splitHours(settings.sapFloatingHolidayHours).leftover,
       },
     },
   };
@@ -85,7 +95,7 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
   return [
     ...walkBack({
       benefitType: "vacation",
-      days: Math.floor(settings.sapVacationHours / HOURS_PER_DAY),
+      days: splitHours(settings.sapVacationHours).days,
       // A projected Vacation day is in SAP once its Payday is on or before as-of.
       candidates: vacation.filter((e) => paidBy(e.earnDate, asOf)),
       projected: vacation.filter((e) => !paidBy(e.earnDate, asOf)),
@@ -94,7 +104,7 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
     }),
     ...walkBack({
       benefitType: "floatingHoliday",
-      days: Math.floor(settings.sapFloatingHolidayHours / HOURS_PER_DAY),
+      days: splitHours(settings.sapFloatingHolidayHours).days,
       // A Floating Holiday is in SAP from its posting date.
       candidates: fh.filter((e) => yearOf(e.earnDate) === asOfYear && e.earnDate <= asOf),
       projected: fh.filter((e) => e.earnDate > asOf),
@@ -147,7 +157,7 @@ function fullYearRows(
       year,
       entries: vacation,
       inSap: vacationInSap,
-      sapDays: Math.floor(settings.sapVacationHours / HOURS_PER_DAY),
+      sapDays: splitHours(settings.sapVacationHours).days,
       deductedDaysOff: deductedDaysOff("vacation"),
       carryoverCandidates: vacation.filter((e) => yearOf(e.earnDate) < year && vacationInSap(e)),
       extraDate: hire,
@@ -159,7 +169,7 @@ function fullYearRows(
       entries: fh,
       inSap: fhInSap,
       // A balance read in an earlier year is that year's Floating Holidays, which have expired.
-      sapDays: yearOf(asOf) < year ? 0 : Math.floor(settings.sapFloatingHolidayHours / HOURS_PER_DAY),
+      sapDays: yearOf(asOf) < year ? 0 : splitHours(settings.sapFloatingHolidayHours).days,
       deductedDaysOff: deductedDaysOff("floatingHoliday"),
       // Floating Holidays don't carry over: extra rows are dated Jan 1.
       carryoverCandidates: [],
