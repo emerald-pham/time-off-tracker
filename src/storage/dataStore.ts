@@ -35,3 +35,21 @@ export function emptyAppData(): AppData {
     earnDateEdits: {},
   };
 }
+
+/** True when two AppData values hold the same data, whatever their key order. */
+export function sameAppData(a: AppData, b: AppData): boolean {
+  return canonical(a) === canonical(b);
+}
+
+/** True for data that was never filled in, which counts as nothing saved. */
+export function isEmptyAppData(data: AppData): boolean {
+  return sameAppData(data, emptyAppData());
+}
+
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v,
+  );
+}
