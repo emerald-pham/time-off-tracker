@@ -20,11 +20,11 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   terminate,
-  waitForPendingWrites,
 } from "firebase/firestore";
 import { FirestoreDataStore } from "../storage/firestoreDataStore";
 import type { DataStore } from "../storage";
 import type { FirebaseWebConfig } from "./config";
+import { writesSyncedWithin } from "./pendingWrites";
 import { signInMethod } from "./signInMethod";
 import type { Session } from "./sync";
 
@@ -42,7 +42,8 @@ export interface AuthGateway extends Session {
   signIn(): Promise<void>;
   /**
    * Signs out, then wipes Firestore's offline cache so no account data stays
-   * on the device, and reloads the page.
+   * on the device, and reloads the page. It doesn't check for unsynced
+   * changes: src/auth/sync.ts does that first, with `changesSynced`.
    */
   signOut(): Promise<void>;
   /** The account's copy, `users/{uid}`. */
@@ -51,7 +52,8 @@ export interface AuthGateway extends Session {
   redirectError(): Promise<string | null>;
 }
 
-const PENDING_WRITES_WAIT_MS = 4000;
+/** How long sign-out gives a change made just now to reach the account. */
+const SYNC_WAIT_MS = 4000;
 
 /**
  * `useEmulators` points auth and Firestore at the local emulators
@@ -90,20 +92,21 @@ export function connectFirebase(config: FirebaseWebConfig, useEmulators = false)
       }
     },
 
+    changesSynced() {
+      return writesSyncedWithin(db, SYNC_WAIT_MS);
+    },
+
     async signOut() {
-      // Give unsynced edits a moment to reach the account before signing out.
-      await Promise.race([
-        waitForPendingWrites(db),
-        new Promise((resolve) => setTimeout(resolve, PENDING_WRITES_WAIT_MS)),
-      ]);
       await firebaseSignOut(auth);
       await terminate(db);
       try {
+        // Deleting the cache doesn't wait for other tabs: the SDK closes their
+        // connection to it, which shuts down their Firestore client too.
+        // That's why every other tab reloads when it sees this sign-out.
         await clearIndexedDbPersistence(db);
-      } catch {
-        // Another tab of the app still has the cache open, so it can't be
-        // deleted now. Signing out from that tab, or closing it and signing
-        // out again, clears it.
+      } catch (error) {
+        // IndexedDB itself failed. Nothing more can be done from here.
+        console.error("Couldn't clear the offline copy of your account", error);
       }
       window.location.reload();
     },

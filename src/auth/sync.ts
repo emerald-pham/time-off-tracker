@@ -11,9 +11,28 @@ import type { AppData, DataStore } from "../storage";
 /** The two answers to the first-sign-in question. Never merge. */
 export type HandoffChoice = "keep-account" | "replace-with-device";
 
-/** The signed-in session. Its `signOut` also wipes the offline cache. */
+/** The signed-in session (the Firebase gateway). */
 export interface Session {
+  /**
+   * True once every change waiting on this device has reached the account;
+   * false if that takes more than a few seconds (offline, say).
+   */
+  changesSynced(): Promise<boolean>;
+  /**
+   * Signs out and wipes this device's offline copy of the account, including
+   * any change still waiting there to be sent.
+   */
   signOut(): Promise<void>;
+}
+
+/** Signing out now would throw away changes that haven't reached the account. */
+export class UnsyncedChangesError extends Error {
+  constructor() {
+    super(
+      "Some changes on this device haven't reached your account yet, maybe because you're offline. Signing out now would lose them.",
+    );
+    this.name = "UnsyncedChangesError";
+  }
 }
 
 export interface Handoff {
@@ -51,15 +70,35 @@ export async function handOffOnSignIn({ device, account, ask }: Handoff): Promis
   return result;
 }
 
-/** Sign out clears the device copy. The account's copy stays. */
-export async function signOut({ device, session }: { device: DataStore; session: Session }) {
+/**
+ * Sign out clears the device copy. The account's copy stays, so signing out
+ * waits for every change to reach it first: if some haven't (offline), it
+ * refuses with UnsyncedChangesError and clears nothing, unless the person
+ * chose to discard them.
+ */
+export async function signOut({
+  device,
+  session,
+  discardUnsynced = false,
+}: {
+  device: DataStore;
+  session: Session;
+  discardUnsynced?: boolean;
+}) {
+  if (!discardUnsynced && !(await session.changesSynced())) throw new UnsyncedChangesError();
   await device.clear();
   await session.signOut();
 }
 
 /**
- * "Delete my data": removes the account's copy (when signed in) and the device
- * copy, then signs out. If the account's copy can't be removed, nothing else is.
+ * "Delete my data": removes the device copy and, signed in, the account's
+ * copy. Resolves as soon as both are gone from this device; from then on the
+ * account's store refuses any save, so a later edit can't bring the data back.
+ *
+ * `accountDeleted` resolves once the server has the delete and the person is
+ * signed out, which offline waits until they're back online: signing out any
+ * sooner would wipe the queued delete along with the offline cache. It
+ * rejects, without signing out, if the server refuses the delete.
  */
 export async function deleteMyData({
   device,
@@ -69,8 +108,9 @@ export async function deleteMyData({
   device: DataStore;
   account: DataStore | null;
   session: Session | null;
-}) {
+}): Promise<{ accountDeleted: Promise<void> }> {
   if (account) await account.clear();
   await device.clear();
-  if (session) await session.signOut();
+  if (!account || !session) return { accountDeleted: Promise.resolve() };
+  return { accountDeleted: account.synced().then(() => session.signOut()) };
 }

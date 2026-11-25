@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deleteMyData, handOffOnSignIn, signOut } from "./sync";
+import { deleteMyData, handOffOnSignIn, signOut, UnsyncedChangesError } from "./sync";
 import { emptyAppData, LocalDataStore, memoryStorage } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { sam } from "../engine/fixtures";
@@ -139,11 +139,42 @@ describe("handOffOnSignIn", () => {
   });
 });
 
+/** A session whose changes have (or haven't yet) reached the account. */
+function sessionWith(changesSynced: boolean) {
+  return { changesSynced: vi.fn(async () => changesSynced), signOut: vi.fn(async () => {}) };
+}
+
+/**
+ * The account's store while offline: writes land on the device, but the
+ * server never answers, so `synced()` never settles until `goOnline()`.
+ */
+function offlineAccount(initial: AppData) {
+  const store = memoryStore(initial);
+  let answer!: { resolve: () => void; reject: (e: Error) => void };
+  const synced = new Promise<void>((resolve, reject) => (answer = { resolve, reject }));
+  return {
+    ...store,
+    synced: () => synced,
+    goOnline: () => answer.resolve(),
+    serverRefuses: (e: Error) => answer.reject(e),
+  };
+}
+
+const settled = async (p: Promise<unknown>) => {
+  let done = false;
+  void p.then(
+    () => (done = true),
+    () => (done = true),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  return done;
+};
+
 describe("signOut", () => {
-  it("signs out and clears the device copy", async () => {
+  it("signs out and clears the device copy once every change has reached the account", async () => {
     const device = memoryStore(deviceData);
     const account = memoryStore(accountData);
-    const session = { signOut: vi.fn(async () => {}) };
+    const session = sessionWith(true);
 
     await signOut({ device, session });
 
@@ -151,15 +182,35 @@ describe("signOut", () => {
     expect(await device.load()).toBeNull();
     expect(await account.load()).toEqual(accountData);
   });
+
+  it("refuses while changes haven't reached the account, and clears nothing", async () => {
+    const device = memoryStore(deviceData);
+    const session = sessionWith(false);
+
+    await expect(signOut({ device, session })).rejects.toBeInstanceOf(UnsyncedChangesError);
+    expect(session.signOut).not.toHaveBeenCalled();
+    expect(await device.load()).toEqual(deviceData);
+  });
+
+  it("signs out anyway when the person chooses to discard unsynced changes", async () => {
+    const device = memoryStore(deviceData);
+    const session = sessionWith(false);
+
+    await signOut({ device, session, discardUnsynced: true });
+
+    expect(session.signOut).toHaveBeenCalledOnce();
+    expect(await device.load()).toBeNull();
+  });
 });
 
 describe("deleteMyData", () => {
   it("removes the account's copy and the device copy, then signs out", async () => {
     const device = memoryStore(deviceData);
     const account = memoryStore(accountData);
-    const session = { signOut: vi.fn(async () => {}) };
+    const session = sessionWith(true);
 
-    await deleteMyData({ device, account, session });
+    const { accountDeleted } = await deleteMyData({ device, account, session });
+    await accountDeleted;
 
     expect(await account.load()).toBeNull();
     expect(await device.load()).toBeNull();
@@ -168,22 +219,36 @@ describe("deleteMyData", () => {
 
   it("clears the device copy when signed out", async () => {
     const device = memoryStore(deviceData);
-    await deleteMyData({ device, account: null, session: null });
+    const { accountDeleted } = await deleteMyData({ device, account: null, session: null });
+    await accountDeleted;
     expect(await device.load()).toBeNull();
   });
 
-  it("keeps the device copy if the account's copy can't be deleted", async () => {
+  it("offline, is done on this device at once, and signs out only when the server has the delete", async () => {
     const device = memoryStore(deviceData);
-    const account = {
-      ...memoryStore(accountData),
-      clear: async () => {
-        throw new Error("offline");
-      },
-    };
-    const session = { signOut: vi.fn(async () => {}) };
+    const account = offlineAccount(accountData);
+    const session = sessionWith(true);
 
-    await expect(deleteMyData({ device, account, session })).rejects.toThrow("offline");
-    expect(await device.load()).toEqual(deviceData);
+    const { accountDeleted } = await deleteMyData({ device, account, session });
+
+    expect(await device.load()).toBeNull();
+    expect(await account.load()).toBeNull();
+    expect(await settled(accountDeleted)).toBe(false);
+    expect(session.signOut).not.toHaveBeenCalled();
+
+    account.goOnline();
+    await accountDeleted;
+    expect(session.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't sign out if the server refuses the delete", async () => {
+    const account = offlineAccount(accountData);
+    const session = sessionWith(true);
+
+    const { accountDeleted } = await deleteMyData({ device: memoryStore(deviceData), account, session });
+    account.serverRefuses(new Error("Missing or insufficient permissions."));
+
+    await expect(accountDeleted).rejects.toThrow("permissions");
     expect(session.signOut).not.toHaveBeenCalled();
   });
 });
