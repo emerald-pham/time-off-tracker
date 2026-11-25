@@ -45,7 +45,8 @@ export function sapBalanceDays(hours: number): { days: number; leftoverHours: nu
  *   4. resolve each Occasion's Days Off, then Burn rows in one date-order pass
  *      (see burning.ts; Vacation Cap marks rows Lost to cap)
  *   5. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
- *   6. group by year and count free rows
+ *   6. mark rows Estimated (Earn Date after today) or Earned
+ *   7. group by year and count free rows
  */
 export function computeView(input: EngineInput): ViewModel {
   const { settings, today } = input;
@@ -73,7 +74,8 @@ export function computeView(input: EngineInput): ViewModel {
     hireDate: settings.hireDate,
     history: built.usedNotListed && { year: currentYear, usedNotListed: built.usedNotListed },
   });
-  const groups = groupByYear(rollover(burned, currentYear), currentYear, lastYear);
+  const earned = rollover(burned, currentYear).map((r) => ({ ...r, notYetEarned: r.earnDate > today }));
+  const groups = groupByYear(earned, currentYear, lastYear);
   const shown = groups.flatMap((g) => g.rows);
 
   return {
@@ -183,11 +185,11 @@ function withEarnDateEdits(schedule: ScheduleEntry[], edits: EarnDateEdits): Sch
 /**
  * Marks edited rows, and moves extra walk-back rows (which aren't schedule
  * entries) to their edits. The edited date is the user's, so the row is no
- * longer Estimated.
+ * longer Approximate.
  */
 function applyEarnDateEdits(rows: LedgerRow[], edits: EarnDateEdits): LedgerRow[] {
   return rows.map((r) =>
-    Object.hasOwn(edits, r.key) ? { ...r, earnDate: edits[r.key], edited: true, estimated: false } : r,
+    Object.hasOwn(edits, r.key) ? { ...r, earnDate: edits[r.key], edited: true, approximate: false } : r,
   );
 }
 
@@ -288,7 +290,7 @@ function walkBack(args: {
   extraKeyPrefix: string;
 }): LedgerRow[] {
   // Newest credited first, except that days the person dated themselves come
-  // before estimated ones: moving a day in SAP to an older date keeps it in SAP.
+  // before approximate ones: moving a day in SAP to an older date keeps it in SAP.
   const newestFirst = [...args.candidates].sort(
     (a, b) =>
       Number(Boolean(b.edited)) - Number(Boolean(a.edited)) ||
@@ -313,7 +315,8 @@ function row(key: string, benefitType: BenefitType, earnDate: IsoDate, origin: R
     earnDate,
     origin,
     carryover: false,
-    estimated: origin === "starting" || origin === "extra",
+    approximate: origin === "starting" || origin === "extra",
+    notYetEarned: false,
     burnedBy: null,
     lostToCap: false,
     expired: false,

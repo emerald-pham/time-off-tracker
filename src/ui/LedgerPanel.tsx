@@ -104,7 +104,7 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
       </table>
       <p className="legend">
         <span>
-          <span className="estimated-mark">~</span> Estimated Earn Date
+          <span className="approximate-mark">*</span> approximate date
         </span>
         {anyEdited && (
           <span>
@@ -136,7 +136,8 @@ function LedgerRowView({
     row.benefitType === "vacation" ? "vacation" : "floating-holiday",
     row.carryover && "carryover",
     row.burnedBy && "burned",
-    row.estimated && "estimated",
+    row.approximate && "approximate",
+    row.notYetEarned && "not-yet-earned",
     row.lostToCap && "lost-to-cap",
     row.expired && "expired",
     row.edited && "edited",
@@ -155,10 +156,10 @@ function LedgerRowView({
           onClick={onToggle}
         >
           {date}
-          {row.estimated && (
-            <span className="estimated-mark" title="Estimated">
+          {row.approximate && (
+            <span className="approximate-mark" title="Approximate date">
               {" "}
-              ~
+              *
             </span>
           )}
           {row.edited && (

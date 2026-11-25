@@ -37,7 +37,7 @@ describe("E8: full-year history mode", () => {
         "2025-09-10",
         "2025-11-12",
       ]);
-      expect(vacation2025(view).some((r) => r.estimated || r.carryover || r.usedNotListed)).toBe(false);
+      expect(vacation2025(view).some((r) => r.approximate || r.carryover || r.usedNotListed)).toBe(false);
     });
 
     it("lets the Deducted Jun 10–11 Burn two of the May 14 rows", () => {
@@ -104,7 +104,7 @@ describe("full-year history: Carryover from the SAP Balance", () => {
 
   it("adds two Carryover rows by walking back 2025's entries, newest first, at the top", () => {
     const top = view.ledger.groups[0].rows.slice(0, 3);
-    expect(top.map((r) => [r.key, r.earnDate, r.carryover, r.estimated])).toEqual([
+    expect(top.map((r) => [r.key, r.earnDate, r.carryover, r.approximate])).toEqual([
       ["vacation:2025:4", "2025-09-10", true, true],
       ["vacation:2025:5", "2025-11-12", true, true],
       ["fh:2026:1", "2026-01-01", false, false],
@@ -147,9 +147,9 @@ describe("full-year history: Floating Holidays", () => {
     expect(view.ledger.usedNotListed).toEqual({ vacation: 0, floatingHoliday: 1 });
   });
 
-  it("with SAP 32 h, c = 4 − 3 = 1: an extra row dated Jan 1, Estimated", () => {
+  it("with SAP 32 h, c = 4 − 3 = 1: an extra row dated Jan 1, Approximate", () => {
     const view = computeView(input({ sapFloatingHolidayHours: 32 }, []));
-    expect(fh2025(view).map((r) => [r.key, r.earnDate, r.estimated])).toEqual([
+    expect(fh2025(view).map((r) => [r.key, r.earnDate, r.approximate])).toEqual([
       ["fh:2025:extra:1", "2025-01-01", true],
       ["fh:2025:1", "2025-03-01", false],
       ["fh:2025:2", "2025-06-01", false],

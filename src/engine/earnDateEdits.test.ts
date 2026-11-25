@@ -68,7 +68,7 @@ describe("Earn Date edits", () => {
     it("a projected day moved before the as-of date is one of SAP's 5 days, not a sixth", () => {
       // Feb 1, 2026 moved to Nov 1, 2025 (paid Nov 6) is in SAP by Nov 24, so it joins the walk-back.
       const view = computeView(decInput({ "vacation:2026:1": "2025-11-01" }));
-      expect(row(view, "vacation:2026:1")).toMatchObject({ origin: "starting", edited: true, estimated: false });
+      expect(row(view, "vacation:2026:1")).toMatchObject({ origin: "starting", edited: true, approximate: false });
       // The oldest credited day in SAP, Mar 5, 2025, drops out instead.
       expect(row(view, "vacation:2025:1")).toBeUndefined();
       expect(burnedByDec(view)).toEqual([
@@ -163,10 +163,10 @@ describe("Earn Date edits", () => {
     });
   });
 
-  it("marks the row Edited, not Estimated; with no edit it is back to its walked-back date", () => {
+  it("marks the row Edited, not Approximate; with no edit it is back to its walked-back date", () => {
     const edited = computeView(input({ "vacation:2025:5": "2025-11-01" }));
-    expect(row(edited, "vacation:2025:5")).toMatchObject({ earnDate: "2025-11-01", edited: true, estimated: false });
+    expect(row(edited, "vacation:2025:5")).toMatchObject({ earnDate: "2025-11-01", edited: true, approximate: false });
     const reset = computeView(input({}));
-    expect(row(reset, "vacation:2025:5")).toMatchObject({ earnDate: "2025-11-12", edited: false, estimated: true });
+    expect(row(reset, "vacation:2025:5")).toMatchObject({ earnDate: "2025-11-12", edited: false, approximate: true });
   });
 });

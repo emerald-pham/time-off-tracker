@@ -11,7 +11,8 @@
   white-space: nowrap;
 }
 
-.ledger .estimated button.earn-date-button {
+/* Estimated: the Earn Date is later than today, so the day isn't earned yet. */
+.ledger .not-yet-earned button.earn-date-button {
   font-style: italic;
 }
 

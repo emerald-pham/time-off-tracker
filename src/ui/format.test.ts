@@ -71,10 +71,14 @@ describe("Ledger formatting", () => {
     expect(formatEarnDate("2025-11-12", 2026)).toBe("Nov 12, 2025");
   });
 
-  it("labels Carryover 'Vacation (Previous Year)'", () => {
-    expect(typeLabel({ benefitType: "vacation", carryover: false })).toBe("Vacation");
-    expect(typeLabel({ benefitType: "vacation", carryover: true })).toBe("Vacation (Previous Year)");
-    expect(typeLabel({ benefitType: "floatingHoliday", carryover: false })).toBe("Floating Holiday");
+  it("labels a Benefit Day Earned or Estimated, and Carryover 'Vacation (Previous Year)'", () => {
+    const label = (benefitType: "vacation" | "floatingHoliday", carryover: boolean, notYetEarned: boolean) =>
+      typeLabel({ benefitType, carryover, notYetEarned });
+    expect(label("vacation", false, false)).toBe("Vacation (Earned)");
+    expect(label("vacation", false, true)).toBe("Vacation (Estimated)");
+    expect(label("floatingHoliday", false, false)).toBe("Floating Holiday (Earned)");
+    expect(label("floatingHoliday", false, true)).toBe("Floating Holiday (Estimated)");
+    expect(label("vacation", true, false)).toBe("Vacation (Previous Year)");
   });
 
   it("summarizes free days like 'Free: 6 Vacation, 2 Floating Holidays'", () => {

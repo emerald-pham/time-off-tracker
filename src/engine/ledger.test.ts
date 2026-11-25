@@ -22,7 +22,7 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
     expect(view.ledger.groups.map((g) => g.year)).toEqual([2025, 2026]);
   });
 
-  it("walks Vacation back newest first: Nov 12, Sep 10, Jul 9, May 14, May 14, all Estimated", () => {
+  it("walks Vacation back newest first: Nov 12, Sep 10, Jul 9, May 14, May 14, all Approximate", () => {
     const vacation = y2025.rows.filter((r) => r.benefitType === "vacation");
     expect(vacation.map((r) => r.earnDate)).toEqual([
       "2025-05-14",
@@ -31,7 +31,7 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
       "2025-09-10",
       "2025-11-12",
     ]);
-    expect(vacation.every((r) => r.origin === "starting" && r.estimated)).toBe(true);
+    expect(vacation.every((r) => r.origin === "starting" && r.approximate)).toBe(true);
   });
 
   it("starts from one Floating Holiday, Sep 1 2025, which shows 'expires Dec 31'", () => {
@@ -50,7 +50,7 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
     ]);
   });
 
-  it("projects all of E1's 2026 entries, not Estimated and with no expiry warning", () => {
+  it("projects all of E1's 2026 entries, not Approximate and with no expiry warning", () => {
     expect(y2026.rows.map(short)).toEqual([
       "2026-01-01 FH",
       "2026-01-01 FH",
@@ -66,14 +66,44 @@ describe("E2: Sam's Ledger starts from the SAP Balance", () => {
       "2026-10-11 V",
       "2026-11-12 V",
     ]);
-    expect(y2026.rows.every((r) => r.origin === "projected" && !r.estimated)).toBe(true);
+    expect(y2026.rows.every((r) => r.origin === "projected" && !r.approximate)).toBe(true);
     expect(y2026.rows.some((r) => r.expiresWarning)).toBe(false);
   });
 
   it("counts free Benefit Days: 15 Vacation, 4 Floating Holidays", () => {
     expect(view.ledger.free).toEqual({ vacation: 15, floatingHoliday: 4 });
   });
+});
 
+describe("Earned and Estimated (not yet earned) rows", () => {
+  // E2's balance viewed on Nov 12, 2025, the day the last 2025 Vacation day is earned.
+  const view = computeView(
+    input({ sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" }, "2025-11-12"),
+  );
+  const [y2025, y2026] = view.ledger.groups;
+
+  it("marks an Earn Date on or before today as earned", () => {
+    expect(y2025.rows.map((r) => [r.earnDate, r.notYetEarned])).toEqual([
+      ["2025-05-14", false],
+      ["2025-05-14", false],
+      ["2025-07-09", false],
+      ["2025-09-01", false],
+      ["2025-09-10", false],
+      ["2025-11-12", false],
+    ]);
+  });
+
+  it("marks an Earn Date later than today as not yet earned", () => {
+    expect(y2026.rows.every((r) => r.notYetEarned)).toBe(true);
+  });
+
+  it("follows today, not the SAP Balance as-of date", () => {
+    const earlier = computeView(
+      input({ sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" }, "2025-11-11"),
+    );
+    const nov12 = earlier.ledger.groups[0].rows.find((r) => r.earnDate === "2025-11-12");
+    expect(nov12?.notYetEarned).toBe(true);
+  });
 });
 
 describe("SAP Balance beyond what the schedule explains", () => {
@@ -86,9 +116,9 @@ describe("SAP Balance beyond what the schedule explains", () => {
   );
   const rows = view.ledger.groups[0].rows;
 
-  it("dates an extra Vacation row at the eligibility date (May 14, 2025), Estimated", () => {
+  it("dates an extra Vacation row at the eligibility date (May 14, 2025), Approximate", () => {
     const extra = rows.filter((r) => r.origin === "extra" && r.benefitType === "vacation");
-    expect(extra.map((r) => [r.key, r.earnDate, r.estimated])).toEqual([["vacation:extra:1", "2025-05-14", true]]);
+    expect(extra.map((r) => [r.key, r.earnDate, r.approximate])).toEqual([["vacation:extra:1", "2025-05-14", true]]);
   });
 
   it("shows an extra row from an earlier year as Carryover", () => {
@@ -100,7 +130,7 @@ describe("SAP Balance beyond what the schedule explains", () => {
 
   it("dates an extra Floating Holiday row Jan 1 of the as-of year", () => {
     const extra = rows.filter((r) => r.origin === "extra" && r.benefitType === "floatingHoliday");
-    expect(extra.map((r) => [r.key, r.earnDate, r.estimated])).toEqual([
+    expect(extra.map((r) => [r.key, r.earnDate, r.approximate])).toEqual([
       ["fh:2025:extra:1", "2025-01-01", true],
     ]);
   });

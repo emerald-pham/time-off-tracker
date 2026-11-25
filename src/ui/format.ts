@@ -55,9 +55,11 @@ export function formatEarnDate(d: IsoDate, groupYear: number): string {
   return y === groupYear ? short : `${short}, ${y}`;
 }
 
-export function typeLabel(row: Pick<LedgerRow, "benefitType" | "carryover">): string {
-  if (row.benefitType === "floatingHoliday") return "Floating Holiday";
-  return row.carryover ? "Vacation (Previous Year)" : "Vacation";
+/** "Vacation (Earned)", "Floating Holiday (Estimated)", or "Vacation (Previous Year)" for Carryover. */
+export function typeLabel(row: Pick<LedgerRow, "benefitType" | "carryover" | "notYetEarned">): string {
+  if (row.benefitType === "vacation" && row.carryover) return "Vacation (Previous Year)";
+  const type = row.benefitType === "vacation" ? "Vacation" : "Floating Holiday";
+  return `${type} (${row.notYetEarned ? "Estimated" : "Earned"})`;
 }
 
 export function freeSummary(free: BenefitCounts): string {

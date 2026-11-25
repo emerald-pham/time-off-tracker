@@ -106,8 +106,13 @@ export interface LedgerRow {
   origin: RowOrigin;
   /** Vacation earned in an earlier calendar year: "Vacation (Previous Year)". */
   carryover: boolean;
-  /** Earn Date assigned by walking back, or beyond what the schedule explains. */
-  estimated: boolean;
+  /** Approximate: Earn Date assigned by walking back, or beyond what the schedule explains. Shown with "*". */
+  approximate: boolean;
+  /**
+   * Estimated: the Earn Date is later than today, so the day isn't earned
+   * yet. False means Earned. Shown in italics.
+   */
+  notYetEarned: boolean;
   /** The Occasion that Burns this row; null when free. Set by Burning (ticket 02). */
   burnedBy: BurnedBy | null;
   /** Ticket 02. */

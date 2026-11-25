@@ -199,12 +199,9 @@ body {
   background: var(--accent-soft);
 }
 
-.ledger .estimated .earn-date {
-  font-style: italic;
-}
-
-.estimated-mark {
+.approximate-mark {
   color: var(--muted);
+  font-style: normal;
 }
 
 .ledger .lost-to-cap td {
