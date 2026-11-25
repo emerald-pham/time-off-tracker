@@ -26,7 +26,8 @@
   font-style: normal;
 }
 
-.ledger .used-not-listed td {
+.ledger .used-not-listed td,
+.ledger .expired td {
   color: var(--muted);
 }
 

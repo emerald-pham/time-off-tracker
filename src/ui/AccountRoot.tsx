@@ -8,6 +8,8 @@ import { App, AppHeader } from "./App";
 import "./account.css";
 
 type State =
+  /** Waiting to hear from Firebase, after a visit that ended signed in. */
+  | { kind: "starting" }
   | { kind: "signed-out" }
   /** `answer` is set while the first-sign-in question is up for this handoff. */
   | { kind: "handing-off"; account: Account; answer: ((choice: HandoffChoice) => void) | null }
@@ -24,6 +26,12 @@ interface Props {
    * was built in: signed-out only. Calling it again returns the same gateway.
    */
   connect: (() => Promise<AuthGateway>) | null;
+  /**
+   * Whether the last visit ended signed in, so that next time the page says
+   * "Loading your account…" while Firebase starts, instead of showing this
+   * device's empty signed-out copy.
+   */
+  signedInHint?: { read(): boolean; write(signedIn: boolean): void };
 }
 
 /**
@@ -34,9 +42,11 @@ interface Props {
  * Each account change starts a fresh handoff, and a handoff that finishes
  * after the account changed again is dropped, along with its question.
  */
-export function AccountRoot({ local, connect }: Props) {
+export function AccountRoot({ local, connect, signedInHint }: Props) {
   const [gateway, setGateway] = useState<AuthGateway | null>(null);
-  const [state, setState] = useState<State>({ kind: "signed-out" });
+  const [state, setState] = useState<State>(() =>
+    connect && signedInHint?.read() ? { kind: "starting" } : { kind: "signed-out" },
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /** Sign-out was refused because changes haven't reached the account. */
@@ -58,13 +68,17 @@ export function AccountRoot({ local, connect }: Props) {
           if (current()) setState({ kind: "handing-off", account, answer: resolve });
         });
       handOffOnSignIn({ device: local, account: store, ask }).then(
-        () => current() && setState({ kind: "signed-in", account, store }),
+        () => {
+          if (!current()) return;
+          setState({ kind: "signed-in", account, store });
+          signedInHint?.write(true);
+        },
         (e: unknown) =>
           current() &&
           setState({ kind: "handoff-failed", account, error: `Couldn't load your account's data: ${message(e)}` }),
       );
     },
-    [local],
+    [local, signedInHint],
   );
 
   // Load Firebase once the app is on screen. If it can't load, the app
@@ -96,13 +110,14 @@ export function AccountRoot({ local, connect }: Props) {
       }
       handoff.current++;
       setState({ kind: "signed-out" });
+      signedInHint?.write(false);
     });
     return () => {
       live = false;
       handoff.current++;
       unsubscribe();
     };
-  }, [gateway, startHandoff]);
+  }, [gateway, startHandoff, signedInHint]);
 
   const run = useCallback(async (action: () => Promise<void>) => {
     setBusy(true);
@@ -116,6 +131,28 @@ export function AccountRoot({ local, connect }: Props) {
       setBusy(false);
     }
   }, []);
+
+  if (state.kind === "starting") {
+    return (
+      <div className="app">
+        <AppHeader />
+        {error ? (
+          <>
+            <p className="app-error" role="alert">
+              {error}
+            </p>
+            <p>
+              <button type="button" className="button primary" onClick={() => window.location.reload()}>
+                Try again
+              </button>
+            </p>
+          </>
+        ) : (
+          <p className="account-status">Loading your account…</p>
+        )}
+      </div>
+    );
+  }
 
   if (state.kind === "handing-off") {
     return (

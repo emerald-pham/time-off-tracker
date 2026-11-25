@@ -127,6 +127,27 @@ export class LocalDataStore implements DataStore {
   }
 }
 
+/** A yes/no kept in local storage. It never throws: if the browser blocks storage, it just forgets. */
+export function storedFlag(storage: () => KeyValueStorage, key: string) {
+  return {
+    read(): boolean {
+      try {
+        return storage().getItem(key) === "1";
+      } catch {
+        return false;
+      }
+    },
+    write(on: boolean): void {
+      try {
+        if (on) storage().setItem(key, "1");
+        else storage().removeItem(key);
+      } catch {
+        // Nothing to keep it in; it's only a hint.
+      }
+    },
+  };
+}
+
 /** A KeyValueStorage that lives only as long as the page. */
 export function memoryStorage(): KeyValueStorage {
   const items = new Map<string, string>();

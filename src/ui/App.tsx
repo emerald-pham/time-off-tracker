@@ -4,6 +4,7 @@ import type { IsoDate } from "../engine";
 import { emptyAppData, sameAppData } from "../storage";
 import type { AppData, DataStore } from "../storage";
 import { resetEarnDate, setEarnDate } from "./earnDateEdits";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { LedgerPanel } from "./LedgerPanel";
 import { OccasionsPanel } from "./OccasionsPanel";
 import { SettingsPanel } from "./SettingsPanel";
@@ -28,46 +29,90 @@ function localToday(): IsoDate {
  *
  * The data on screen follows the store live, so edits made on another tab or
  * device show up here, and each edit saves only what it changed.
+ *
+ * Nothing here leaves a blank page: while loading, when the data can't load,
+ * or when the Ledger can't be worked out, the page says so and the Account
+ * section (and Settings, where there's data) stays reachable.
  */
 export function App({ store, account }: { store: DataStore; account?: React.ReactNode }) {
   const [data, setData] = useState<AppData | null>(null);
   const [tab, setTab] = useState<Section>("settings");
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [notKept, setNotKept] = useState(false);
   const today = localToday();
 
   useEffect(() => {
     let first = true;
     return store.subscribe(
-      ({ data: stored }) => {
+      ({ data: stored, notKept: lost }) => {
         const next = stored ?? emptyAppData();
         setData((current) => (current && sameAppData(current, next) ? current : next));
+        setLoadError(null);
+        setNotKept(lost);
         if (first) {
           first = false;
           // On first run, with no hire date yet, open on Settings.
           setTab(next.settings.hireDate ? "ledger" : "settings");
         }
       },
-      (e) => setSaveError(e.message),
+      (e) => (first ? setLoadError(e) : setSaveError(e.message)),
     );
   }, [store]);
 
-  const view = useMemo(
-    () => data && computeView({ ...data, today }),
-    [data, today],
-  );
+  const computed = useMemo(() => {
+    if (!data) return null;
+    try {
+      return { view: computeView({ ...data, today }), error: null };
+    } catch (e) {
+      return { view: null, error: e instanceof Error ? e : new Error(String(e)) };
+    }
+  }, [data, today]);
 
-  if (!data || !view) return null;
+  if (!data || !computed) {
+    return (
+      <div className="app">
+        <AppHeader />
+        {loadError ? (
+          <>
+            <p className="app-error" role="alert">
+              Couldn't load your data: {loadError.message}
+            </p>
+            <p>
+              <button type="button" className="button primary" onClick={() => window.location.reload()}>
+                Reload
+              </button>
+            </p>
+          </>
+        ) : (
+          <p className="account-status">Loading your data…</p>
+        )}
+        {account}
+      </div>
+    );
+  }
 
+  const { view } = computed;
   const update = (next: AppData) => {
     const before = data;
     setData(next);
     setSaveError(null);
     store.update(before, next).catch((e: unknown) => setSaveError(`Couldn't save that change: ${message(e)}`));
   };
+  const cantShow = (what: string) => (error: Error) => (
+    <p className="app-error" role="alert">
+      Couldn't work out your {what}: {error.message}. Check your Settings.
+    </p>
+  );
 
   return (
     <div className="app">
       <AppHeader />
+      {notKept && (
+        <p className="app-notice" role="status">
+          This browser isn't letting the app save, so your changes only last until you close this page.
+        </p>
+      )}
       {saveError && (
         <p className="app-error" role="alert">
           {saveError}
@@ -92,31 +137,46 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
 
       <main className="columns">
         <Panel id="ledger" active={tab}>
-          <LedgerPanel
-            ledger={view.ledger}
-            configured={view.configured}
-            onEditEarnDate={(key, date) =>
-              update({ ...data, earnDateEdits: setEarnDate(data.earnDateEdits, key, date) })
-            }
-            onResetEarnDate={(key) =>
-              update({ ...data, earnDateEdits: resetEarnDate(data.earnDateEdits, key) })
-            }
-          />
+          {view ? (
+            <ErrorBoundary resetKey={data} fallback={cantShow("Ledger")}>
+              <LedgerPanel
+                ledger={view.ledger}
+                configured={view.configured}
+                hireDate={data.settings.hireDate}
+                onEditEarnDate={(key, date) =>
+                  update({ ...data, earnDateEdits: setEarnDate(data.earnDateEdits, key, date) })
+                }
+                onResetEarnDate={(key) =>
+                  update({ ...data, earnDateEdits: resetEarnDate(data.earnDateEdits, key) })
+                }
+              />
+            </ErrorBoundary>
+          ) : (
+            cantShow("Ledger")(computed.error)
+          )}
         </Panel>
         <Panel id="occasions" active={tab}>
-          <OccasionsPanel
-            data={data}
-            today={today}
-            occasions={view.occasions}
-            onChange={(occasions) => update({ ...data, occasions })}
-          />
+          {view ? (
+            <ErrorBoundary resetKey={data} fallback={cantShow("Occasions")}>
+              <OccasionsPanel
+                data={data}
+                today={today}
+                occasions={view.occasions}
+                onChange={(occasions) => update({ ...data, occasions })}
+              />
+            </ErrorBoundary>
+          ) : (
+            cantShow("Occasions")(computed.error)
+          )}
         </Panel>
         <Panel id="settings" active={tab}>
-          <SettingsPanel
-            settings={data.settings}
-            today={today}
-            onChange={(settings) => update({ ...data, settings })}
-          />
+          <ErrorBoundary resetKey={data} fallback={cantShow("Settings")}>
+            <SettingsPanel
+              settings={data.settings}
+              today={today}
+              onChange={(settings) => update({ ...data, settings })}
+            />
+          </ErrorBoundary>
           {account}
         </Panel>
       </main>

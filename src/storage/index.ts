@@ -10,4 +10,4 @@ export {
   sameAppData,
 } from "./dataStore";
 export type { KeyValueStorage, LocalDataStoreOptions } from "./localDataStore";
-export { LocalDataStore, memoryStorage } from "./localDataStore";
+export { LocalDataStore, memoryStorage, storedFlag } from "./localDataStore";

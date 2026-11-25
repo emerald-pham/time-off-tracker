@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
 import { formatEarnDate, freeSummary, leftoverNote, typeLabel, usedNotListedMessage } from "./format";
 import "./ledger.css";
@@ -6,13 +7,29 @@ import "./ledger.css";
 interface Props {
   ledger: LedgerView;
   configured: boolean;
+  /** The earliest Earn Date the picker offers. */
+  hireDate: IsoDate | null;
   /** Stores an Earn Date edit against the row's schedule key. */
   onEditEarnDate: (key: ScheduleKey, date: IsoDate) => void;
   /** "Reset to projected": deletes the row's edit. */
   onResetEarnDate: (key: ScheduleKey) => void;
 }
 
-export function LedgerPanel({ ledger, configured, onEditEarnDate, onResetEarnDate }: Props) {
+/**
+ * The dates the Earn Date picker offers: from the hire date to 2100, and for
+ * a Floating Holiday only within its calendar year, which it can't leave.
+ */
+export function earnDateRange(row: Pick<LedgerRow, "benefitType" | "earnDate">, hireDate: IsoDate | null) {
+  const later = (a: IsoDate, b: IsoDate) => (a > b ? a : b);
+  const first = later(hireDate ?? `${FIRST_SUPPORTED_YEAR}-01-01`, `${FIRST_SUPPORTED_YEAR}-01-01`);
+  if (row.benefitType === "floatingHoliday") {
+    const year = row.earnDate.slice(0, 4);
+    return { min: later(first, `${year}-01-01`), max: `${year}-12-31` };
+  }
+  return { min: first, max: `${LAST_SUPPORTED_YEAR}-12-31` };
+}
+
+export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onResetEarnDate }: Props) {
   const [editingKey, setEditingKey] = useState<ScheduleKey | null>(null);
 
   if (!configured) {
@@ -74,6 +91,7 @@ export function LedgerPanel({ ledger, configured, onEditEarnDate, onResetEarnDat
                       <td colSpan={3}>
                         <EarnDateEditor
                           row={row}
+                          range={earnDateRange(row, hireDate)}
                           onSave={(date) => {
                             onEditEarnDate(row.key, date);
                             setEditingKey(null);
@@ -175,6 +193,8 @@ function LedgerRowView({
             <span className="note">Lost to cap</span>
           ) : row.usedNotListed ? (
             <span className="note">Used (not listed)</span>
+          ) : row.expired ? (
+            <span className="note">Expired</span>
           ) : (
             ""
           ))}
@@ -185,28 +205,38 @@ function LedgerRowView({
 
 function EarnDateEditor({
   row,
+  range,
   onSave,
   onReset,
   onCancel,
 }: {
   row: LedgerRow;
+  range: { min: IsoDate; max: IsoDate };
   onSave: (date: IsoDate) => void;
   onReset: () => void;
   onCancel: () => void;
 }) {
   const [date, setDate] = useState<IsoDate>(row.earnDate);
+  const allowed = isSupportedDate(date) && date >= range.min && date <= range.max;
 
   return (
     <form
       className="earn-date-editor"
       onSubmit={(e) => {
         e.preventDefault();
-        if (date) onSave(date);
+        if (allowed) onSave(date);
       }}
     >
       <label className="field">
         <span>Earn Date</span>
-        <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+        <input
+          type="date"
+          required
+          min={range.min}
+          max={range.max}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
       </label>
       <div className="actions">
         {row.edited && (
@@ -218,7 +248,7 @@ function EarnDateEditor({
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="primary" disabled={!date || date === row.earnDate}>
+        <button type="submit" className="primary" disabled={!allowed || date === row.earnDate}>
           Save
         </button>
       </div>

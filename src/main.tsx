@@ -2,8 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { firebaseConfigFromEnv } from "./auth/config";
 import type { AuthGateway } from "./auth/firebase";
-import { LocalDataStore } from "./storage";
+import { LocalDataStore, storedFlag } from "./storage";
 import { AccountRoot } from "./ui/AccountRoot";
+import { ErrorBoundary, PageError } from "./ui/ErrorBoundary";
 import "./ui/styles.css";
 
 // Without VITE_FIREBASE_* config the app runs signed-out only, and the
@@ -28,10 +29,14 @@ function storageEvents(key: string, onChange: () => void): () => void {
 
 // A getter, because even reading window.localStorage throws when the browser
 // blocks storage; the store then carries on in memory.
-const local = new LocalDataStore(() => window.localStorage, { watch: storageEvents });
+const deviceStorage = () => window.localStorage;
+const local = new LocalDataStore(deviceStorage, { watch: storageEvents });
+const signedInHint = storedFlag(deviceStorage, "time-off-tracker:signed-in");
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AccountRoot local={local} connect={connect} />
+    <ErrorBoundary fallback={(error) => <PageError error={error} />}>
+      <AccountRoot local={local} connect={connect} signedInHint={signedInHint} />
+    </ErrorBoundary>
   </StrictMode>,
 );

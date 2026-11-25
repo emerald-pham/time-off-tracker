@@ -91,6 +91,45 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+describe("starting up (finding 8)", () => {
+  const never = () => new Promise<AuthGateway>(() => {});
+
+  it("shows the app at once on this device's data while Firebase is still loading", async () => {
+    const local = new LocalDataStore(memoryStorage());
+    await local.save(deviceData);
+    mounted = await render(<AccountRoot local={local} connect={never} />);
+    expect(field(mounted.el, "Weekly hours").value).toBe("40");
+    expect(text(mounted.el)).toContain("Account");
+  });
+
+  it("keeps working signed out, and says why, when Firebase can't load", async () => {
+    const local = new LocalDataStore(memoryStorage());
+    const connect = () => Promise.reject(new Error("Failed to fetch dynamically imported module"));
+    mounted = await render(<AccountRoot local={local} connect={connect} />);
+    expect(text(mounted.el)).toContain("Sign-in isn't available right now");
+    expect(field(mounted.el, "Weekly hours")).toBeTruthy();
+  });
+
+  it("someone signed in last time sees Loading your account, not an empty signed-out app", async () => {
+    const hint = { read: () => true, write: vi.fn() };
+    mounted = await render(<AccountRoot local={new LocalDataStore(memoryStorage())} connect={never} signedInHint={hint} />);
+    expect(text(mounted.el)).toContain("Loading your account");
+    expect(text(mounted.el)).not.toContain("Enter your hire date");
+  });
+
+  it("remembers being signed in for next time, and forgets on sign-out", async () => {
+    const hint = { read: () => false, write: vi.fn() };
+    const gw = fakeGateway({ x: accountStore(xData) });
+    mounted = await render(
+      <AccountRoot local={new LocalDataStore(memoryStorage())} connect={async () => gw as unknown as AuthGateway} signedInHint={hint} />,
+    );
+    await gw.emit(X);
+    expect(hint.write).toHaveBeenLastCalledWith(true);
+    await gw.emit(null);
+    expect(hint.write).toHaveBeenLastCalledWith(false);
+  });
+});
+
 describe("a handoff that fails (finding 6)", () => {
   it("shows a signed-in error with Try again and Sign out, and keeps this device's data", async () => {
     const xs = accountStore(null);
