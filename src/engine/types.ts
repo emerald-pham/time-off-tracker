@@ -140,6 +140,12 @@ export interface LedgerRow {
 export interface LedgerGroup {
   year: number;
   rows: LedgerRow[];
+  /**
+   * Free Benefit Days usable on Dec 31 of this group's year: "By end of
+   * <year>", shown on the year's separator row. Earlier years' Floating
+   * Holidays have expired by then.
+   */
+  freeByEnd: BenefitCounts;
 }
 
 export interface BenefitCounts {

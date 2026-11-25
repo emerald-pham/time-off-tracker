@@ -102,6 +102,28 @@ describe("free time off now, by the end of this year and by the end of next year
     });
   });
 
+  it("US-22: gives each year group its own By end of <year> totals", () => {
+    expect(view.ledger.groups.map((g) => [g.year, g.freeByEnd])).toEqual([
+      [2026, view.ledger.freeBy.endOfThisYear],
+      [2027, view.ledger.freeBy.endOfNextYear],
+    ]);
+  });
+
+  it("US-22: a third year an Occasion reaches gets its own By end of totals", () => {
+    const later: Occasion = { id: "later", name: "Later", start: "2028-03-06", end: "2028-03-06", dayTypes: {} };
+    const three = computeView({
+      ...input({ sapVacationHours: 40, sapFloatingHolidayHours: 8, sapAsOf: "2025-11-24" }, "2026-03-01"),
+      occasions: [june, later],
+    });
+    const [, y2027, y2028] = three.ledger.groups;
+    expect(y2028.year).toBe(2028);
+    // 2027's Floating Holidays have expired by Dec 31, 2028; 2028's three count.
+    // Vacation carries over: 2027's total plus 2028's free days.
+    expect(y2028.freeByEnd.floatingHoliday).toBe(3);
+    const freeIn2028 = y2028.rows.filter((r) => r.benefitType === "vacation" && !r.burnedBy && !r.lostToCap).length;
+    expect(y2028.freeByEnd.vacation).toBe(y2027.freeByEnd.vacation + freeIn2028);
+  });
+
   it("US-22: leaves out days Lost to cap", () => {
     const lost = view.ledger.groups.flatMap((g) => g.rows).filter((r) => r.lostToCap);
     expect(lost.length).toBe(4);

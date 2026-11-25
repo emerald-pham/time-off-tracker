@@ -76,8 +76,9 @@ export function computeView(input: EngineInput): ViewModel {
     history: built.usedNotListed && { year: currentYear, usedNotListed: built.usedNotListed },
   });
   const earned = rollover(burned, currentYear).map((r) => ({ ...r, notYetEarned: r.earnDate > today }));
-  const groups = groupByYear(earned, currentYear, lastYear);
-  const shown = groups.flatMap((g) => g.rows);
+  const rowGroups = groupByYear(earned, currentYear, lastYear);
+  const shown = rowGroups.flatMap((g) => g.rows);
+  const groups = rowGroups.map((g) => ({ ...g, freeByEnd: freeUsableOn(shown, isoDate(g.year, 12, 31)) }));
 
   return {
     configured: settings.hireDate !== null,
@@ -98,21 +99,25 @@ export function computeView(input: EngineInput): ViewModel {
  * year only next year's count.
  */
 function freeOutlook(rows: LedgerRow[], today: IsoDate, thisYear: number): FreeOutlook {
-  const free = rows.filter(isFree);
-  const count = (usableOn: IsoDate) =>
-    countFree(
-      free.filter(
-        (r) =>
-          r.earnDate <= usableOn &&
-          (r.benefitType === "vacation" || yearOf(r.earnDate) === yearOf(usableOn)),
-      ),
-    );
+  const count = (usableOn: IsoDate) => freeUsableOn(rows, usableOn);
   return {
     thisYear,
     earnedNow: count(today),
     endOfThisYear: count(isoDate(thisYear, 12, 31)),
     endOfNextYear: count(isoDate(thisYear + 1, 12, 31)),
   };
+}
+
+/** Free rows earned by `usableOn` and still usable that day: a Floating Holiday only in its own year. */
+function freeUsableOn(rows: LedgerRow[], usableOn: IsoDate): BenefitCounts {
+  return countFree(
+    rows.filter(
+      (r) =>
+        isFree(r) &&
+        r.earnDate <= usableOn &&
+        (r.benefitType === "vacation" || yearOf(r.earnDate) === yearOf(usableOn)),
+    ),
+  );
 }
 
 /**
@@ -383,8 +388,8 @@ function isFree(r: LedgerRow): boolean {
  * Floating Holidays from years that have ended are hidden, unless edited, so
  * the edit can be reset.
  */
-function groupByYear(rows: LedgerRow[], currentYear: number, lastYear: number): LedgerGroup[] {
-  const groups: LedgerGroup[] = [];
+function groupByYear(rows: LedgerRow[], currentYear: number, lastYear: number): Omit<LedgerGroup, "freeByEnd">[] {
+  const groups: Omit<LedgerGroup, "freeByEnd">[] = [];
   for (let year = currentYear; year <= lastYear; year++) groups.push({ year, rows: [] });
   for (const r of rows) {
     if (r.expired && !r.edited) continue;
