@@ -93,6 +93,22 @@ describe("data saved by the previous version", () => {
     expectComputesWithEditsAttached(computeView({ ...data, today: "2025-11-24" }));
   });
 
+  it("US-18: a date saved without a Day Type still gets the old default from the saved regular days off", () => {
+    const data = fromStoredData(firestoreV2.data);
+    const types = (v: ViewModel) => v.occasions.map((o) => o.days.map((d) => d.dayType));
+    // Saturday and Sunday off: Tue–Thu ski week around its stored Floating Holiday, and Mon–Tue beach days, are Vacation.
+    expect(types(computeView({ ...data, today: "2025-11-24" }))).toEqual([
+      ["vacation", "floatingHoliday", "vacation"],
+      ["vacation", "vacation"],
+    ]);
+    // With no regular days off saved (any save since the weekly rule), the weekly rule fills them (US-25).
+    const noRegularDaysOff = { ...data, settings: { ...data.settings, regularDaysOff: [] } };
+    expect(types(computeView({ ...noRegularDaysOff, today: "2025-11-24" }))).toEqual([
+      ["rdo", "floatingHoliday", "vacation"],
+      ["rdo", "rdo"],
+    ]);
+  });
+
   it("shows what a returning user will notice: unedited pre-eligibility days move to May 14, 2025", () => {
     const view = computeView({ ...fromStoredData(firestoreV2.data), earnDateEdits: {}, today: "2025-11-24" });
     // Credited May 7, 2025; the previous version showed May 7.

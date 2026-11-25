@@ -70,7 +70,8 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
   };
 
   const add = (name: string, start: IsoDate, end: IsoDate) => {
-    const draft: Occasion = { id: newId(), name, start, end, dayTypes: {} };
+    // Stored outright, so the old regular-days-off default for missing types never applies (US-18).
+    const draft: Occasion = { id: newId(), name, start, end, dayTypes: weeklyDayTypes(start, end, rdoDates(occasions)) };
     const { refused } = saveNew(draft);
     if (refused) {
       // A new Occasion's defaults Clash: open its day editor with the clashing dates highlighted.

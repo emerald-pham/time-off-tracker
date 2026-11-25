@@ -10,6 +10,7 @@ import type {
   OccasionView,
   Season,
   SeasonName,
+  Weekday,
 } from "./types";
 
 /**
@@ -72,6 +73,13 @@ export function weeklyDayTypes(
   return types;
 }
 
+/** The default before the weekly rule: RDO on the regular days off, Vacation otherwise (US-18). */
+function legacyDayTypes(dates: IsoDate[], regularDaysOff: readonly Weekday[]): Record<IsoDate, DayType> {
+  return Object.fromEntries(
+    dates.map((d) => [d, regularDaysOff.includes(weekdayOf(d) as Weekday) ? "rdo" : "vacation"]),
+  );
+}
+
 /** The Sunday that starts `d`'s week. */
 export const weekOf = (d: IsoDate): IsoDate => addDays(d, -weekdayOf(d));
 
@@ -114,8 +122,17 @@ export function findClashes(occasions: OccasionView[]): Clash[] {
  * A week's two days off are shared between Occasions: missing types are
  * worked out in start-date order, counting the RDOs every other Occasion
  * holds (stored, or already worked out).
+ *
+ * Saved data from before the weekly rule (US-18): while the stored
+ * `regularDaysOff` is non-empty, a missing type gets the old default instead,
+ * RDO on those weekdays and Vacation otherwise. The app now stores every
+ * date's type, so only older saves have missing ones.
  */
-export function occasionViews(occasions: Occasion[], asOf: IsoDate): OccasionView[] {
+export function occasionViews(
+  occasions: Occasion[],
+  asOf: IsoDate,
+  regularDaysOff: readonly Weekday[] = [],
+): OccasionView[] {
   const sorted = [...occasions].sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
   const rdosHeld = new Map(
     sorted.map((o) => [o.id, datesInRange(o.start, o.end).filter((d) => o.dayTypes[d] === "rdo")]),
@@ -125,7 +142,9 @@ export function occasionViews(occasions: Occasion[], asOf: IsoDate): OccasionVie
     const dates = datesInRange(o.start, o.end);
     const defaults: Record<IsoDate, DayType> = dates.every((d) => o.dayTypes[d])
       ? {}
-      : weeklyDayTypes(o.start, o.end, heldByOthers(o.id));
+      : regularDaysOff.length > 0
+        ? legacyDayTypes(dates, regularDaysOff)
+        : weeklyDayTypes(o.start, o.end, heldByOthers(o.id));
     const days: DayOffView[] = dates.map((date) => ({
       date,
       dayType: o.dayTypes[date] ?? defaults[date],

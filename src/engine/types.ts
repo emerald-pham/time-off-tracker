@@ -20,8 +20,9 @@ export interface Settings {
   hireDate: IsoDate | null;
   weeklyHours: number;
   /**
-   * No longer shown or used: the weekly rule (US-25) decides the RDOs. Kept
-   * so saved data loads and saves unchanged (US-18).
+   * No longer shown: the weekly rule (US-25) decides the RDOs. Kept so saved
+   * data loads and saves unchanged, and, while non-empty, it still defaults
+   * dates an older save left without a Day Type (US-18).
    */
   regularDaysOff: Weekday[];
   sapVacationHours: number;

@@ -318,6 +318,15 @@ describe("filling in Day Types automatically", () => {
     });
   });
 
+  it("US-18: with regular days off saved by an older version, a new Occasion still gets the weekly rule", async () => {
+    const onChange = vi.fn();
+    const older: AppData = { ...data, settings: { ...data.settings, regularDaysOff: [0, 6] }, occasions: [] };
+    mounted = await render(<Harness initial={older} onChange={onChange} />);
+    // Mon Mar 8 – Tue Mar 9, 2027: the old default would be Vacation, Vacation.
+    await addOccasion(mounted.el, "Made-up concert", "2027-03-08", "2027-03-09");
+    expect(saved(onChange)[0].dayTypes).toEqual({ "2027-03-08": "rdo", "2027-03-09": "rdo" });
+  });
+
   it("US-25: Cancel discards what 'Fill in automatically' did", async () => {
     const { el, onChange } = await show();
     await click(button(card(el, "Made-up trip"), "Choose days"));

@@ -54,7 +54,7 @@ export function computeView(input: EngineInput): ViewModel {
   const edits = supportedEdits(input.earnDateEdits);
   const currentYear = yearOf(today);
   const asOf = settings.sapAsOf ?? today;
-  const occasions = occasionViews(input.occasions, asOf);
+  const occasions = occasionViews(input.occasions, asOf, settings.regularDaysOff);
 
   // Show the current year, next year and any later year an Occasion reaches.
   // An Earn Date edit can move a row later still: then show that year too

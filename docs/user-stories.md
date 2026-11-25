@@ -102,6 +102,7 @@ Coworkers (IATSE Local 631 Regular Full Time) can sign in with their own account
 
 **US-18: Saved data keeps working.**
 Every update is backwards compatible. Data saved by an earlier version, on the device or in the account (including Earn Date edits, which stay attached to the same rows), still loads.
+- A day an older save left without a Day Type keeps its old default while regular days off are saved: RDO on those weekdays, Vacation otherwise. Without them it follows the weekly rule (US-25). New Occasions always store their types.
 
 ## Looks
 

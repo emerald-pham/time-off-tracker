@@ -44,7 +44,8 @@ const configured: Settings = { ...sam, sapVacationHours: 40, sapAsOf: "2026-11-0
 
 describe("US-25: the weekly rule replaces regular days off", () => {
   it("US-25: Settings no longer asks for regular days off, and keeps the stored ones untouched", async () => {
-    const { el, saves, last } = await show(configured);
+    // Saved before the weekly rule, with Saturday and Sunday as regular days off.
+    const { el, saves, last } = await show({ ...configured, regularDaysOff: [0, 6] });
     expect(el.textContent).not.toMatch(/regular days off/i);
     expect(el.querySelectorAll('input[type="checkbox"]').length).toBe(1); // Full-year history only.
     await typeInto(field(el, "Weekly hours"), "32");
