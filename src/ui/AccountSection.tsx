@@ -6,8 +6,12 @@ interface Props {
   signedIn: boolean;
   busy: boolean;
   error: string | null;
+  /** Sign-out was refused: some changes haven't reached the account yet. */
+  unsyncedAtSignOut: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
+  /** Signs out even though some changes haven't reached the account. */
+  onDiscardAndSignOut: () => void;
   onDelete: () => void;
 }
 
@@ -18,8 +22,10 @@ export function AccountSection({
   signedIn,
   busy,
   error,
+  unsyncedAtSignOut,
   onSignIn,
   onSignOut,
+  onDiscardAndSignOut,
   onDelete,
 }: Props) {
   const confirmDelete = () => {
@@ -62,7 +68,21 @@ export function AccountSection({
         </button>
       </div>
       {signedIn && (
-        <p className="account-note">Signing out removes your data from this device. It stays in your account.</p>
+        <p className="account-note">
+          Signing out removes your data from this device. It stays in your account: if some changes haven't reached
+          it yet, you're asked first.
+        </p>
+      )}
+      {unsyncedAtSignOut && (
+        <div className="account-error" role="alert">
+          <p>
+            Some changes on this device haven't reached your account yet, maybe because you're offline. Signing out
+            now would lose them. Get back online and try again, or discard them.
+          </p>
+          <button type="button" className="button danger" onClick={onDiscardAndSignOut} disabled={busy}>
+            Discard unsynced changes and sign out
+          </button>
+        </div>
       )}
       {error && (
         <p className="account-error" role="alert">

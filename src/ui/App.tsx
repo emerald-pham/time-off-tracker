@@ -67,13 +67,7 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>Time Off Tracker</h1>
-        <p className="label">
-          IATSE Local 631 Regular Full Time (Entertainment Technicians, Costuming, Cosmetology)
-        </p>
-        <p className="disclaimer">Estimates only. SAP is the official record.</p>
-      </header>
+      <AppHeader />
       {saveError && (
         <p className="app-error" role="alert">
           {saveError}
@@ -127,6 +121,16 @@ export function App({ store, account }: { store: DataStore; account?: React.Reac
         </Panel>
       </main>
     </div>
+  );
+}
+
+export function AppHeader() {
+  return (
+    <header className="app-header">
+      <h1>Time Off Tracker</h1>
+      <p className="label">IATSE Local 631 Regular Full Time (Entertainment Technicians, Costuming, Cosmetology)</p>
+      <p className="disclaimer">Estimates only. SAP is the official record.</p>
+    </header>
   );
 }
 
