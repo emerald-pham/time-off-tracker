@@ -1,8 +1,8 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
 import type { BenefitCounts, IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
 import { floatingHolidays, formatEarnDate, typeClass, typeLabel, usedNotListedMessage } from "./format";
-import { AnimatedNumber } from "./motion";
+import { AnimatedNumber, Reveal } from "./motion";
 import "./ledger.css";
 
 interface Props {
@@ -52,69 +52,58 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
           {usedMessage}
         </p>
       )}
-      <table className="ledger">
-        <thead>
-          <tr>
-            <th scope="col">Earn Date</th>
-            <th scope="col">Type</th>
-            <th scope="col">Occasion</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ledger.groups.map((group) => (
-            <Fragment key={group.year}>
-              <tr className="year-row">
-                <th scope="rowgroup" colSpan={3}>
-                  <span className="year-row-inner">
-                    <span className="year-label">{group.year}</span>{" "}
-                    <span className="year-totals">
-                      <span className="totals-label">By end of {group.year}</span>
-                      <FreeCounts counts={group.freeByEnd} />
-                    </span>
-                  </span>
-                </th>
-              </tr>
-              {group.rows.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="empty">
-                    No Benefit Days
-                  </td>
-                </tr>
-              )}
-              {group.rows.map((row, i) => (
-                <Fragment key={row.key}>
+      {/* A list: on a phone each row reads as two lines (US-19); on a wide panel it lines up in columns. */}
+      <div className="ledger">
+        <div className="ledger-head" aria-hidden="true">
+          <span>Earn Date</span>
+          <span>Type</span>
+          <span>Occasion</span>
+        </div>
+        {ledger.groups.map((group) => (
+          <section key={group.year} className="year-group" aria-labelledby={`year-${group.year}`}>
+            <h3 className="year-row" id={`year-${group.year}`}>
+              <span className="year-row-inner">
+                <span className="year-label">{group.year}</span>{" "}
+                <span className="year-totals">
+                  <span className="totals-label">By end of {group.year}</span>
+                  <FreeCounts counts={group.freeByEnd} />
+                </span>
+              </span>
+            </h3>
+            {group.rows.length === 0 ? (
+              <p className="empty no-days">No Benefit Days</p>
+            ) : (
+              <ol className="ledger-rows">
+                {group.rows.map((row, i) => (
                   <LedgerRowView
+                    key={row.key}
                     row={row}
                     index={i}
                     groupYear={group.year}
                     open={editingKey === row.key}
                     onToggle={() => setEditingKey(editingKey === row.key ? null : row.key)}
+                    editor={
+                      <EarnDateEditor
+                        row={row}
+                        range={earnDateRange(row, hireDate)}
+                        onSave={(date) => {
+                          onEditEarnDate(row.key, date);
+                          setEditingKey(null);
+                        }}
+                        onReset={() => {
+                          onResetEarnDate(row.key);
+                          setEditingKey(null);
+                        }}
+                        onCancel={() => setEditingKey(null)}
+                      />
+                    }
                   />
-                  {editingKey === row.key && (
-                    <tr className="earn-date-editor-row">
-                      <td colSpan={3}>
-                        <EarnDateEditor
-                          row={row}
-                          range={earnDateRange(row, hireDate)}
-                          onSave={(date) => {
-                            onEditEarnDate(row.key, date);
-                            setEditingKey(null);
-                          }}
-                          onReset={() => {
-                            onResetEarnDate(row.key);
-                            setEditingKey(null);
-                          }}
-                          onCancel={() => setEditingKey(null)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+                ))}
+              </ol>
+            )}
+          </section>
+        ))}
+      </div>
       <p className="legend">
         <span>
           <span className="approximate-mark">*</span> approximate date
@@ -159,12 +148,14 @@ function LedgerRowView({
   groupYear,
   open,
   onToggle,
+  editor,
 }: {
   row: LedgerRow;
   index: number;
   groupYear: number;
   open: boolean;
   onToggle: () => void;
+  editor: React.ReactNode;
 }) {
   const classes = [
     "row",
@@ -179,54 +170,61 @@ function LedgerRowView({
     row.usedNotListed && "used-not-listed",
   ].filter(Boolean);
   const date = formatEarnDate(row.earnDate, groupYear);
+  const occasion =
+    row.burnedBy?.occasionName ??
+    (row.lostToCap ? (
+      <span className="note">Lost to cap</span>
+    ) : row.usedNotListed ? (
+      <span className="note">Used (not listed)</span>
+    ) : row.expired ? (
+      <span className="note">Expired</span>
+    ) : null);
 
   return (
-    <tr className={classes.join(" ")} data-key={row.key} style={{ "--i": Math.min(index, 20) } as React.CSSProperties}>
-      <td className="earn-date">
-        <button
-          type="button"
-          className="earn-date-button"
-          aria-expanded={open}
-          aria-label={`Change Earn Date ${date}${row.edited ? " (edited)" : ""}`}
-          onClick={onToggle}
-        >
-          {date}
-          {row.approximate && (
-            <span className="approximate-mark" title="Approximate date">
-              {" "}
-              *
-            </span>
-          )}
-          {row.edited && (
-            <span className="edited-mark" title="Edited">
-              {" "}
-              •
-            </span>
-          )}
-        </button>
-      </td>
-      <td>
+    <li className={classes.join(" ")} data-key={row.key} style={{ "--i": Math.min(index, 20) } as React.CSSProperties}>
+      {/* Line 1: the date and the type, side by side. */}
+      <div className="row-line">
+        <span className="earn-date">
+          <button
+            type="button"
+            className="earn-date-button"
+            aria-expanded={open}
+            aria-label={`Change Earn Date ${date}${row.edited ? " (edited)" : ""}`}
+            onClick={onToggle}
+          >
+            {date}
+            {row.approximate && (
+              <span className="approximate-mark" title="Approximate date">
+                {" "}
+                *
+              </span>
+            )}
+            {row.edited && (
+              <span className="edited-mark" title="Edited">
+                {" "}
+                •
+              </span>
+            )}
+          </button>
+        </span>{" "}
         <span className={`type-label ${typeClass(row.benefitType)}`}>{typeLabel(row)}</span>
-        {row.expiresWarning && (
-          <>
-            {" "}
-            <span className="warning">expires Dec 31</span>
-          </>
-        )}
-      </td>
-      <td className="occasion-name">
-        {row.burnedBy?.occasionName ??
-          (row.lostToCap ? (
-            <span className="note">Lost to cap</span>
-          ) : row.usedNotListed ? (
-            <span className="note">Used (not listed)</span>
-          ) : row.expired ? (
-            <span className="note">Expired</span>
-          ) : (
-            ""
-          ))}
-      </td>
-    </tr>
+      </div>
+      {/* Line 2: the Occasion that used it, or why it's gone, and any warning. */}
+      {(occasion || row.expiresWarning) && (
+        <div className="row-detail occasion-name">
+          {occasion}
+          {row.expiresWarning && (
+            <>
+              {occasion && " "}
+              <span className="warning">expires Dec 31</span>
+            </>
+          )}
+        </div>
+      )}
+      <Reveal open={open}>
+        <div className="earn-date-editor-row">{editor}</div>
+      </Reveal>
+    </li>
   );
 }
 

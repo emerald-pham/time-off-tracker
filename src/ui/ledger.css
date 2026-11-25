@@ -19,7 +19,7 @@
     linear-gradient(120deg, var(--vacation), var(--floating-holiday)) border-box;
   border: 2px solid transparent;
   box-shadow: var(--shadow);
-  animation: rise-in 0.4s ease-out both;
+  animation: rise-in 0.4s ease-out backwards;
 }
 
 .stat-title {
@@ -51,22 +51,20 @@
   font-size: 0.9rem;
 }
 
-/* The table */
+/*
+ * The Ledger is a list (US-19). On a phone each row is two lines: the date
+ * and its type side by side, then the Occasion beneath. When the Ledger is
+ * at least 600 px wide the same rows line up in three columns, as a table.
+ */
 .ledger {
-  width: 100%;
-  border-collapse: collapse;
   font-size: 0.92rem;
+  container-type: inline-size;
 }
 
-.ledger th,
-.ledger td {
-  text-align: left;
+.ledger-head {
+  display: none;
   padding: 8px 6px;
   border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-.ledger thead th {
   font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -75,22 +73,77 @@
   white-space: nowrap;
 }
 
-.ledger tbody tr.row {
-  animation: fade-in 0.4s ease-out both;
+.ledger-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ledger li.row {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  animation: fade-in 0.4s ease-out backwards;
   animation-delay: calc(var(--i, 0) * 22ms);
   transition: background-color 0.2s ease;
 }
 
 @media (hover: hover) {
-  .ledger tbody tr.row:hover td {
+  .ledger li.row:hover {
     background: var(--surface-2);
   }
 }
 
+/* Line 1: the date on the left, the type on the right, never squeezed into a column. */
+.row-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.ledger .type-label {
+  white-space: nowrap;
+}
+
+/* Line 2: the Occasion, full width. */
+.row-detail {
+  margin-top: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ledger .no-days {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+@container (min-width: 600px) {
+  .ledger-head,
+  .ledger li.row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.8fr) minmax(13rem, 1.2fr) minmax(0, 1.5fr);
+    column-gap: 12px;
+    align-items: start;
+  }
+  .row-line {
+    display: contents;
+  }
+  .row-detail {
+    grid-column: 3;
+    margin-top: 0;
+  }
+  .ledger li.row > .reveal {
+    grid-column: 1 / -1;
+  }
+}
+
 /* One separator per year, carrying that year's "By end of" totals (US-13, US-22). */
-.ledger .year-row th {
+.ledger .year-row {
+  margin: 0;
   padding: 14px 0 8px;
-  border-bottom: 0;
+  font-size: inherit;
+  font-weight: bold;
 }
 
 .year-row-inner {
@@ -101,7 +154,7 @@
   padding: 8px 10px;
   border-radius: 14px;
   background: linear-gradient(100deg, var(--year-bg), color-mix(in srgb, var(--year-bg) 40%, transparent));
-  animation: rise-in 0.35s ease-out both;
+  animation: rise-in 0.35s ease-out backwards;
 }
 
 .year-label {
@@ -164,18 +217,19 @@
   vertical-align: 1px;
 }
 
-.ledger .carryover td {
+.ledger .carryover {
   background: color-mix(in srgb, var(--vacation-soft) 55%, transparent);
 }
 
 /* "*": an approximate Earn Date (US-15). */
 .approximate-mark {
-  color: var(--accent);
+  color: var(--muted);
   font-weight: 800;
   font-style: normal;
 }
 
-.ledger .lost-to-cap td {
+.ledger .lost-to-cap .row-line,
+.ledger .lost-to-cap .row-detail {
   color: var(--muted);
   text-decoration: line-through;
 }
@@ -224,15 +278,9 @@
 }
 
 @media (max-width: 480px) {
-  .ledger th,
-  .ledger td {
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  .ledger tr > :first-child {
+  .ledger li.row,
+  .ledger .no-days {
     padding-left: 2px;
-  }
-  .ledger tr > :last-child {
     padding-right: 2px;
   }
   .type-label::before {
@@ -251,8 +299,6 @@
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
-  text-decoration: underline dotted color-mix(in srgb, var(--accent-2) 45%, transparent);
-  text-underline-offset: 3px;
 }
 
 /* Estimated: the Earn Date is later than today, so the day isn't earned yet. */
@@ -272,8 +318,10 @@
   font-style: normal;
 }
 
-.ledger .used-not-listed td,
-.ledger .expired td {
+.ledger .used-not-listed .row-line,
+.ledger .used-not-listed .row-detail,
+.ledger .expired .row-line,
+.ledger .expired .row-detail {
   color: var(--muted);
 }
 
@@ -287,7 +335,8 @@
   font-size: 0.88rem;
 }
 
-.earn-date-editor-row > td {
+.earn-date-editor-row {
+  margin-top: 8px;
   background: var(--surface-2);
   padding: 10px;
 }

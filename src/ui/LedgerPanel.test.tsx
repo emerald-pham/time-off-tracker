@@ -30,7 +30,7 @@ async function ledger(earnDateEdits: EarnDateEdits = {}, today = "2025-11-24") {
 }
 
 const openRow = async (el: HTMLElement, key: string) =>
-  click(el.querySelector<HTMLButtonElement>(`tr[data-key="${key}"] button.earn-date-button`)!);
+  click(el.querySelector<HTMLButtonElement>(`li[data-key="${key}"] button.earn-date-button`)!);
 
 describe("the Earn Date picker (finding 14)", () => {
   it("runs from the hire date to 2100 for Vacation", async () => {
@@ -48,7 +48,7 @@ describe("the Earn Date picker (finding 14)", () => {
   it("shows an edited row that has Expired, so it can be reset", async () => {
     // Jan 1, 2026 moved to Dec 1, 2025, viewed in March 2026: expired, but edited.
     const el = await ledger({ "fh:2026:1": "2025-12-01" }, "2026-03-01");
-    const row = el.querySelector('tr[data-key="fh:2026:1"]')!;
+    const row = el.querySelector('li[data-key="fh:2026:1"]')!;
     expect(text(row)).toContain("Expired");
     await openRow(el, "fh:2026:1");
     expect(text(el)).toContain("Reset to projected");
@@ -74,7 +74,7 @@ describe("the summary", () => {
 });
 
 describe("Earned, Estimated and Approximate Earn Dates", () => {
-  const rowEl = (el: HTMLElement, key: string) => el.querySelector<HTMLElement>(`tr[data-key="${key}"]`)!;
+  const rowEl = (el: HTMLElement, key: string) => el.querySelector<HTMLElement>(`li[data-key="${key}"]`)!;
   const dateButton = (el: HTMLElement, key: string) =>
     rowEl(el, key).querySelector<HTMLButtonElement>("button.earn-date-button")!;
 
