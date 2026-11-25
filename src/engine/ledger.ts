@@ -1,4 +1,4 @@
-import { isoDate, yearOf } from "./dates";
+import { isSupportedDate, isoDate, yearOf } from "./dates";
 import { burn } from "./burning";
 import { findClashes, occasionViews } from "./occasions";
 import { paidBy } from "./payday";
@@ -34,11 +34,12 @@ function splitHours(hours: number): { days: number; leftover: number } {
  * The engine's single entry point: recalculates the whole view model from
  * scratch on every change.
  *
- * Pipeline (later tickets slot in as marked):
- *   1. project the schedule through the last year shown
+ * Pipeline:
+ *   1. project the schedule through the last year shown, and move each
+ *      edited entry to its Earn Date edit (by schedule key)
  *   2. turn it into Ledger rows, starting from the SAP Balance (ADR 0002),
  *      or, in full-year history mode, rebuilding the current year
- *   3. apply Earn Date edits by schedule key
+ *   3. apply the edits of extra walk-back rows, which aren't schedule entries
  *   4. resolve each Occasion's Days Off, then Burn rows in one date-order pass
  *      (see burning.ts; Vacation Cap marks rows Lost to cap)
  *   5. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
@@ -46,16 +47,18 @@ function splitHours(hours: number): { days: number; leftover: number } {
  */
 export function computeView(input: EngineInput): ViewModel {
   const { settings, today } = input;
+  const edits = supportedEdits(input.earnDateEdits);
   const currentYear = yearOf(today);
   const lastYear = Math.max(currentYear + 1, ...input.occasions.map((o) => yearOf(o.end)));
   const asOf = settings.sapAsOf ?? today;
 
-  const schedule = projectSchedule(settings, lastYear);
+  // Edits come first, so the walk-back and the in-SAP split see the edited Earn Dates.
+  const schedule = withEarnDateEdits(projectSchedule(settings, lastYear), edits);
   const occasions = occasionViews(input.occasions, settings, asOf);
   const ledgerRows = settings.fullYearHistory
     ? fullYearRows(schedule, settings, asOf, currentYear, occasions)
     : startingRows(schedule, settings, asOf);
-  const burned = applyEarnDateEdits(ledgerRows, input.earnDateEdits);
+  const burned = applyEarnDateEdits(ledgerRows, edits);
   burn(burned, occasions, {
     hireDate: settings.hireDate,
     leftoverVacationHours: splitHours(settings.sapVacationHours).leftover,
@@ -114,10 +117,26 @@ function startingRows(schedule: ScheduleEntry[], settings: Settings, asOf: IsoDa
   ];
 }
 
+/** Earn Date edits whose date the app could have saved; anything else is ignored. */
+function supportedEdits(edits: EarnDateEdits): EarnDateEdits {
+  return Object.fromEntries(Object.entries(edits).filter(([, date]) => isSupportedDate(date)));
+}
+
 /**
  * Earn Date edits are stored by schedule key, so they survive any
  * regeneration (hire date, weekly hours). An edit whose key no longer exists
- * is ignored. The edited date is the user's, so the row is no longer Estimated.
+ * is ignored. Edited entries move before the walk-back, so an entry moved
+ * before the as-of date counts as one of SAP's days, and one moved past it is
+ * projected.
+ */
+function withEarnDateEdits(schedule: ScheduleEntry[], edits: EarnDateEdits): ScheduleEntry[] {
+  return schedule.map((e) => (Object.hasOwn(edits, e.key) ? { ...e, earnDate: edits[e.key] } : e));
+}
+
+/**
+ * Marks edited rows, and moves extra walk-back rows (which aren't schedule
+ * entries) to their edits. The edited date is the user's, so the row is no
+ * longer Estimated.
  */
 function applyEarnDateEdits(rows: LedgerRow[], edits: EarnDateEdits): LedgerRow[] {
   return rows.map((r) =>
