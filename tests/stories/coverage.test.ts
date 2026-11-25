@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
  * Stories whose tests come with the UI redesign, which owns them. The redesign
  * removes each ID from this list as it adds that story's test.
  */
-const PENDING = ["US-10", "US-19", "US-20", "US-21", "US-23", "US-24"];
+const PENDING: string[] = [];
 
 const stories = [...readFileSync("docs/user-stories.md", "utf8").matchAll(/\*\*(US-\d{2}):/g)].map((m) => m[1]);
 
