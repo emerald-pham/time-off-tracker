@@ -259,6 +259,22 @@ describe("offline", () => {
     expect(await serverCopy()).toBeUndefined();
   });
 
+  it("a device that was offline while the data was deleted elsewhere doesn't bring it back", async () => {
+    const mac = open();
+    const phone = open();
+    await seed(mac, { ...base, occasions: [trip] });
+    const copy = (await phone.store.load())!;
+    await disableNetwork(phone.db);
+
+    await mac.store.clear();
+    await waitForPendingWrites(mac.db);
+    await phone.store.update(copy, withHours(copy, 36)); // queued on the phone
+    await enableNetwork(phone.db);
+    await expect(within(phone.store.synced(), 5000)).rejects.toThrow();
+
+    expect(await serverCopy()).toBeUndefined();
+  });
+
   it("synced() waits until the server has this store's writes", async () => {
     const phone = open();
     await phone.store.load();
