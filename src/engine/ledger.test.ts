@@ -144,7 +144,8 @@ describe("rollover on Jan 1", () => {
       ["2027-01-01", false],
       ["2027-01-01", false],
     ]);
-    expect(view.ledger.free).toEqual({ vacation: 25, floatingHoliday: 6 });
+    // 5 Carryover + 10 in 2026 + 5 in 2027 reaches the 160 h cap; the rest of 2027 is Lost to cap.
+    expect(view.ledger.free).toEqual({ vacation: 20, floatingHoliday: 6 });
   });
 });
 

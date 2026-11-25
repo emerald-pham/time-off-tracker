@@ -50,7 +50,12 @@ export function LedgerPanel({ ledger, configured }: { ledger: LedgerView; config
         </tbody>
       </table>
       <p className="legend">
-        <span className="estimated-mark">~</span> Estimated Earn Date
+        <span>
+          <span className="estimated-mark">~</span> Estimated Earn Date
+        </span>
+        <span>
+          <s>Struck through</s>: Lost to cap
+        </span>
       </p>
     </>
   );
@@ -61,6 +66,7 @@ function LedgerRowView({ row, groupYear }: { row: LedgerRow; groupYear: number }
     "row",
     row.benefitType === "vacation" ? "vacation" : "floating-holiday",
     row.carryover && "carryover",
+    row.burnedBy && "burned",
     row.estimated && "estimated",
     row.lostToCap && "lost-to-cap",
     row.expired && "expired",
@@ -80,9 +86,16 @@ function LedgerRowView({ row, groupYear }: { row: LedgerRow; groupYear: number }
       </td>
       <td>
         {typeLabel(row)}
-        {row.expiresWarning && <span className="warning"> expires Dec 31</span>}
+        {row.expiresWarning && (
+          <>
+            {" "}
+            <span className="warning">expires Dec 31</span>
+          </>
+        )}
       </td>
-      <td>{row.burnedBy?.occasionName ?? ""}</td>
+      <td className="occasion-name">
+        {row.burnedBy?.occasionName ?? (row.lostToCap ? <span className="note">Lost to cap</span> : "")}
+      </td>
     </tr>
   );
 }

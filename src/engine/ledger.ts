@@ -1,4 +1,6 @@
 import { isoDate, yearOf } from "./dates";
+import { burn } from "./burning";
+import { findClashes, occasionViews } from "./occasions";
 import { paidBy } from "./payday";
 import { projectSchedule } from "./schedule";
 import type {
@@ -24,7 +26,8 @@ const HOURS_PER_DAY = 8;
  *   1. project the schedule through the last year shown
  *   2. turn it into Ledger rows, starting from the SAP Balance (ADR 0002)
  *      [ticket 03: apply Earn Date edits; full-year history mode]
- *   3. [ticket 02: Burn rows with Occasions' Days Off, Vacation Cap]
+ *   3. resolve each Occasion's Days Off, then Burn rows in one date-order pass
+ *      (see burning.ts; Vacation Cap marks rows Lost to cap)
  *   4. rollover: earlier years' Vacation becomes Carryover, Floating Holidays expire
  *   5. group by year and count free rows
  */
@@ -35,10 +38,18 @@ export function computeView(input: EngineInput): ViewModel {
   const asOf = settings.sapAsOf ?? today;
 
   const schedule = projectSchedule(settings, lastYear);
-  const rows = rollover(startingRows(schedule, settings, asOf), currentYear);
+  const occasions = occasionViews(input.occasions, settings, asOf);
+  const burned = startingRows(schedule, settings, asOf);
+  burn(burned, occasions, {
+    hireDate: settings.hireDate,
+    leftoverVacationHours: settings.sapVacationHours % HOURS_PER_DAY,
+  });
+  const rows = rollover(burned, currentYear);
 
   return {
     configured: settings.hireDate !== null,
+    occasions,
+    clashes: findClashes(occasions),
     ledger: {
       groups: groupByYear(rows, currentYear, lastYear),
       free: countFree(rows),
@@ -126,12 +137,20 @@ function row(key: string, benefitType: BenefitType, earnDate: IsoDate, origin: R
  * On Jan 1, last year's free Vacation becomes Carryover and last year's free
  * Floating Holidays become Expired. A current-year Floating Holiday that's
  * still free shows "expires Dec 31".
+ *
+ * Runs after Burning, so "free on Jan 1" means not Lost to cap and not Burned
+ * by a Day Off before this year. (A Floating Holiday only Burns within its
+ * own year, so a Burned one never expires.)
  */
 function rollover(rows: LedgerRow[], currentYear: number): LedgerRow[] {
   return rows.map((r) => {
     const year = yearOf(r.earnDate);
+    if (r.benefitType === "vacation") {
+      const freeOnJan1 =
+        !r.lostToCap && !r.usedNotListed && (!r.burnedBy || yearOf(r.burnedBy.date) >= currentYear);
+      return { ...r, carryover: year < currentYear && freeOnJan1 };
+    }
     if (!isFree(r)) return r;
-    if (r.benefitType === "vacation") return { ...r, carryover: year < currentYear };
     return { ...r, expired: year < currentYear, expiresWarning: year === currentYear };
   });
 }

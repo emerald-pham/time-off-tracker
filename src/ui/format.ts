@@ -1,6 +1,51 @@
-import type { BenefitCounts, IsoDate, LedgerRow } from "../engine";
+import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function parts(d: IsoDate) {
+  const [y, m, day] = d.split("-").map(Number);
+  return { y, month: MONTHS[m - 1], day, weekday: WEEKDAYS[new Date(Date.UTC(y, m - 1, day)).getUTCDay()] };
+}
+
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
+
+/** Occasion Dates: "Wed Sep 9 – Sat Sep 12", or "Wed Sep 9" for one day. */
+export function formatRange(start: IsoDate, end: IsoDate): string {
+  const fmt = (d: IsoDate) => {
+    const p = parts(d);
+    return `${p.weekday} ${p.month} ${p.day}`;
+  };
+  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+}
+
+/** Day editor row: "Tue, Nov 24th 2026". */
+export function formatDayOff(d: IsoDate): string {
+  const p = parts(d);
+  return `${p.weekday}, ${p.month} ${ordinal(p.day)} ${p.y}`;
+}
+
+export function seasonLabel(season: Season): string {
+  return `${season.name} ${season.year}`;
+}
+
+export const DAY_TYPE_LABELS: Record<DayType, string> = {
+  rdo: "RDO",
+  floatingHoliday: "Floating Holiday",
+  vacation: "Vacation",
+  unpaid: "Unpaid",
+};
+
+/** "Sep 10 is already Vacation in 'Beach'", from the side of `occasionId`. */
+export function clashMessage(clash: Clash, occasionId: string): string {
+  const other = clash.entries.find((e) => e.occasionId !== occasionId) ?? clash.entries[0];
+  const p = parts(clash.date);
+  return `${p.month} ${p.day} is already ${DAY_TYPE_LABELS[other.dayType]} in '${other.occasionName}'`;
+}
 
 /** "Mar 5", or "Nov 12, 2025" when the date is outside the year group. */
 export function formatEarnDate(d: IsoDate, groupYear: number): string {
