@@ -486,7 +486,8 @@ const drifting = () =>
 describe("every gradient drifts", () => {
   it("US-20: finds the app's gradients, including the ones drawn through custom properties", () => {
     for (const selector of [
-      "body",
+      "body::before",
+      "body::after",
       ".app-header",
       ".app-header::after",
       ".tab.active",
@@ -503,6 +504,18 @@ describe("every gradient drifts", () => {
       ".occasions select.type-select",
     ])
       expect(gradientSurfaces, selector).toContain(selector);
+  });
+
+  it("US-20: the page glows drift on their own layers by transform, so the whole page isn't repainted every frame", () => {
+    expect(loopsOf("body"), "body itself doesn't loop").toEqual([]);
+    for (const selector of ["body::before", "body::after"]) {
+      const loops = loopsOf(selector);
+      expect(loops, `${selector} drifts`).toHaveLength(1);
+      const [name] = loops[0].split(/\s+/);
+      const props = keyframeSteps(name).flatMap(([, body]) => declarations(body).map(([p]) => p));
+      expect(props.length, `${name} has steps`).toBeGreaterThan(0);
+      for (const p of props) expect(["transform", "opacity"], `${name} animates ${p}`).toContain(p);
+    }
   });
 
   it("US-20: every gradient in the app gently drifts like soft-focus bokeh, except the dropdown chevron", () => {

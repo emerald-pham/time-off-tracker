@@ -158,38 +158,51 @@
   box-sizing: border-box;
 }
 
-/*
- * The page's two corner glows drift slowly toward the middle and back (US-20).
- * A registered property animates smoothly; it rests at 0%, where they've
- * always been.
- */
-@property --glow-drift {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-
 body {
-  --glow-drift: 0%;
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      900px 520px at calc(-10% + var(--glow-drift)) calc(-10% + var(--glow-drift) / 2),
-      var(--glow-1),
-      transparent 65%
-    ),
-    radial-gradient(
-      800px 480px at calc(110% - var(--glow-drift)) calc(-5% + var(--glow-drift) / 3),
-      var(--glow-2),
-      transparent 60%
-    ),
-    var(--bg);
-  background-repeat: no-repeat;
-  animation: glow-drift 45s ease-in-out infinite alternate;
+  background: var(--bg);
   color: var(--text);
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * The page's two corner glows (US-20), each on its own fixed layer that
+ * drifts slowly toward the middle and back by `transform`, so the browser
+ * moves a composited layer instead of repainting the whole page each frame.
+ * At rest they sit where they always have.
+ */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform;
+}
+
+body::before {
+  background: radial-gradient(900px 520px at -10% -10%, var(--glow-1), transparent 65%);
+  animation: glow-drift-left 45s ease-in-out infinite alternate;
+}
+
+body::after {
+  background: radial-gradient(800px 480px at 110% -5%, var(--glow-2), transparent 60%);
+  animation: glow-drift-right 43s ease-in-out infinite alternate;
+}
+
+@keyframes glow-drift-left {
+  to {
+    transform: translate(14%, 7%);
+  }
+}
+
+@keyframes glow-drift-right {
+  to {
+    transform: translate(-14%, 5%);
+  }
 }
 
 .sr-only {
@@ -620,12 +633,6 @@ button:not(:disabled):active {
 @keyframes gradient-drift {
   to {
     background-position: 100% 100%;
-  }
-}
-
-@keyframes glow-drift {
-  to {
-    --glow-drift: 14%;
   }
 }
 
