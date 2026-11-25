@@ -46,7 +46,15 @@ interface Props {
 
 /** What's open: one Occasion's day editor, details form or delete question, or a new Occasion's day editor. */
 type Editing =
-  | { kind: "days"; draft: Occasion; isNew: boolean; highlight: IsoDate[]; messages: string[] }
+  | {
+      kind: "days";
+      draft: Occasion;
+      isNew: boolean;
+      highlight: IsoDate[];
+      messages: string[];
+      /** US-23: the days whose approval was switched in the editor; Save leaves the rest as stored. */
+      toggled?: IsoDate[];
+    }
   | { kind: "details"; draft: Occasion; messages: string[] }
   | { kind: "delete"; draft: Occasion };
 
@@ -205,7 +213,15 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
                       approvable={!isPast(o)}
                       onChange={setEditing}
                       onSave={(draft) => {
-                        const { refused } = trySave(draft);
+                        // US-23: approval changed meanwhile ("Approve all", another device) stands
+                        // for every day not switched here.
+                        const switched = new Set(open.toggled);
+                        const inDraft = new Set(approvedDates(draft));
+                        const current = new Set(approvedDates(stored(o.id)));
+                        const approved = datesInRange(draft.start, draft.end).filter((d) =>
+                          switched.has(d) ? inDraft.has(d) : current.has(d),
+                        );
+                        const { refused } = trySave(withApprovedDays(draft, approved));
                         setEditing(refused ? { ...open, draft, ...refused } : null);
                       }}
                       onCancel={() => setEditing(null)}
@@ -371,12 +387,13 @@ function OccasionCard({
         >
           Choose days
         </button>
-        {!past && approvedCount < o.days.length && (
+        {/* US-23: while "Choose days" is open, its switches and Save decide approval. */}
+        {!past && open?.kind !== "days" && approvedCount < o.days.length && (
           <button type="button" className="act-approve" onClick={onApproveAll}>
             Approve all
           </button>
         )}
-        {!past && approvedCount > 0 && (
+        {!past && open?.kind !== "days" && approvedCount > 0 && (
           <button type="button" className="act-unapprove" onClick={onUnapproveAll}>
             Unapprove all
           </button>
@@ -588,7 +605,8 @@ function DayEditor({
   const toggleApproved = (date: IsoDate) => {
     const next = new Set(approved);
     if (!next.delete(date)) next.add(date);
-    onChange({ ...editing, draft: withApprovedDays(draft, next) });
+    const toggled = editing.toggled?.includes(date) ? editing.toggled : [...(editing.toggled ?? []), date];
+    onChange({ ...editing, draft: withApprovedDays(draft, next), toggled });
   };
   /**
    * The weekly rule (US-25) over the draft, leaving Deducted days as they are

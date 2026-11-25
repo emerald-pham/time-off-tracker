@@ -52,6 +52,7 @@ If a new Occasion's dates are already in the past, the app says so and offers to
 Each Day Off is approved or not on its own, and I can still approve or unapprove the whole Occasion in one tap. Not-approved days still plan their Benefit Days, so I can see what they'd use: approval changes nothing in the Ledger.
 - In "Choose days", each day has a large Approved / Not approved switch next to its Day Type.
 - The card has "Approve all" and "Unapprove all" buttons, and a badge that sums it up: "Approved" (every day), "Not approved yet" (none) or "Partly approved · 3 of 5 days".
+- While that Occasion's "Choose days" is open, its switches decide approval, so "Approve all" and "Unapprove all" step aside. Saving "Choose days" only changes the days I switched there: any other day keeps the approval it has when I save, even if it changed meanwhile (on another device, say).
 - When I change the dates, days still in range keep their approval and added days start unapproved. "Move to <year>" (US-10) keeps each day's approval in the same place in the dates.
 - An Occasion that's already taken (labelled "Already taken", see US-10) shows no approval badge, buttons or switches, since "Already taken" says it all. Deducted days have no switch either.
 - Saved data keeps its meaning (US-18): Occasions saved before approval existed load as not approved, and ones saved as approved have every day approved.

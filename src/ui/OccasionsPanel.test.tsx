@@ -215,6 +215,51 @@ describe("approval status", () => {
     expect(maybeButton(card(el, "Made-up trip"), "Unapprove all")).toBeUndefined();
   });
 
+  it("US-23: 'Approve all' and 'Unapprove all' step aside while that Occasion's 'Choose days' is open", async () => {
+    const week: Occasion = { ...trip, end: "2027-03-03", approvedDays: ["2027-03-02"] };
+    const { el } = await show([week]);
+    const c = () => card(el, "Made-up trip");
+    await click(button(c(), "Choose days"));
+    expect(maybeButton(c(), "Approve all")).toBeUndefined();
+    expect(maybeButton(c(), "Unapprove all")).toBeUndefined();
+    await click(button(c(), "Cancel"));
+    expect(maybeButton(c(), "Approve all")).toBeDefined();
+    expect(maybeButton(c(), "Unapprove all")).toBeDefined();
+  });
+
+  it("US-23: saving 'Choose days' keeps approval changed meanwhile for every day not switched in the editor", async () => {
+    // Mon Mar 1 – Wed Mar 3, 2027, with Mon approved.
+    const week: Occasion = { ...trip, end: "2027-03-03", dayTypes: {}, approvedDays: ["2027-03-01"] };
+    let setData: (d: AppData) => void = () => {};
+    const onChange = vi.fn();
+    function Remote() {
+      const [current, setCurrent] = useState<AppData>({ ...data, occasions: [week] });
+      setData = setCurrent;
+      return (
+        <OccasionsPanel
+          data={current}
+          today={TODAY}
+          occasions={computeView({ ...current, today: TODAY }).occasions}
+          onChange={(occasions) => {
+            onChange(occasions);
+            setCurrent({ ...current, occasions });
+          }}
+        />
+      );
+    }
+    mounted = await render(<Remote />);
+    const { el } = mounted;
+    await click(button(card(el, "Made-up trip"), "Choose days"));
+    // Mon switched to Not approved in the editor, then every day is approved meanwhile (another device, say).
+    await click(switches(el)[0]);
+    await act(async () =>
+      setData({ ...data, occasions: [{ ...week, approvedDays: ["2027-03-01", "2027-03-02", "2027-03-03"], approved: true }] }),
+    );
+    await click(button(card(el, "Made-up trip"), "Save"));
+    // Mon is the editor's to decide; Tue and Wed keep the approval saved meanwhile.
+    expect(saved(onChange)[0].approvedDays).toEqual(["2027-03-02", "2027-03-03"]);
+  });
+
   it("US-23: an Occasion saved approved before per-day approval shows every day approved", async () => {
     const { el } = await show([{ ...trip, approved: true }]);
     expect(badge(el)).toBe("Approved");
