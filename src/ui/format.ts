@@ -1,5 +1,5 @@
 import { sapBalanceDays, weekdayOf } from "../engine";
-import type { BenefitCounts, Clash, DayType, FreeOutlook, IsoDate, LedgerRow, Season } from "../engine";
+import type { BenefitCounts, Clash, DayType, IsoDate, LedgerRow, Season } from "../engine";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -15,13 +15,20 @@ function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
-/** Occasion Dates: "Wed Sep 9 – Sat Sep 12", or "Wed Sep 9" for one day. */
-export function formatRange(start: IsoDate, end: IsoDate): string {
-  const fmt = (d: IsoDate) => {
+/**
+ * Occasion Dates: "Wed Sep 9 – Sat Sep 12", or "Wed Sep 9" for one day.
+ * Given the current year, a date in any other year shows it, so a wrong year
+ * can't go unnoticed: "Mon Mar 1 – Tue Mar 2, 2027", once when both share it.
+ */
+export function formatRange(start: IsoDate, end: IsoDate, currentYear?: number): string {
+  const fmt = (d: IsoDate, withYear: boolean) => {
     const p = parts(d);
-    return `${p.weekday} ${p.month} ${p.day}`;
+    return `${p.weekday} ${p.month} ${p.day}${withYear ? `, ${p.y}` : ""}`;
   };
-  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+  const other = (d: IsoDate) => currentYear !== undefined && parts(d).y !== currentYear;
+  if (start === end) return fmt(start, other(start));
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  return `${fmt(start, other(start) && !sameYear)} – ${fmt(end, other(end))}`;
 }
 
 /** Day editor row: "Tue, Nov 24th 2026". */
@@ -62,18 +69,21 @@ export function typeLabel(row: Pick<LedgerRow, "benefitType" | "carryover" | "no
   return `${type} (${row.notYetEarned ? "Estimated" : "Earned"})`;
 }
 
-function freeCounts(free: BenefitCounts): string {
-  const fh = free.floatingHoliday === 1 ? "Floating Holiday" : "Floating Holidays";
-  return `${free.vacation} Vacation, ${free.floatingHoliday} ${fh}`;
+export const floatingHolidays = (n: number) => (n === 1 ? "Floating Holiday" : "Floating Holidays");
+
+/** Free days as one line: "Earned now: 5 Vacation, 2 Floating Holidays" or "By end of 2027: …". */
+export function freeLine(label: string, free: BenefitCounts): string {
+  return `${label}: ${free.vacation} Vacation, ${free.floatingHoliday} ${floatingHolidays(free.floatingHoliday)}`;
 }
 
-/** The Ledger summary: free days earned now, by the end of this year and by the end of next year. */
-export function freeSummaryLines(outlook: FreeOutlook): string[] {
-  return [
-    `Earned now: ${freeCounts(outlook.earnedNow)}`,
-    `By end of ${outlook.thisYear}: ${freeCounts(outlook.endOfThisYear)}`,
-    `By end of ${outlook.thisYear + 1}: ${freeCounts(outlook.endOfNextYear)}`,
-  ];
+/** The CSS class that colors a Day Type or Benefit Type the same everywhere: "type-floating-holiday". */
+export function typeClass(type: DayType): string {
+  return type === "floatingHoliday" ? "type-floating-holiday" : `type-${type}`;
+}
+
+/** The CSS class that colors a Season: "season-spring". */
+export function seasonClass(season: Season): string {
+  return `season-${season.name.toLowerCase()}`;
 }
 
 /** Settings helper under an SAP hours field: "Counts as 5 days (3 hrs left over, less than a day)". */

@@ -1,7 +1,8 @@
 import { Fragment, useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
-import type { IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
-import { formatEarnDate, freeSummaryLines, typeLabel, usedNotListedMessage } from "./format";
+import type { BenefitCounts, IsoDate, LedgerRow, LedgerView, ScheduleKey } from "../engine";
+import { floatingHolidays, formatEarnDate, typeClass, typeLabel, usedNotListedMessage } from "./format";
+import { AnimatedNumber } from "./motion";
 import "./ledger.css";
 
 interface Props {
@@ -41,9 +42,10 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
   return (
     <>
       <ul className="summary">
-        {freeSummaryLines(ledger.freeBy).map((line) => (
-          <li key={line}>{line}</li>
-        ))}
+        <li className="stat-card">
+          <span className="stat-title">Earned now</span>
+          <FreeCounts counts={ledger.freeBy.earnedNow} />
+        </li>
       </ul>
       {usedMessage && (
         <p className="used-not-listed-message" role="status">
@@ -63,7 +65,13 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
             <Fragment key={group.year}>
               <tr className="year-row">
                 <th scope="rowgroup" colSpan={3}>
-                  {group.year}
+                  <span className="year-row-inner">
+                    <span className="year-label">{group.year}</span>{" "}
+                    <span className="year-totals">
+                      <span className="totals-label">By end of {group.year}</span>
+                      <FreeCounts counts={group.freeByEnd} />
+                    </span>
+                  </span>
                 </th>
               </tr>
               {group.rows.length === 0 && (
@@ -73,10 +81,11 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
                   </td>
                 </tr>
               )}
-              {group.rows.map((row) => (
+              {group.rows.map((row, i) => (
                 <Fragment key={row.key}>
                   <LedgerRowView
                     row={row}
+                    index={i}
                     groupYear={group.year}
                     open={editingKey === row.key}
                     onToggle={() => setEditingKey(editingKey === row.key ? null : row.key)}
@@ -124,13 +133,35 @@ export function LedgerPanel({ ledger, configured, hireDate, onEditEarnDate, onRe
   );
 }
 
+/**
+ * Free Vacation and Floating Holidays as two colored counts that roll when
+ * they change. Reads as one line: ": 5 Vacation, 2 Floating Holidays".
+ */
+function FreeCounts({ counts }: { counts: BenefitCounts }) {
+  return (
+    <>
+      <span className="sr-only">: </span>
+      <span className="stat type-vacation">
+        <AnimatedNumber value={counts.vacation} /> <span className="stat-unit">Vacation</span>
+      </span>
+      <span className="sr-only">, </span>
+      <span className="stat type-floating-holiday">
+        <AnimatedNumber value={counts.floatingHoliday} />{" "}
+        <span className="stat-unit">{floatingHolidays(counts.floatingHoliday)}</span>
+      </span>
+    </>
+  );
+}
+
 function LedgerRowView({
   row,
+  index,
   groupYear,
   open,
   onToggle,
 }: {
   row: LedgerRow;
+  index: number;
   groupYear: number;
   open: boolean;
   onToggle: () => void;
@@ -150,7 +181,7 @@ function LedgerRowView({
   const date = formatEarnDate(row.earnDate, groupYear);
 
   return (
-    <tr className={classes.join(" ")} data-key={row.key}>
+    <tr className={classes.join(" ")} data-key={row.key} style={{ "--i": Math.min(index, 20) } as React.CSSProperties}>
       <td className="earn-date">
         <button
           type="button"
@@ -175,7 +206,7 @@ function LedgerRowView({
         </button>
       </td>
       <td>
-        {typeLabel(row)}
+        <span className={`type-label ${typeClass(row.benefitType)}`}>{typeLabel(row)}</span>
         {row.expiresWarning && (
           <>
             {" "}

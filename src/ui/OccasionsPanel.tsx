@@ -1,12 +1,16 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { FIRST_SUPPORTED_YEAR, LAST_SUPPORTED_YEAR, isSupportedDate } from "../engine";
+import { addMonthsClamped } from "../engine/dates";
 import type { DayType, IsoDate, Occasion, OccasionView } from "../engine";
 import type { AppData } from "../storage";
-import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonLabel } from "./format";
+import { DAY_TYPE_LABELS, formatDayOff, formatRange, seasonClass, seasonLabel, typeClass } from "./format";
+import { Reveal } from "./motion";
 import { checkOccasion, withRange, withResolvedTypes } from "./occasionEdits";
 import "./occasions.css";
 
 const DAY_TYPES: DayType[] = ["rdo", "floatingHoliday", "vacation", "unpaid"];
+
+const SEASON_ICONS: Record<string, string> = { Winter: "❄️", Spring: "🌸", Summer: "☀️", Autumn: "🍂" };
 
 interface Props {
   data: AppData;
@@ -16,40 +20,81 @@ interface Props {
   onChange: (occasions: Occasion[]) => void;
 }
 
-/** What's open: one Occasion's day editor or details form, or a new Occasion's day editor. */
+/** What's open: one Occasion's day editor, details form or delete question, or a new Occasion's day editor. */
 type Editing =
   | { kind: "days"; draft: Occasion; isNew: boolean; highlight: IsoDate[]; messages: string[] }
-  | { kind: "details"; draft: Occasion; messages: string[] };
+  | { kind: "details"; draft: Occasion; messages: string[] }
+  | { kind: "delete"; draft: Occasion };
+
+type Saved = { refused: { messages: string[]; highlight: IsoDate[] }; view?: undefined } | { refused?: undefined; view: OccasionView };
 
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** The same dates a year later (Feb 29 becomes Feb 28). */
+const aYearLater = (d: IsoDate) => addMonthsClamped(d, 12);
+
+/** An Occasion as stored, approved or not; not approved is stored as no field at all. */
+function withApproval(o: Occasion, approved: boolean): Occasion {
+  const { approved: _was, ...rest } = o;
+  return approved ? { ...rest, approved: true } : rest;
+}
+
 export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
   const [editing, setEditing] = useState<Editing | null>(null);
+  /** The new Occasion whose dates are already in the past: "Did you mean next year?" */
+  const [yearCheck, setYearCheck] = useState<string | null>(null);
+  const currentYear = Number(today.slice(0, 4));
   const stored = (id: string) => data.occasions.find((o) => o.id === id)!;
+  const isPast = (o: OccasionView) => o.deducted || o.end < today;
 
-  /** Saves `candidate` unless it Clashes; returns the messages when refused. */
-  const trySave = (candidate: Occasion): { messages: string[]; highlight: IsoDate[] } | null => {
+  /** Saves `candidate` unless it Clashes. */
+  const trySave = (candidate: Occasion): Saved => {
     const check = checkOccasion(data, today, candidate);
     if (check.clashes.length > 0) {
-      return { messages: check.messages, highlight: check.clashes.map((c) => c.date) };
+      return { refused: { messages: check.messages, highlight: check.clashes.map((c) => c.date) } };
     }
     const saved = withResolvedTypes(candidate, check.view);
     onChange([...data.occasions.filter((o) => o.id !== saved.id), saved]);
-    return null;
+    return { view: check.view };
+  };
+
+  /** Saves a new Occasion, then asks about next year if its dates are already past. */
+  const saveNew = (draft: Occasion): Saved => {
+    const result = trySave(draft);
+    if (result.view) setYearCheck(isPast(result.view) ? draft.id : null);
+    return result;
   };
 
   const add = (name: string, start: IsoDate, end: IsoDate) => {
     const draft: Occasion = { id: newId(), name, start, end, dayTypes: {} };
-    const refused = trySave(draft);
+    const { refused } = saveNew(draft);
     if (refused) {
       // A new Occasion's defaults Clash: open its day editor with the clashing dates highlighted.
       const view = checkOccasion(data, today, draft).view;
       setEditing({ kind: "days", draft: withResolvedTypes(draft, view), isNew: true, ...refused });
-      return false;
     }
-    return true;
+  };
+
+  const moveToNextYear = (id: string) => {
+    const o = stored(id);
+    const moved = { ...o, start: aYearLater(o.start), end: aYearLater(o.end), dayTypes: {} };
+    setYearCheck(null);
+    const { refused } = trySave(moved);
+    if (refused) {
+      const view = checkOccasion(data, today, moved).view;
+      setEditing({ kind: "days", draft: withResolvedTypes(moved, view), isNew: false, ...refused });
+    }
+  };
+
+  const setApproved = (id: string, approved: boolean) =>
+    onChange(data.occasions.map((o) => (o.id === id ? withApproval(o, approved) : o)));
+
+  const remove = (id: string) => {
+    onChange(data.occasions.filter((o) => o.id !== id));
+    setEditing(null);
+    if (yearCheck === id) setYearCheck(null);
   };
 
   const newDraft = editing?.kind === "days" && editing.isNew ? editing : null;
@@ -58,138 +103,248 @@ export function OccasionsPanel({ data, today, occasions, onChange }: Props) {
     <div className="occasions">
       <AddOccasionForm onAdd={add} disabled={newDraft !== null} />
 
-      {newDraft && (
-        <div className="new-draft">
-          <p className="draft-title">
-            New: <strong>{newDraft.draft.name}</strong> · {formatRange(newDraft.draft.start, newDraft.draft.end)}
+      <Reveal open={newDraft !== null}>
+        {newDraft && (
+          <div className="new-draft">
+            <p className="draft-title">
+              New: <strong>{newDraft.draft.name}</strong> ·{" "}
+              {formatRange(newDraft.draft.start, newDraft.draft.end, currentYear)}
+            </p>
+            <DayEditor
+              editing={newDraft}
+              deducted={new Set()}
+              onChange={setEditing}
+              onSave={(draft) => {
+                const { refused } = saveNew(draft);
+                setEditing(refused ? { ...newDraft, draft, ...refused } : null);
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          </div>
+        )}
+      </Reveal>
+
+      {occasions.length === 0 && !newDraft ? (
+        <p className="empty">No Occasions yet. Add one above to see what it uses.</p>
+      ) : (
+        <ul className="occasion-list">
+          {occasions.map((o, i) => {
+            const open = editing && !(editing.kind === "days" && editing.isNew) && editing.draft.id === o.id ? editing : null;
+            const toggle = (next: Editing) => setEditing(open?.kind === next.kind ? null : next);
+            return (
+              <OccasionCard
+                key={o.id}
+                occasion={o}
+                index={i}
+                currentYear={currentYear}
+                past={isPast(o)}
+                open={open}
+                yearCheck={yearCheck === o.id}
+                onEdit={() => toggle({ kind: "details", draft: stored(o.id), messages: [] })}
+                onChooseDays={() =>
+                  toggle({
+                    kind: "days",
+                    draft: withResolvedTypes(stored(o.id), o),
+                    isNew: false,
+                    highlight: [],
+                    messages: [],
+                  })
+                }
+                onApprove={() => setApproved(o.id, !o.approved)}
+                onDelete={() => toggle({ kind: "delete", draft: stored(o.id) })}
+                onMoveToNextYear={() => moveToNextYear(o.id)}
+                onKeepDates={() => setYearCheck(null)}
+                editor={
+                  open?.kind === "days" ? (
+                    <DayEditor
+                      editing={open}
+                      deducted={new Set(o.days.filter((d) => d.deducted).map((d) => d.date))}
+                      onChange={setEditing}
+                      onSave={(draft) => {
+                        const { refused } = trySave(draft);
+                        setEditing(refused ? { ...open, draft, ...refused } : null);
+                      }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : open?.kind === "details" ? (
+                    <DetailsEditor
+                      editing={open}
+                      onChange={setEditing}
+                      onSave={(draft) => {
+                        const { refused } = trySave(draft);
+                        setEditing(refused ? { ...open, draft, messages: refused.messages } : null);
+                      }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : open?.kind === "delete" ? (
+                    <ConfirmDelete name={o.name} onDelete={() => remove(o.id)} onKeep={() => setEditing(null)} />
+                  ) : null
+                }
+              />
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function OccasionCard({
+  occasion: o,
+  index,
+  currentYear,
+  past,
+  open,
+  yearCheck,
+  onEdit,
+  onChooseDays,
+  onApprove,
+  onDelete,
+  onMoveToNextYear,
+  onKeepDates,
+  editor,
+}: {
+  occasion: OccasionView;
+  index: number;
+  currentYear: number;
+  past: boolean;
+  open: Editing | null;
+  yearCheck: boolean;
+  onEdit: () => void;
+  onChooseDays: () => void;
+  onApprove: () => void;
+  onDelete: () => void;
+  onMoveToNextYear: () => void;
+  onKeepDates: () => void;
+  editor: React.ReactNode;
+}) {
+  const count = (type: DayType) => o.days.filter((d) => d.dayType === type).length;
+  const nameId = `occasion-${o.id}`;
+  const nextYear = Number(o.start.slice(0, 4)) + 1;
+  const classes = ["occasion-card", seasonClass(o.season), o.deducted && "deducted", o.approved && "approved"];
+
+  return (
+    <li
+      className={classes.filter(Boolean).join(" ")}
+      aria-labelledby={nameId}
+      style={{ "--i": Math.min(index, 12) } as React.CSSProperties}
+    >
+      <div className="occasion-head">
+        <h3 className="occasion-name" id={nameId}>
+          {o.name}
+        </h3>
+        <span className={o.approved ? "badge approved" : "badge pending"}>
+          {o.approved ? "Approved" : "Not approved yet"}
+        </span>
+      </div>
+
+      {yearCheck && (
+        <div className="year-check" role="alert">
+          <p>
+            These dates are in the past. Did you mean {nextYear}?
           </p>
-          <DayEditor
-            editing={newDraft}
-            deducted={new Set()}
-            onChange={setEditing}
-            onSave={(draft) => {
-              const refused = trySave(draft);
-              setEditing(refused ? { ...newDraft, draft, ...refused } : null);
-            }}
-            onCancel={() => setEditing(null)}
-          />
+          <div className="year-check-actions">
+            <button type="button" className="primary" onClick={onMoveToNextYear}>
+              Move to {nextYear}
+            </button>
+            <button type="button" onClick={onKeepDates}>
+              Keep these dates
+            </button>
+          </div>
         </div>
       )}
 
-      {occasions.length === 0 && !newDraft ? (
-        <p className="empty">No Occasions yet.</p>
-      ) : (
-        occasions.length > 0 && (
-          <table className="occasion-table">
-            <thead>
-              <tr>
-                <th scope="col">Occasion</th>
-                <th scope="col">Dates</th>
-                <th scope="col">PTO Days</th>
-                <th scope="col">Season</th>
-              </tr>
-            </thead>
-            <tbody>
-              {occasions.map((o) => {
-                const open = editing && !("isNew" in editing && editing.isNew) && editing.draft.id === o.id ? editing : null;
-                return (
-                  <Fragment key={o.id}>
-                    <tr className={o.deducted ? "occasion deducted" : "occasion"}>
-                      <td>
-                        <button
-                          type="button"
-                          className="link"
-                          aria-label={`Edit ${o.name}`}
-                          onClick={() =>
-                            setEditing(open?.kind === "details" ? null : { kind: "details", draft: stored(o.id), messages: [] })
-                          }
-                        >
-                          {o.name}
-                        </button>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="caret-button"
-                          aria-expanded={open?.kind === "days"}
-                          aria-label={`Day Types for ${o.name}`}
-                          onClick={() =>
-                            setEditing(
-                              open?.kind === "days"
-                                ? null
-                                : {
-                                    kind: "days",
-                                    draft: withResolvedTypes(stored(o.id), o),
-                                    isNew: false,
-                                    highlight: [],
-                                    messages: [],
-                                  },
-                            )
-                          }
-                        >
-                          <span className="dates">
-                            {/* Each date stays whole; the line may break after the dash. */}
-                            {formatRange(o.start, o.end)
-                              .split(" – ")
-                              .map((part, i, all) => (
-                                <Fragment key={i}>
-                                  {i > 0 && " "}
-                                  <span className="date">{i < all.length - 1 ? `${part} –` : part}</span>
-                                </Fragment>
-                              ))}
-                          </span>
-                          <span className="caret" aria-hidden="true">
-                            {open?.kind === "days" ? "▾" : "▸"}
-                          </span>
-                        </button>
-                      </td>
-                      <td className="pto">
-                        {o.ptoDays}
-                        {o.unpaid > 0 && <span className="note"> +{o.unpaid} unpaid</span>}
-                        {o.short > 0 && <span className="short"> short by {o.short}</span>}
-                      </td>
-                      <td className="season">{seasonLabel(o.season)}</td>
-                    </tr>
-                    {open && (
-                      <tr className="editor-row">
-                        <td colSpan={4}>
-                          {open.kind === "days" ? (
-                            <DayEditor
-                              editing={open}
-                              deducted={new Set(o.days.filter((d) => d.deducted).map((d) => d.date))}
-                              onChange={setEditing}
-                              onSave={(draft) => {
-                                const refused = trySave(draft);
-                                setEditing(refused ? { ...open, draft, ...refused } : null);
-                              }}
-                              onCancel={() => setEditing(null)}
-                            />
-                          ) : (
-                            <DetailsEditor
-                              editing={open}
-                              onChange={setEditing}
-                              onSave={(draft) => {
-                                const refused = trySave(draft);
-                                setEditing(refused ? { ...open, draft, messages: refused.messages } : null);
-                              }}
-                              onDelete={() => {
-                                if (!window.confirm(`Delete '${o.name}'?`)) return;
-                                onChange(data.occasions.filter((x) => x.id !== o.id));
-                                setEditing(null);
-                              }}
-                              onCancel={() => setEditing(null)}
-                            />
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        )
-      )}
+      <dl className="occasion-facts">
+        <div className="fact">
+          <dt>Dates</dt>
+          <dd className="dates">{formatRange(o.start, o.end, currentYear)}</dd>
+        </div>
+        <div className="fact">
+          <dt>PTO Days</dt>
+          <dd className="pto">
+            <span className="pto-count">{o.ptoDays}</span>
+            <span className="chips">
+              {(["vacation", "floatingHoliday", "rdo"] as const).map(
+                (t) =>
+                  count(t) > 0 && (
+                    <span key={t} className={`chip ${typeClass(t)}`}>
+                      {count(t)} {t === "floatingHoliday" && count(t) > 1 ? "Floating Holidays" : DAY_TYPE_LABELS[t]}
+                    </span>
+                  ),
+              )}
+              {o.unpaid > 0 && <span className={`chip ${typeClass("unpaid")}`}>+{o.unpaid} unpaid</span>}
+              {o.short > 0 && <span className="short">short by {o.short}</span>}
+            </span>
+          </dd>
+        </div>
+        <div className="fact">
+          <dt>Season</dt>
+          <dd>
+            <span className={`season-chip ${seasonClass(o.season)}`}>
+              <span aria-hidden="true">{SEASON_ICONS[o.season.name]} </span>
+              {seasonLabel(o.season)}
+            </span>
+          </dd>
+        </div>
+      </dl>
+
+      <div className="day-strip" aria-hidden="true">
+        {o.days.map((d) => (
+          <span key={d.date} className={`${typeClass(d.dayType)}${d.deducted ? " deducted" : ""}`} />
+        ))}
+      </div>
+
+      {past && <p className="past-label">Already taken · counted in your SAP balance</p>}
+
+      <div className="occasion-actions">
+        <button
+          type="button"
+          className={open?.kind === "details" ? "act-edit on" : "act-edit"}
+          aria-expanded={open?.kind === "details"}
+          onClick={onEdit}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className={open?.kind === "days" ? "act-days on" : "act-days"}
+          aria-expanded={open?.kind === "days"}
+          onClick={onChooseDays}
+        >
+          Choose days
+        </button>
+        <button type="button" className={o.approved ? "act-unapprove" : "act-approve"} onClick={onApprove}>
+          {o.approved ? "Unapprove" : "Approve"}
+        </button>
+        <button
+          type="button"
+          className={open?.kind === "delete" ? "act-delete danger on" : "act-delete danger"}
+          aria-expanded={open?.kind === "delete"}
+          onClick={onDelete}
+        >
+          Delete
+        </button>
+      </div>
+
+      <Reveal open={editor !== null}>{editor}</Reveal>
+    </li>
+  );
+}
+
+function ConfirmDelete({ name, onDelete, onKeep }: { name: string; onDelete: () => void; onKeep: () => void }) {
+  return (
+    <div className="confirm-delete" role="group" aria-label={`Delete '${name}'?`}>
+      <p>
+        <strong>Delete '{name}'?</strong> Its days go back on the Ledger. This can't be undone.
+      </p>
+      <div className="actions">
+        <button type="button" onClick={onKeep}>
+          Keep it
+        </button>
+        <button type="button" className="danger solid" onClick={onDelete}>
+          Yes, delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -205,7 +360,7 @@ function AddOccasionForm({
   onAdd,
   disabled,
 }: {
-  onAdd: (name: string, start: IsoDate, end: IsoDate) => boolean;
+  onAdd: (name: string, start: IsoDate, end: IsoDate) => void;
   disabled: boolean;
 }) {
   const [name, setName] = useState("");
@@ -232,10 +387,11 @@ function AddOccasionForm({
         setEnd("");
       }}
     >
+      <h3 className="add-title">Plan an Occasion</h3>
       <Messages messages={messages} />
       <label className="field name">
-        <span>Occasion</span>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
+        <span>Occasion name</span>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Beach week" required />
       </label>
       <label className="field">
         <span>Start</span>
@@ -259,7 +415,7 @@ function AddOccasionForm({
         />
       </label>
       <button type="submit" className="primary" disabled={disabled}>
-        Add
+        Add Occasion
       </button>
     </form>
   );
@@ -296,6 +452,7 @@ function DayEditor({
 
   return (
     <div className="day-editor">
+      <p className="editor-title">Choose each day's type</p>
       <Messages messages={editing.messages} />
       <ul className="day-list">
         {dates.map((date) => {
@@ -304,6 +461,7 @@ function DayEditor({
             deducted.has(date) && "deducted",
             editing.highlight.includes(date) && "clashing",
           ].filter(Boolean);
+          const type = draft.dayTypes[date];
           return (
             <li key={date} className={classes.join(" ")}>
               <label>
@@ -311,7 +469,11 @@ function DayEditor({
                   {formatDayOff(date)}
                   {deducted.has(date) && <span className="note"> Deducted</span>}
                 </span>
-                <select value={draft.dayTypes[date]} onChange={(e) => setType(date, e.target.value as DayType)}>
+                <select
+                  className={`type-select ${typeClass(type)}`}
+                  value={type}
+                  onChange={(e) => setType(date, e.target.value as DayType)}
+                >
                   {DAY_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {DAY_TYPE_LABELS[t]}
@@ -339,13 +501,11 @@ function DetailsEditor({
   editing,
   onChange,
   onSave,
-  onDelete,
   onCancel,
 }: {
   editing: Extract<Editing, { kind: "details" }>;
   onChange: (e: Editing) => void;
   onSave: (draft: Occasion) => void;
-  onDelete: () => void;
   onCancel: () => void;
 }) {
   const { draft } = editing;
@@ -365,9 +525,10 @@ function DetailsEditor({
         onSave(withRange({ ...draft, name: draft.name.trim() }, draft.start, end));
       }}
     >
+      <p className="editor-title">Edit the name and dates</p>
       <Messages messages={editing.messages} />
       <label className="field">
-        <span>Occasion</span>
+        <span>Occasion name</span>
         <input type="text" value={draft.name} onChange={(e) => set({ name: e.target.value })} required />
       </label>
       <div className="date-pair">
@@ -394,10 +555,6 @@ function DetailsEditor({
         </label>
       </div>
       <div className="actions">
-        <button type="button" className="danger" onClick={onDelete}>
-          Delete
-        </button>
-        <span className="spacer" />
         <button type="button" onClick={onCancel}>
           Cancel
         </button>

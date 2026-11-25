@@ -56,15 +56,20 @@ describe("the Earn Date picker (finding 14)", () => {
 });
 
 describe("the summary", () => {
-  it("US-22: shows free days earned now, by the end of this year and by the end of next year", async () => {
+  it("US-22: shows free days earned now as the card at the top", async () => {
     const el = await ledger();
-    const lines = [...el.querySelectorAll(".summary li")].map((li) => text(li));
-    expect(lines).toEqual([
-      "Earned now: 5 Vacation, 1 Floating Holiday",
-      "By end of 2025: 5 Vacation, 1 Floating Holiday",
-      "By end of 2026: 15 Vacation, 3 Floating Holidays",
-    ]);
+    const cards = [...el.querySelectorAll(".summary li")].map((li) => text(li).trim());
+    expect(cards).toEqual(["Earned now: 5 Vacation, 1 Floating Holiday"]);
     expect(text(el)).not.toContain("Free:");
+  });
+
+  it("US-22: each year separator shows its own By end of <year> totals next to the year", async () => {
+    const el = await ledger();
+    const yearRows = [...el.querySelectorAll(".year-row")].map((r) => text(r).trim());
+    expect(yearRows).toEqual([
+      "2025 By end of 2025: 5 Vacation, 1 Floating Holiday",
+      "2026 By end of 2026: 15 Vacation, 3 Floating Holidays",
+    ]);
   });
 });
 

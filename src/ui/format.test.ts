@@ -4,7 +4,7 @@ import {
   formatDayOff,
   formatRange,
   formatEarnDate,
-  freeSummaryLines,
+  freeLine,
   sapBalanceNote,
   seasonLabel,
   typeLabel,
@@ -30,6 +30,16 @@ describe("Occasion formatting", () => {
   it("shows Dates like 'Wed Sep 9 – Sat Sep 12', or one date alone", () => {
     expect(formatRange("2026-09-09", "2026-09-12")).toBe("Wed Sep 9 – Sat Sep 12");
     expect(formatRange("2026-09-09", "2026-09-09")).toBe("Wed Sep 9");
+  });
+
+  it("US-10: shows the year whenever it isn't the current year", () => {
+    expect(formatRange("2026-09-09", "2026-09-12", 2026)).toBe("Wed Sep 9 – Sat Sep 12");
+    expect(formatRange("2027-03-01", "2027-03-02", 2026)).toBe("Mon Mar 1 – Tue Mar 2, 2027");
+    expect(formatRange("2027-03-01", "2027-03-01", 2026)).toBe("Mon Mar 1, 2027");
+    expect(formatRange("2025-12-29", "2025-12-30", 2026)).toBe("Mon Dec 29 – Tue Dec 30, 2025");
+    // Across New Year, each date not in the current year carries its own.
+    expect(formatRange("2026-12-30", "2027-01-02", 2026)).toBe("Wed Dec 30 – Sat Jan 2, 2027");
+    expect(formatRange("2027-12-30", "2028-01-02", 2026)).toBe("Thu Dec 30, 2027 – Sun Jan 2, 2028");
   });
 
   it("shows day editor dates like 'Tue, Nov 24th 2026'", () => {
@@ -81,19 +91,13 @@ describe("Ledger formatting", () => {
     expect(label("vacation", true, false)).toBe("Vacation (Previous Year)");
   });
 
-  it("US-22: summarizes free days earned now, by the end of this year and by the end of next year", () => {
-    expect(
-      freeSummaryLines({
-        thisYear: 2026,
-        earnedNow: { vacation: 5, floatingHoliday: 1 },
-        endOfThisYear: { vacation: 14, floatingHoliday: 2 },
-        endOfNextYear: { vacation: 20, floatingHoliday: 3 },
-      }),
-    ).toEqual([
+  it("US-22: words free days earned now, or by the end of a year", () => {
+    expect(freeLine("Earned now", { vacation: 5, floatingHoliday: 1 })).toBe(
       "Earned now: 5 Vacation, 1 Floating Holiday",
-      "By end of 2026: 14 Vacation, 2 Floating Holidays",
+    );
+    expect(freeLine("By end of 2027", { vacation: 20, floatingHoliday: 3 })).toBe(
       "By end of 2027: 20 Vacation, 3 Floating Holidays",
-    ]);
+    );
   });
 
   it("says what an SAP balance counts as, with any hours left over", () => {
